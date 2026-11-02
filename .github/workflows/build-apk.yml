@@ -42,7 +42,7 @@ jobs:
           echo "::group::Build FFmpeg native libs (alac flac vorbis opus)"
           cd "$FFMPEG_MODULE_PATH/jni"
           ln -sfn /tmp/ffmpeg ffmpeg
-          ./build_ffmpeg.sh "$FFMPEG_MODULE_PATH" "$NDK_PATH" linux-x86_64 24 alac flac vorbis opus
+          ./build_ffmpeg.sh "$FFMPEG_MODULE_PATH" "$NDK_PATH" linux-x86_64 21 alac flac vorbis opus
           echo "::endgroup::"
 
           echo "::group::Assemble media3-decoder-ffmpeg AAR (project :lib-decoder-ffmpeg)"
