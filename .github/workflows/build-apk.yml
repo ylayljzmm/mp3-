@@ -6,9 +6,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,19 +33,44 @@ jobs:
       - name: Test, lint and build release APK
         run: gradle testDebugUnitTest lintDebug assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Prepare debug keystore
+        run: |
+          mkdir -p android
+          keytool -genkeypair -v \
+            -keystore android/debug.keystore \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10950 \
+            -dname "CN=Android Debug, O=Android, C=US"
+
+      - name: Zipalign
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/zipalign" -v -p 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/apk/release/app-release-aligned.apk
+
+      - name: Sign with debug keystore
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/apksigner" sign \
+            --ks android/debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out app/build/outputs/apk/release/mp3-player-4.1.0-signed.apk \
+            app/build/outputs/apk/release/app-release-aligned.apk
+
+      - name: Verify signature
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/apksigner" verify --verbose app/build/outputs/apk/release/mp3-player-4.1.0-signed.apk
+          ls -la app/build/outputs/apk/release/
+
+      - name: Upload signed APK and keystore
         uses: actions/upload-artifact@v4
         with:
-          name: MP3播放器-4.1.0-待签名
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
-
-      - name: Publish downloadable build
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v4.1.0-build
-          name: MP3 播放器 4.1.0 云端构建
-          prerelease: true
-          body: |
-            这是自动构建的未签名 APK，仅供后续使用原车机签名进行正式发布。
-            车机请通过应用内更新安装腾讯云分发的正式签名版本。
-          files: app/build/outputs/apk/release/app-release-unsigned.apk
+          name: MP3播放器-4.1.0-已签名
+          path: |
+            app/build/outputs/apk/release/mp3-player-4.1.0-signed.apk
+            android/debug.keystore
