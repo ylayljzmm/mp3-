@@ -51,8 +51,16 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Install AAR into mavenLocal (media3 publish task unavailable here)"
-          AAR=$(find /tmp/media3/libraries/decoder_ffmpeg/build/outputs/aar -name '*.aar' | head -1)
+          set +e
+          AAR=$(find /tmp/media3 -type f -name '*.aar' 2>/dev/null | grep -i 'decoder.ffmpeg' | head -1)
+          if [ -z "$AAR" ]; then
+            echo "AAR not found via grep; listing all .aar under /tmp/media3 for debugging:"
+            find /tmp/media3 -type f -name '*.aar' 2>/dev/null
+            AAR=$(find /tmp/media3 -type f -name '*.aar' 2>/dev/null | head -1)
+          fi
+          set -e
           echo "Built AAR: $AAR"
+          [ -n "$AAR" ] || { echo "ERROR: no AAR was produced by :lib-decoder-ffmpeg"; exit 1; }
           MVN_DIR=~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/1.2.1
           mkdir -p "$MVN_DIR"
           cp "$AAR" "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.aar"
