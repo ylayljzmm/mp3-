@@ -47,8 +47,7 @@ jobs:
 
           echo "::group::Assemble + publish media3-decoder-ffmpeg (project :lib-decoder-ffmpeg) to mavenLocal"
           cd /tmp/media3
-          ./gradlew :lib-decoder-ffmpeg:assembleRelease publishToMavenLocal \
-            -x lint -x lintVitalRelease -x spotlessCheck -x check --no-daemon
+          ./gradlew :lib-decoder-ffmpeg:assembleRelease :lib-decoder-ffmpeg:publishToMavenLocal --no-daemon
           echo "::endgroup::"
 
           echo "::group::Verify published artifact"
