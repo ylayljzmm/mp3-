@@ -45,16 +45,56 @@ jobs:
           ./build_ffmpeg.sh "$FFMPEG_MODULE_PATH" "$NDK_PATH" linux-x86_64 24 alac flac vorbis opus
           echo "::endgroup::"
 
-          echo "::group::Assemble + publish media3-decoder-ffmpeg (project :lib-decoder-ffmpeg) to mavenLocal"
+          echo "::group::Assemble media3-decoder-ffmpeg AAR (project :lib-decoder-ffmpeg)"
           cd /tmp/media3
-          ./gradlew :lib-decoder-ffmpeg:assembleRelease :lib-decoder-ffmpeg:publishToMavenLocal --no-daemon
+          ./gradlew :lib-decoder-ffmpeg:assembleRelease --no-daemon
           echo "::endgroup::"
 
-          echo "::group::Verify published artifact"
+          echo "::group::Install AAR into mavenLocal (media3 publish task unavailable here)"
+          AAR=$(find /tmp/media3/libraries/decoder_ffmpeg/build/outputs/aar -name '*.aar' | head -1)
+          echo "Built AAR: $AAR"
+          MVN_DIR=~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/1.2.1
+          mkdir -p "$MVN_DIR"
+          cp "$AAR" "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.aar"
+          cat > "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.pom" <<'POM_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>androidx.media3</groupId>
+  <artifactId>media3-decoder-ffmpeg</artifactId>
+  <version>1.2.1</version>
+  <packaging>aar</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>androidx.media3</groupId>
+      <artifactId>media3-decoder</artifactId>
+      <version>1.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>androidx.media3</groupId>
+      <artifactId>media3-exoplayer</artifactId>
+      <version>1.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>androidx.annotation</groupId>
+      <artifactId>annotation</artifactId>
+      <version>1.7.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM_EOF
+          echo "::endgroup::"
+
+          echo "::group::Verify installed artifact"
           ls -R ~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/ 2>/dev/null | head -40
-          test -f ~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/1.2.1/media3-decoder-ffmpeg-1.2.1.aar \
-            && echo "OK: media3-decoder-ffmpeg:1.2.1 published" \
-            || { echo "ERROR: media3-decoder-ffmpeg:1.2.1 not published"; exit 1; }
+          test -f "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.aar" -a -f "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.pom" \
+            && echo "OK: media3-decoder-ffmpeg:1.2.1 installed to mavenLocal" \
+            || { echo "ERROR: media3-decoder-ffmpeg:1.2.1 not installed"; exit 1; }
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
