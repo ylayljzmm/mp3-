@@ -1,0 +1,3 @@
+# Build trigger
+
+Triggered at 2026-11-02 for v4.1.0 release build.
