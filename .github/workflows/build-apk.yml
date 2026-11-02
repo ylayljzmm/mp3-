@@ -22,11 +22,40 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK packages (incl. NDK + CMake for FFmpeg build)
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1" "ndk;26.1.10909125"
+
+      - name: Build Media3 FFmpeg decoder extension (software ALAC/FLAC/OGG decode)
+        env:
+          NDK_PATH: /usr/local/lib/android/sdk/ndk/26.1.10909125
+        run: |
+          set -e
+          echo "::group::Clone media3 + FFmpeg sources"
+          git clone --depth 1 --branch 1.2.1 https://github.com/androidx/media.git /tmp/media3
+          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git /tmp/ffmpeg
+          echo "::endgroup::"
+
+          FFMPEG_MODULE_PATH="/tmp/media3/libraries/decoder_ffmpeg/src/main"
+          echo "::group::Build FFmpeg native libs (alac flac vorbis opus)"
+          cd "$FFMPEG_MODULE_PATH/jni"
+          ln -sfn /tmp/ffmpeg ffmpeg
+          ./build_ffmpeg.sh "$FFMPEG_MODULE_PATH" "$NDK_PATH" linux-x86_64 24 alac flac vorbis opus
+          echo "::endgroup::"
+
+          echo "::group::Assemble + publish media3-decoder-ffmpeg to mavenLocal"
+          cd /tmp/media3
+          ./gradlew :media3-decoder-ffmpeg:assembleRelease publishToMavenLocal \
+            -x lint -x lintVitalRelease -x spotlessCheck -x check --no-daemon
+          echo "::endgroup::"
+
+          echo "::group::Verify published artifact"
+          ls -R ~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/ 2>/dev/null | head -40
+          test -f ~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/1.2.1/media3-decoder-ffmpeg-1.2.1.aar \
+            && echo "OK: media3-decoder-ffmpeg:1.2.1 published" \
+            || { echo "ERROR: media3-decoder-ffmpeg:1.2.1 not published"; exit 1; }
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
