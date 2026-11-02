@@ -56,38 +56,7 @@ jobs:
           MVN_DIR=~/.m2/repository/androidx/media3/media3-decoder-ffmpeg/1.2.1
           mkdir -p "$MVN_DIR"
           cp "$AAR" "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.aar"
-          cat > "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.pom" <<'POM_EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>androidx.media3</groupId>
-  <artifactId>media3-decoder-ffmpeg</artifactId>
-  <version>1.2.1</version>
-  <packaging>aar</packaging>
-  <dependencies>
-    <dependency>
-      <groupId>androidx.media3</groupId>
-      <artifactId>media3-decoder</artifactId>
-      <version>1.2.1</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>androidx.media3</groupId>
-      <artifactId>media3-exoplayer</artifactId>
-      <version>1.2.1</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>androidx.annotation</groupId>
-      <artifactId>annotation</artifactId>
-      <version>1.7.0</version>
-      <scope>compile</scope>
-    </dependency>
-  </dependencies>
-</project>
-POM_EOF
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHByb2plY3QgeG1sbnM9Imh0dHA6Ly9tYXZlbi5hcGFjaGUub3JnL1BPTS80LjAuMCIKICAgICAgICAgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1pbnN0YW5jZSIKICAgICAgICAgeHNpOnNjaGVtYUxvY2F0aW9uPSJodHRwOi8vbWF2ZW4uYXBhY2hlLm9yZy9QT00vNC4wLjAgaHR0cDovL21hdmVuLmFwYWNoZS5vcmcveHNkL21hdmVuLTQuMC4wLnhzZCI+CiAgPG1vZGVsVmVyc2lvbj40LjAuMDwvbW9kZWxWZXJzaW9uPgogIDxncm91cElkPmFuZHJvaWR4Lm1lZGlhMzwvZ3JvdXBJZD4KICA8YXJ0aWZhY3RJZD5tZWRpYTMtZGVjb2Rlci1mZm1wZWc8L2FydGlmYWN0SWQ+CiAgPHZlcnNpb24+MS4yLjE8L3ZlcnNpb24+CiAgPHBhY2thZ2luZz5hYXI8L3BhY2thZ2luZz4KICA8ZGVwZW5kZW5jaWVzPgogICAgPGRlcGVuZGVuY3k+CiAgICAgIDxncm91cElkPmFuZHJvaWR4Lm1lZGlhMzwvZ3JvdXBJZD4KICAgICAgPGFydGlmYWN0SWQ+bWVkaWEzLWRlY29kZXI8L2FydGlmYWN0SWQ+CiAgICAgIDx2ZXJzaW9uPjEuMi4xPC92ZXJzaW9uPgogICAgICA8c2NvcGU+Y29tcGlsZTwvc2NvcGU+CiAgICA8L2RlcGVuZGVuY3k+CiAgICA8ZGVwZW5kZW5jeT4KICAgICAgPGdyb3VwSWQ+YW5kcm9pZHgubWVkaWEzPC9ncm91cElkPgogICAgICA8YXJ0aWZhY3RJZD5tZWRpYTMtZXhvcGxheWVyPC9hcnRpZmFjdElkPgogICAgICA8dmVyc2lvbj4xLjIuMTwvdmVyc2lvbj4KICAgICAgPHNjb3BlPmNvbXBpbGU8L3Njb3BlPgogICAgPC9kZXBlbmRlbmN5PgogICAgPGRlcGVuZGVuY3k+CiAgICAgIDxncm91cElkPmFuZHJvaWR4LmFubm90YXRpb248L2dyb3VwSWQ+CiAgICAgIDxhcnRpZmFjdElkPmFubm90YXRpb248L2FydGlmYWN0SWQ+CiAgICAgIDx2ZXJzaW9uPjEuNy4wPC92ZXJzaW9uPgogICAgICA8c2NvcGU+Y29tcGlsZTwvc2NvcGU+CiAgICA8L2RlcGVuZGVuY3k+CiAgPC9kZXBlbmRlbmNpZXM+CjwvcHJvamVjdD4K" | base64 -d > "$MVN_DIR/media3-decoder-ffmpeg-1.2.1.pom"
           echo "::endgroup::"
 
           echo "::group::Verify installed artifact"
