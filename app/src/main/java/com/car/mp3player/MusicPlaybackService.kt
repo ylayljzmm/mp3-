@@ -134,9 +134,13 @@ class MusicPlaybackService : MediaSessionService() {
             exoPlayer = ExoPlayer.Builder(this)
                 .setRenderersFactory(
                     DefaultRenderersFactory(this).apply {
-                        // Fall back to the FFmpeg software decoder (media3-decoder-ffmpeg)
-                        // when a device's MediaCodec cannot decode a track (e.g. ALAC m4a,
-                        // flac/wav/ogg on some car-head-unit builds).
+                        // Use the FFmpeg software decoder extension (media3-decoder-ffmpeg)
+                        // for formats the device MediaCodec cannot handle — most importantly
+                        // ALAC (Apple Lossless) m4a, which no Android device decodes in hardware.
+                        // EXTENSION_RENDERER_MODE_ON only engages FfmpegAudioRenderer when the
+                        // default MediaCodec renderer does not support the input format, so mp3/aac
+                        // still use hardware decoding.
+                        setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                         setEnableDecoderFallback(true)
                     }
                 )
