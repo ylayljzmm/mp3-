@@ -11,8 +11,8 @@ android {
         applicationId = "com.car.mp3player"
         minSdk = 24
         targetSdk = 34
-        versionCode = 41
-        versionName = "4.1.0"
+        versionCode = 42
+        versionName = "4.2.0"
     }
 
     buildTypes {
@@ -52,6 +52,9 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-session:1.2.1")
+    // FFmpeg software decoder: lets ALAC (Apple Lossless) m4a and flac/wav/ogg play on
+    // car-head-unit MediaCodec stacks that lack hardware decoders. Used only as a fallback.
+    implementation("androidx.media3:media3-decoder-ffmpeg:1.2.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

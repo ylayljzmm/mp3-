@@ -16,9 +16,11 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -129,7 +131,17 @@ class MusicPlaybackService : MediaSessionService() {
         runCatching {
             createChannel()
             PlaybackStateHolder.setPlayMode(settings.playMode)
-            exoPlayer = ExoPlayer.Builder(this).build().apply {
+            exoPlayer = ExoPlayer.Builder(this)
+                .setRenderersFactory(
+                    DefaultRenderersFactory(this).apply {
+                        // Fall back to the FFmpeg software decoder (media3-decoder-ffmpeg)
+                        // when a device's MediaCodec cannot decode a track (e.g. ALAC m4a,
+                        // flac/wav/ogg on some car-head-unit builds).
+                        setEnableDecoderFallback(true)
+                    }
+                )
+                .build()
+                .apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_ENDED) playNext()
@@ -552,7 +564,7 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     private fun buildMediaItem(song: Song): MediaItem {
-        return MediaItem.Builder()
+        val builder = MediaItem.Builder()
             .setUri(songUri(song))
             .setMediaId(song.path)
             .setMediaMetadata(
@@ -561,7 +573,22 @@ class MusicPlaybackService : MediaSessionService() {
                     .setArtist(song.artist)
                     .build()
             )
-            .build()
+        // Hint the container/MIME so ExoPlayer picks the right extractor even when the
+        // source is a content:// document-tree URI with no file extension (custom folder
+        // selection). Without this, m4a/flac/wav/ogg opened via SAF can fail to play.
+        mapExtensionToMime(song.path)?.let { builder.setMimeType(it) }
+        return builder.build()
+    }
+
+    private fun mapExtensionToMime(path: String): String? {
+        return when (path.substringAfterLast('.', "").lowercase()) {
+            "m4a", "mp4", "aac" -> MimeTypes.AUDIO_MP4
+            "mp3" -> MimeTypes.AUDIO_MPEG
+            "flac" -> MimeTypes.AUDIO_FLAC
+            "wav", "wave" -> MimeTypes.AUDIO_WAV
+            "ogg", "oga" -> MimeTypes.AUDIO_OGG
+            else -> null
+        }
     }
 
     private fun acquireAudioFocus() {

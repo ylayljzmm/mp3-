@@ -61,7 +61,7 @@ jobs:
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out app/build/outputs/apk/release/mp3-player-4.1.0-signed.apk \
+            --out app/build/outputs/apk/release/mp3-player-4.2.0-signed.apk \
             app/build/outputs/apk/release/app-release-aligned.apk
 
       - name: Verify signature
@@ -73,7 +73,7 @@ jobs:
       - name: Upload signed APK and keystore
         uses: actions/upload-artifact@v4
         with:
-          name: MP3播放器-4.1.0-已签名
+          name: MP3播放器-4.2.0-已签名
           path: |
-            app/build/outputs/apk/release/mp3-player-4.1.0-signed.apk
+            app/build/outputs/apk/release/mp3-player-4.2.0-signed.apk
             android/debug.keystore
