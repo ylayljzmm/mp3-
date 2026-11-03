@@ -2,20 +2,20 @@
 <resources>
     <color name="netease_red">#FFB15A</color>
     <color name="netease_red_dark">#DB8434</color>
-    <color name="background">#0B0E12</color>
-    <color name="surface">#151B22</color>
-    <color name="surface_elevated">#1E2630</color>
+    <color name="background">#0F141B</color>
+    <color name="surface">#19212B</color>
+    <color name="surface_elevated">#212B36</color>
     <color name="text_primary">#F6F1E7</color>
     <color name="text_secondary">#AAB4C0</color>
     <color name="text_hint">#727E8C</color>
-    <color name="divider">#34404D</color>
+    <color name="divider">#26313D</color>
     <color name="chip_bg">#33FFB15A</color>
     <color name="playing_highlight">#26FFB15A</color>
     <color name="karaoke_highlight">#FFB15A</color>
     <color name="karaoke_pending">#B8F6F1E7</color>
     <color name="karaoke_next">#73AAB4C0</color>
-    <color name="bottom_nav_bg">#10151B</color>
-    <color name="netease_bottom_nav">#10151B</color>
+    <color name="bottom_nav_bg">#0F141B</color>
+    <color name="netease_bottom_nav">#0F141B</color>
     <color name="player_button_icon">#15100A</color>
     <color name="car_success">#72D6C2</color>
 </resources>

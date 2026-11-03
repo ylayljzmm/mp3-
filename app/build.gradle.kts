@@ -11,8 +11,8 @@ android {
         applicationId = "com.car.mp3player"
         minSdk = 24
         targetSdk = 34
-        versionCode = 43
-        versionName = "4.3.0"
+        versionCode = 45
+        versionName = "4.4.0"
     }
 
     buildTypes {

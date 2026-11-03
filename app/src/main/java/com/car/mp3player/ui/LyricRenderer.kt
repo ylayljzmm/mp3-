@@ -58,7 +58,9 @@ object LyricRenderer {
         val nextScale: Float,
         val bold: Boolean,
         val outline: Boolean,
-        val strokeWidthPx: Float
+        val strokeWidthPx: Float,
+        /** 行距系数：单行占用的垂直空间为字号的多少倍 */
+        val lineSpacing: Float
     )
 
     fun styleFrom(
@@ -109,7 +111,8 @@ object LyricRenderer {
             nextScale = settings.nextLineScale,
             bold = bold,
             outline = !forPlayer && settings.overlayStrokeEnabled,
-            strokeWidthPx = strokeWidthPx
+            strokeWidthPx = strokeWidthPx,
+            lineSpacing = if (forPlayer) settings.playerLyricLineSpacing else 2.2f
         )
     }
 

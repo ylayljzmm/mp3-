@@ -197,7 +197,7 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun syncPlayerBottomNav(backgroundColor: Int) {
         if (binding.viewPager.currentItem != 1) return
         val palette = AppThemeManager.palette(this, settings)
-        AppThemeManager.applyPlayerBottomNav(binding.bottomNav, palette, backgroundColor)
+        AppThemeManager.applyPlayerBottomNav(binding.bottomNav, palette, backgroundColor, binding.bottomDock)
         window.navigationBarColor = AppThemeManager.playerBottomNavColors(palette, backgroundColor)
     }
 
@@ -208,7 +208,7 @@ class MainActivity : AppCompatActivity(), MainHost {
     private fun applyAppTheme() {
         val palette = AppThemeManager.palette(this, settings)
         binding.root.setBackgroundColor(palette.background)
-        AppThemeManager.applyBottomNav(binding.bottomNav, palette)
+        AppThemeManager.applyBottomNav(binding.bottomNav, palette, dock = binding.bottomDock)
         window.navigationBarColor = palette.bottomNavBg
         window.statusBarColor = android.graphics.Color.TRANSPARENT
     }

@@ -10,119 +10,107 @@
         android:id="@+id/themeBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FF1A1410" />
+        android:background="#FF141B24" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/rootConstraint"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 顶部歌名信息 -->
-        <LinearLayout
-            android:id="@+id/header"
-            android:layout_width="0dp"
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/stageCenterGuide"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="start"
             android:orientation="vertical"
-            android:paddingStart="28dp"
-            android:paddingTop="18dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="10dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintGuide_percent="0.46" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/now_playing"
-                android:textAllCaps="true"
-                android:textColor="@color/netease_red"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/songTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:ellipsize="marquee"
-                android:gravity="start"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:scrollHorizontally="true"
-                android:singleLine="true"
-                android:textColor="#F5FFFFFF"
-                android:textSize="28sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/songArtist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:gravity="start"
-                android:singleLine="true"
-                android:textColor="#CCFFFFFF"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <!-- 左列：封面 + 进度 + 操作台 -->
+        <!-- 左栏：封面 / 歌名 / 进度 / 控件 -->
         <LinearLayout
             android:id="@+id/leftPanel"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:paddingStart="28dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="20dp"
-            android:paddingBottom="16dp"
+            android:paddingStart="26dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="22dp"
+            android:paddingBottom="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/stageCenterGuide"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/header">
+            app:layout_constraintTop_toTopOf="parent">
 
             <com.car.mp3player.ui.VinylRecordView
                 android:id="@+id/vinylRecord"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:contentDescription="@string/album_cover"
-                android:padding="14dp" />
+                android:contentDescription="@string/album_cover" />
 
-            <com.google.android.material.slider.Slider
-                android:id="@+id/progressSlider"
+            <LinearLayout
+                android:id="@+id/header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:valueFrom="0"
-                android:valueTo="100"
-                app:tickVisible="false"
-                app:thumbColor="@color/netease_red"
-                app:trackColorActive="@color/netease_red"
-                app:trackColorInactive="#3DFFFFFF" />
+                android:orientation="vertical"
+                android:paddingTop="4dp">
+
+                <TextView
+                    android:id="@+id/songTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="marquee"
+                    android:gravity="start"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:scrollHorizontally="true"
+                    android:singleLine="true"
+                    android:textColor="#F5FFFFFF"
+                    android:textSize="23sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/songArtist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:gravity="start"
+                    android:singleLine="true"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/timeCurrent"
-                    android:layout_width="0dp"
+                    android:layout_width="44dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:gravity="start|center_vertical"
                     android:text="0:00"
                     android:textColor="#AAFFFFFF"
                     android:textSize="13sp" />
 
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/progressSlider"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:valueFrom="0"
+                    android:valueTo="100"
+                    app:thumbColor="@color/netease_red"
+                    app:tickVisible="false"
+                    app:trackColorActive="@color/netease_red"
+                    app:trackColorInactive="#3DFFFFFF" />
+
                 <TextView
                     android:id="@+id/timeTotal"
-                    android:layout_width="wrap_content"
+                    android:layout_width="44dp"
                     android:layout_height="wrap_content"
-                    android:gravity="end"
+                    android:gravity="end|center_vertical"
                     android:text="0:00"
                     android:textColor="#AAFFFFFF"
                     android:textSize="13sp" />
@@ -131,7 +119,6 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
                 android:gravity="center"
                 android:orientation="horizontal">
 
@@ -148,7 +135,7 @@
                     android:id="@+id/btnPrev"
                     android:layout_width="58dp"
                     android:layout_height="58dp"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="10dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/prev"
                     android:src="@drawable/ic_skip_previous"
@@ -158,7 +145,7 @@
                     android:id="@+id/btnPlayPause"
                     android:layout_width="72dp"
                     android:layout_height="72dp"
-                    android:layout_marginStart="18dp"
+                    android:layout_marginStart="16dp"
                     android:background="@drawable/bg_play_button"
                     android:contentDescription="@string/play"
                     android:padding="19dp"
@@ -170,7 +157,7 @@
                     android:id="@+id/btnNext"
                     android:layout_width="58dp"
                     android:layout_height="58dp"
-                    android:layout_marginStart="18dp"
+                    android:layout_marginStart="16dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/next"
                     android:src="@drawable/ic_skip_next"
@@ -180,50 +167,27 @@
                     android:id="@+id/btnLyrics"
                     android:layout_width="52dp"
                     android:layout_height="52dp"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="10dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/tap_toggle_lyrics"
                     android:src="@drawable/ic_lyrics"
                     app:tint="#F0FFFFFF" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/modeLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/bg_mode_pill"
-                android:gravity="center"
-                android:paddingStart="12dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="4dp"
-                android:text="@string/mode_order"
-                android:textColor="#99FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- 右列：歌词（常显） -->
+        <!-- 右栏：歌词（常显，占满整高） -->
         <com.car.mp3player.ui.ScrollLyricView
             android:id="@+id/scrollLyricView"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:paddingStart="22dp"
-            android:paddingTop="16dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="16dp"
+            android:paddingStart="18dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="6dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="@id/stageCenterGuide"
-            app:layout_constraintTop_toBottomOf="@id/header" />
-
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/stageCenterGuide"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.42" />
+            app:layout_constraintStart_toEndOf="@id/stageCenterGuide"
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>

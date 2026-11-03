@@ -28,9 +28,10 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat(KEY_PLAYER_NEXT_FONT_SIZE, 17f)
         set(value) = prefs.edit { putFloat(KEY_PLAYER_NEXT_FONT_SIZE, value) }
 
-    var playerLyricLines: Int
-        get() = prefs.getInt(KEY_PLAYER_LYRIC_LINES, 7).coerceIn(3, 12)
-        set(value) = prefs.edit { putInt(KEY_PLAYER_LYRIC_LINES, value.coerceIn(3, 12)) }
+    /** 播放页歌词行距系数：2.4 表示单行占 2.4 倍字号的垂直空间（越小越紧凑） */
+    var playerLyricLineSpacing: Float
+        get() = prefs.getFloat(KEY_PLAYER_LINE_SPACING, 2.4f).coerceIn(1.4f, 4.0f)
+        set(value) = prefs.edit { putFloat(KEY_PLAYER_LINE_SPACING, value.coerceIn(1.4f, 4.0f)) }
 
     var currentLineScale: Float
         get() = prefs.getFloat(KEY_CURRENT_SCALE, 1.05f)
@@ -307,7 +308,7 @@ class SettingsRepository(context: Context) {
         const val KEY_FONT_SIZE = "font_size"
         const val KEY_PLAYER_FONT_SIZE = "player_font_size"
         const val KEY_PLAYER_NEXT_FONT_SIZE = "player_next_font_size"
-        const val KEY_PLAYER_LYRIC_LINES = "player_lyric_lines"
+        const val KEY_PLAYER_LINE_SPACING = "player_line_spacing"
         const val KEY_CURRENT_SCALE = "current_line_scale"
         const val KEY_NEXT_SCALE = "next_line_scale"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"

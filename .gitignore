@@ -8,3 +8,11 @@
 .externalNativeBuild
 .cxx
 app/build
+
+# 本地打包/发布辅助脚本与产物，不入库
+publish_release.py
+monitor*.py
+wf_*.yml
+*.apk
+*.apk.idsig
+*.zip

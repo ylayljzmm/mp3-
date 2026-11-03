@@ -5,10 +5,10 @@
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
-    android:minHeight="76dp"
+    android:minHeight="68dp"
     android:orientation="horizontal"
     android:paddingHorizontal="18dp"
-    android:paddingVertical="12dp">
+    android:paddingVertical="10dp">
 
     <LinearLayout
         android:layout_width="0dp"

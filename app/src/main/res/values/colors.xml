@@ -2,20 +2,20 @@
 <resources>
     <color name="netease_red">#FFB15A</color>
     <color name="netease_red_dark">#DB8434</color>
-    <color name="background">#0B0E12</color>
-    <color name="surface">#151B22</color>
-    <color name="surface_elevated">#1E2630</color>
+    <color name="background">#0F141B</color>
+    <color name="surface">#19212B</color>
+    <color name="surface_elevated">#212B36</color>
     <color name="text_primary">#F6F1E7</color>
     <color name="text_secondary">#AAB4C0</color>
     <color name="text_hint">#727E8C</color>
-    <color name="divider">#34404D</color>
+    <color name="divider">#26313D</color>
     <color name="chip_bg">#33FFB15A</color>
     <color name="playing_highlight">#26FFB15A</color>
     <color name="karaoke_highlight">#FFB15A</color>
     <color name="karaoke_pending">#B8F6F1E7</color>
     <color name="karaoke_next">#73AAB4C0</color>
-    <color name="bottom_nav_bg">#10151B</color>
-    <color name="netease_bottom_nav">#10151B</color>
+    <color name="bottom_nav_bg">#0F141B</color>
+    <color name="netease_bottom_nav">#0F141B</color>
     <color name="player_button_icon">#15100A</color>
     <color name="car_success">#72D6C2</color>
 
@@ -25,7 +25,7 @@
     <color name="zelda_surface">#16241D</color>
     <color name="zelda_text_primary">#EFF3EA</color>
     <color name="zelda_text_secondary">#A3B1A7</color>
-    <color name="zelda_bottom_nav">#101B16</color>
+    <color name="zelda_bottom_nav">#0D1713</color>
 
     <color name="mario_primary">#F05A47</color>
     <color name="mario_primary_dark">#C53A2C</color>
@@ -33,5 +33,5 @@
     <color name="mario_surface">#1B1F25</color>
     <color name="mario_text_primary">#F4F5F7</color>
     <color name="mario_text_secondary">#AEB6C2</color>
-    <color name="mario_bottom_nav">#15191F</color>
+    <color name="mario_bottom_nav">#111317</color>
 </resources>

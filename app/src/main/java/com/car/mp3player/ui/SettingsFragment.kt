@@ -104,7 +104,7 @@ class SettingsFragment : Fragment() {
         binding.switchSmoothLyrics.isChecked = settings.smoothLyrics
         binding.playerFontSizeSlider.value = settings.playerFontSizeSp
         binding.playerNextFontSizeSlider.value = settings.playerNextFontSizeSp
-        binding.playerLyricLinesSlider.value = settings.playerLyricLines.toFloat()
+        binding.playerLineSpacingSlider.value = settings.playerLyricLineSpacing
         binding.fontSizeSlider.value = settings.fontSizeSp
         binding.currentLineScaleSlider.value = settings.currentLineScale
         binding.nextLineScaleSlider.value = settings.nextLineScale
@@ -195,8 +195,8 @@ class SettingsFragment : Fragment() {
             settings.playerNextFontSizeSp = value
             notifyLyricStyleChanged()
         }
-        binding.playerLyricLinesSlider.addOnChangeListener { _, value, _ ->
-            settings.playerLyricLines = value.toInt()
+        binding.playerLineSpacingSlider.addOnChangeListener { _, value, _ ->
+            settings.playerLyricLineSpacing = value
             notifyLyricStyleChanged()
         }
         binding.fontSizeSlider.addOnChangeListener { _, value, _ ->

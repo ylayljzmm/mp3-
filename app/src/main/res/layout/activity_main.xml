@@ -10,24 +10,37 @@
         android:id="@+id/viewPager"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/bottomNav"
+        app:layout_constraintBottom_toTopOf="@id/bottomDock"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
+    <!-- 底部停靠区：导航栏 + 车机系统 Dock 安全区，整块同色，避免出现黑缝 -->
+    <LinearLayout
+        android:id="@+id/bottomDock"
         android:layout_width="0dp"
-        android:layout_height="72dp"
-        android:background="@drawable/bg_bottom_dock"
-        android:paddingHorizontal="24dp"
-        android:layout_marginBottom="@dimen/car_dock_safe_area"
-        app:itemIconSize="28dp"
-        app:itemRippleColor="@color/chip_bg"
-        app:labelVisibilityMode="labeled"
+        android:layout_height="wrap_content"
+        android:background="@color/bottom_nav_bg"
+        android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:menu="@menu/bottom_nav" />
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:background="@drawable/bg_bottom_dock"
+            android:paddingHorizontal="24dp"
+            app:itemIconSize="28dp"
+            app:itemRippleColor="@color/chip_bg"
+            app:labelVisibilityMode="labeled"
+            app:menu="@menu/bottom_nav" />
+
+        <View
+            android:id="@+id/dockSafeArea"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/car_dock_safe_area" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

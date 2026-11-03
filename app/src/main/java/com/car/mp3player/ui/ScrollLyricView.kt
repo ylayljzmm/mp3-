@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Choreographer
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -23,8 +24,18 @@ class ScrollLyricView @JvmOverloads constructor(
     private val sungPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val nextPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pendingPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val measurePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var lines: List<LrcLine> = emptyList()
+
+    /** 每行歌词在内容中的起始偏移与高度：按实际换行数累计，行距由设置系数控制 */
+    private var lineTops = FloatArray(0)
+    private var lineHeights = FloatArray(0)
+    private var totalHeightPx = 0f
+    private var layoutWidth = -1
+    private var layoutIndex = -2
+    private var layoutKey = -1f
+
     private var targetPositionMs = 0L
     private var displayPositionMs = 0f
     private var smoothScrollY = 0f
@@ -99,6 +110,7 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     fun update(lines: List<LrcLine>, positionMs: Long) {
+        if (this.lines.size != lines.size) invalidateLayout()
         this.lines = lines
         targetPositionMs = positionMs
         if (!settings.smoothLyrics) {
@@ -117,7 +129,14 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     fun refreshStyle() {
+        invalidateLayout()
         invalidate()
+    }
+
+    private fun invalidateLayout() {
+        layoutWidth = -1
+        layoutIndex = -2
+        layoutKey = -1f
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -128,42 +147,112 @@ class ScrollLyricView @JvmOverloads constructor(
         return true
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        invalidateLayout()
+        if (lines.isNotEmpty()) {
+            computeTargetScroll()
+            smoothScrollY = targetScrollY
+        }
+    }
+
     override fun onDetachedFromWindow() {
         animating = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
         super.onDetachedFromWindow()
     }
 
-    private fun blockHeight(style: LyricRenderer.Style): Float {
-        val lines = settings.playerLyricLines
-        val h = height
-        if (h <= 0) {
-            return style.currentSizePx * 1.35f * style.maxVisualLines + style.currentSizePx * 0.8f
+    private fun currentStyle(): LyricRenderer.Style =
+        LyricRenderer.styleFrom(context, settings, resources.displayMetrics.scaledDensity, forPlayer = true)
+
+    private fun textPaddingPx(): Float = paddingLeft.toFloat() + paddingRight.toFloat()
+
+    private fun dp(value: Float): Float =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics)
+
+    /**
+     * 行高 = 换行行数 × ROW_RATIO 倍字号 + 行距；
+     * 行距 = (设置系数 - ROW_RATIO) × 字号，系数 2.4 时单行占 2.4 倍字号。
+     */
+    private fun ensureLayout(style: LyricRenderer.Style, idx: Int, viewWidth: Int) {
+        if (viewWidth <= 0) return
+        val key = style.currentSizePx * 31.7f +
+            style.nextSizePx * 17.3f +
+            style.otherSizePx * 11.9f +
+            style.lineSpacing * 7.7f +
+            style.maxVisualLines * 3.1f
+        if (viewWidth == layoutWidth && idx == layoutIndex && key == layoutKey &&
+            lineTops.size == lines.size
+        ) {
+            return
         }
-        // 让一屏恰好容纳约 lines 行歌词（当前行居中），实现紧凑排布
-        return (h.toFloat() / lines).coerceAtLeast(style.currentSizePx * 1.25f)
+        layoutWidth = viewWidth
+        layoutIndex = idx
+        layoutKey = key
+        lineTops = FloatArray(lines.size)
+        lineHeights = FloatArray(lines.size)
+        if (lines.isEmpty()) {
+            totalHeightPx = 0f
+            return
+        }
+
+        measurePaint.typeface = style.typeface
+        val maxTextWidth = (viewWidth - textPaddingPx()).coerceAtLeast(dp(48f))
+        val gapRatio = (style.lineSpacing - ROW_RATIO).coerceAtLeast(0f)
+        var y = 0f
+        for (i in lines.indices) {
+            val size = when {
+                i == idx -> style.currentSizePx
+                abs(i - idx) == 1 -> style.nextSizePx
+                else -> style.otherSizePx
+            }
+            measurePaint.textSize = size
+            val rows = countRows(lines[i].text, maxTextWidth, style.maxVisualLines)
+            val height = rows * size * ROW_RATIO + size * gapRatio
+            lineTops[i] = y
+            lineHeights[i] = height
+            y += height
+        }
+        totalHeightPx = y
+    }
+
+    private fun countRows(text: String, maxWidth: Float, maxRows: Int): Int {
+        if (text.isEmpty() || maxWidth <= 0f) return 1
+        var start = 0
+        var rows = 0
+        while (start < text.length && rows < maxRows) {
+            val count = measurePaint.breakText(text, start, text.length, true, maxWidth, null)
+            if (count <= 0) break
+            start += count
+            rows++
+        }
+        return rows.coerceAtLeast(1)
     }
 
     private fun computeTargetScroll() {
+        if (lines.isEmpty()) {
+            targetScrollY = 0f
+            return
+        }
         val pos = if (settings.smoothLyrics) targetPositionMs else displayPositionMs.toLong()
         val idx = findIndex(pos)
-        val density = resources.displayMetrics.scaledDensity
-        val style = LyricRenderer.styleFrom(context, settings, density, forPlayer = true)
-        targetScrollY = idx * blockHeight(style)
+        ensureLayout(currentStyle(), idx, width)
+        targetScrollY = offsetForLine(idx)
+    }
+
+    private fun offsetForLine(idx: Int): Float {
+        if (idx !in lineTops.indices) return 0f
+        return lineTops[idx] + lineHeights[idx] / 2f
     }
 
     private fun effectiveScrollY(): Float = smoothScrollY + userScrollOffset
 
     private fun clampUserScrollOffset() {
-        if (lines.isEmpty()) {
+        if (lines.isEmpty() || totalHeightPx <= 0f) {
             userScrollOffset = 0f
             return
         }
-        val density = resources.displayMetrics.scaledDensity
-        val style = LyricRenderer.styleFrom(context, settings, density, forPlayer = true)
-        val blockH = blockHeight(style)
-        val contentH = lines.size * blockH
-        val maxOffset = (contentH / 2f + height / 2f).coerceAtLeast(blockH)
+        val maxOffset = (totalHeightPx / 2f + height / 2f).coerceAtLeast(1f)
         userScrollOffset = userScrollOffset.coerceIn(-maxOffset, maxOffset)
     }
 
@@ -181,12 +270,13 @@ class ScrollLyricView @JvmOverloads constructor(
         }
 
         val idx = findIndex(displayPositionMs.toLong())
-        val blockH = blockHeight(style)
+        ensureLayout(style, idx, width)
         val scrollY = effectiveScrollY()
 
         for (i in lines.indices) {
-            val lineCenterY = height / 2f - scrollY + i * blockH
-            if (lineCenterY < -blockH || lineCenterY > height + blockH) continue
+            val blockTop = height / 2f - scrollY + lineTops[i]
+            val lineCenterY = blockTop + lineHeights[i] / 2f
+            if (lineCenterY < -lineHeights[i] || lineCenterY > height + lineHeights[i]) continue
 
             if (i == idx) {
                 LyricRenderer.drawKaraokeLine(
@@ -213,5 +303,9 @@ class ScrollLyricView @JvmOverloads constructor(
             if (positionMs >= lines[i].startTimeMs) index = i else break
         }
         return index
+    }
+
+    private companion object {
+        const val ROW_RATIO = 1.35f
     }
 }

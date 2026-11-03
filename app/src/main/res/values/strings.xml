@@ -60,7 +60,7 @@
     <string name="smooth_lyrics">歌词平滑滚动</string>
     <string name="player_font_size">播放页当前行字号</string>
     <string name="player_next_font_size">播放页下一行字号</string>
-    <string name="player_lyric_lines">播放页歌词行数</string>
+    <string name="player_lyric_spacing">播放页歌词行距</string>
     <string name="overlay_font_size">悬浮歌词字号</string>
     <string name="overlay_lyric_bold">悬浮歌词加粗</string>
     <string name="overlay_lyric_stroke">悬浮歌词描边</string>

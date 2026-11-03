@@ -3,6 +3,10 @@ package com.car.mp3player.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
@@ -54,10 +58,16 @@ object AppThemeManager {
         }
     }
 
-    fun applyBottomNav(nav: BottomNavigationView, palette: Palette, backgroundOverride: Int? = null) {
+    fun applyBottomNav(
+        nav: BottomNavigationView,
+        palette: Palette,
+        backgroundOverride: Int? = null,
+        dock: View? = null
+    ) {
         val bg = backgroundOverride ?: palette.bottomNavBg
         val onDark = isColorDark(bg)
-        nav.setBackgroundColor(bg)
+        nav.background = dockBackground(nav, bg)
+        dock?.setBackgroundColor(bg)
         val states = arrayOf(
             intArrayOf(android.R.attr.state_checked),
             intArrayOf(-android.R.attr.state_checked)
@@ -77,12 +87,18 @@ object AppThemeManager {
         return blendColors(playerBackground, Color.parseColor("#CC141414"), 0.55f)
     }
 
-    fun applyPlayerBottomNav(nav: BottomNavigationView, palette: Palette, playerBackground: Int) {
+    fun applyPlayerBottomNav(
+        nav: BottomNavigationView,
+        palette: Palette,
+        playerBackground: Int,
+        dock: View? = null
+    ) {
         val bg = playerBottomNavColors(palette, playerBackground)
         val onDark = isColorDark(bg)
         val selected = if (onDark) Color.WHITE else palette.primary
         val unselected = if (onDark) Color.argb(160, 255, 255, 255) else palette.textSecondary
-        nav.setBackgroundColor(bg)
+        nav.background = dockBackground(nav, bg)
+        dock?.setBackgroundColor(bg)
         val states = arrayOf(
             intArrayOf(android.R.attr.state_checked),
             intArrayOf(-android.R.attr.state_checked)
@@ -120,6 +136,17 @@ object AppThemeManager {
             ContextCompat.getColor(context, R.color.zelda_text_secondary),
             ContextCompat.getColor(context, R.color.mario_text_secondary) ->
                 view.setTextColor(palette.textSecondary)
+        }
+    }
+
+    /** 导航栏与页面同色，仅在顶部留 1dp 发丝线，避免内容区与底栏之间出现黑缝 */
+    private fun dockBackground(nav: BottomNavigationView, bg: Int): Drawable {
+        val solid = GradientDrawable().apply { setColor(bg) }
+        val hairline = GradientDrawable().apply { setColor(blendColors(bg, Color.WHITE, 0.10f)) }
+        val lineHeight = nav.resources.displayMetrics.density.toInt().coerceAtLeast(1)
+        return LayerDrawable(arrayOf<Drawable>(solid, hairline)).apply {
+            setLayerHeight(1, lineHeight)
+            setLayerGravity(1, Gravity.TOP)
         }
     }
 

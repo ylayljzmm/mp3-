@@ -11,9 +11,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@android:color/transparent"
-        android:minHeight="64dp"
-        android:paddingHorizontal="8dp"
+        android:minHeight="56dp"
+        android:paddingHorizontal="12dp"
+        app:subtitleCentered="true"
         app:title="@string/section_local"
+        app:titleCentered="true"
         app:titleTextColor="@color/text_primary" />
 
     <com.google.android.material.textfield.TextInputLayout
@@ -46,7 +48,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal">
 
         <com.google.android.material.chip.Chip
@@ -80,6 +82,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="8dp"
+        android:gravity="center"
         android:orientation="horizontal">
 
         <RadioButton
@@ -113,8 +116,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="4dp"
-        android:gravity="end"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
         android:textColor="@color/text_secondary"
         android:textSize="14sp" />
 

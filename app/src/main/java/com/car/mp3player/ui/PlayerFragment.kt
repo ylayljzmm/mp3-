@@ -1,6 +1,7 @@
 package com.car.mp3player.ui
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
@@ -31,8 +32,11 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private val binding get() = _binding!!
     private var userSeeking = false
     private lateinit var settings: SettingsRepository
-    private var defaultThemeColor = Color.parseColor("#FF1A1410")
-    private var currentPlayerBgColor = Color.parseColor("#FF1A1410")
+    private var defaultThemeColor = Color.parseColor("#FF141B24")
+    private var currentPlayerBgColor = Color.parseColor("#FF141B24")
+
+    /** 竖屏（手机）下是否只显示歌词 */
+    private var portraitLyricsOnly = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlayerBinding.inflate(inflater, container, false)
@@ -64,28 +68,86 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             true
         }
 
+        applyLayout()
         renderState()
         renderCover(PlaybackStateHolder.coverArtPath)
         updateProgressUi(PlaybackStateHolder.positionMs, PlaybackStateHolder.durationMs)
         syncBottomNavTheme()
     }
 
-    /** 歌词按钮：在「封面+歌词」与「仅封面」之间切换 */
+    private fun isLandscape(): Boolean =
+        resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    /** 歌词按钮：横屏在「封面+歌词」与「仅封面」间切换；竖屏在「封面」与「整屏歌词」间切换 */
     private fun toggleLyrics() {
-        val showing = binding.scrollLyricView.visibility == View.VISIBLE
+        if (isLandscape()) {
+            val showing = binding.scrollLyricView.visibility == View.VISIBLE
+            val cs = ConstraintSet()
+            cs.clone(binding.rootConstraint)
+            if (showing) {
+                cs.setVisibility(binding.scrollLyricView.id, View.GONE)
+                cs.clear(binding.leftPanel.id, ConstraintSet.END)
+                cs.connect(binding.leftPanel.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+            } else {
+                cs.setVisibility(binding.scrollLyricView.id, View.VISIBLE)
+                cs.clear(binding.leftPanel.id, ConstraintSet.END)
+                cs.connect(binding.leftPanel.id, ConstraintSet.END, R.id.stageCenterGuide, ConstraintSet.START)
+                binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
+            }
+            cs.applyTo(binding.rootConstraint)
+            return
+        }
+        portraitLyricsOnly = !portraitLyricsOnly
+        applyLayout()
+    }
+
+    private fun applyLayout() {
         val cs = ConstraintSet()
         cs.clone(binding.rootConstraint)
-        if (showing) {
-            binding.scrollLyricView.visibility = View.GONE
-            cs.clear(binding.leftPanel.id, ConstraintSet.END)
-            cs.connect(binding.leftPanel.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+
+        if (isLandscape()) {
+            portraitLyricsOnly = false
+            cs.setGuidelinePercent(binding.stageCenterGuide.id, 0.46f)
+            cs.setVisibility(binding.leftPanel.id, View.VISIBLE)
+            cs.setVisibility(binding.scrollLyricView.id, View.VISIBLE)
+            setLeftPanelSpan(cs, guide = true)
+            cs.clear(binding.scrollLyricView.id, ConstraintSet.START)
+            cs.connect(
+                binding.scrollLyricView.id,
+                ConstraintSet.START,
+                R.id.stageCenterGuide,
+                ConstraintSet.END
+            )
         } else {
-            binding.scrollLyricView.visibility = View.VISIBLE
-            cs.clear(binding.leftPanel.id, ConstraintSet.END)
-            cs.connect(binding.leftPanel.id, ConstraintSet.END, R.id.stageCenterGuide, ConstraintSet.START)
-            binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
+            cs.setVisibility(binding.leftPanel.id, if (portraitLyricsOnly) View.GONE else View.VISIBLE)
+            cs.setVisibility(binding.scrollLyricView.id, if (portraitLyricsOnly) View.VISIBLE else View.GONE)
+            setLeftPanelSpan(cs, guide = false)
+            cs.clear(binding.scrollLyricView.id, ConstraintSet.START)
+            cs.connect(
+                binding.scrollLyricView.id,
+                ConstraintSet.START,
+                ConstraintSet.PARENT_ID,
+                ConstraintSet.START
+            )
         }
         cs.applyTo(binding.rootConstraint)
+        if (binding.scrollLyricView.visibility == View.VISIBLE) {
+            binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
+        }
+    }
+
+    private fun setLeftPanelSpan(cs: ConstraintSet, guide: Boolean) {
+        cs.clear(binding.leftPanel.id, ConstraintSet.END)
+        if (guide) {
+            cs.connect(binding.leftPanel.id, ConstraintSet.END, R.id.stageCenterGuide, ConstraintSet.START)
+        } else {
+            cs.connect(binding.leftPanel.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (_binding != null) applyLayout()
     }
 
     override fun onStart() {
@@ -176,10 +238,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private fun updateModeUi(mode: PlaybackMode) {
         if (mode == PlaybackMode.SHUFFLE) {
             binding.btnMode.setImageResource(R.drawable.ic_mode_shuffle)
-            binding.modeLabel.text = getString(R.string.mode_shuffle)
+            binding.btnMode.contentDescription = getString(R.string.mode_shuffle)
         } else {
             binding.btnMode.setImageResource(R.drawable.ic_mode_order)
-            binding.modeLabel.text = getString(R.string.mode_order)
+            binding.btnMode.contentDescription = getString(R.string.mode_order)
         }
     }
 
@@ -215,13 +277,13 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
+    fun syncBottomNavTheme() {
+        (activity as? MainHost)?.syncPlayerBottomNav(currentPlayerBgColor)
+    }
+
     fun refreshLyricStyle() {
         binding.scrollLyricView.refreshStyle()
         binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
-    }
-
-    fun syncBottomNavTheme() {
-        (activity as? MainHost)?.syncPlayerBottomNav(currentPlayerBgColor)
     }
 
     private fun showLyricSearchDialog() {

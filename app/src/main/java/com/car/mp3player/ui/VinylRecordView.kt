@@ -15,7 +15,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import com.car.mp3player.R
 import kotlin.math.min
-import kotlin.math.sqrt
 
 class VinylRecordView @JvmOverloads constructor(
     context: Context,
@@ -48,8 +47,8 @@ class VinylRecordView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         if (w <= 0 || h <= 0) return
         val available = min(w, h).toFloat()
-        // Rotating a square disc needs ~sqrt(2) headroom; keep a small margin too.
-        val discPx = (available / sqrt(2f) * 0.96f).toInt().coerceIn(dp(160), dp(520))
+        // 圆形唱片绕圆心旋转是对称的，不需要为旋转预留 sqrt(2) 空间，直接吃满可用区域
+        val discPx = (available * 0.94f).toInt().coerceIn(dp(160), dp(760))
         this.discPx = discPx
         val coverPx = (discPx * 0.50f).toInt()
         layoutDiscAndCover(discPx, coverPx)
