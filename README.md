@@ -65,6 +65,8 @@
 ### 在线更新
 
 - 更新源直接读取本仓库的 **GitHub Releases「最新正式版」**，发版即生效，无需额外服务器
+- 下载走 **GitHub 资产 API**（`api.github.com` → `release-assets.githubusercontent.com`），
+  避开国内常被拦截的 `github.com/.../releases/download` 域名；API 通道失败会自动回退直链再试
 - 设置页点「检查更新」→ 发现新版本 → 下载 → 校验 SHA-256 与文件大小 → 拉起系统安装器
 - 校验不通过不会安装，也不影响当前版本
 - 所有版本使用**同一张固定签名证书**，因此后续版本可以直接覆盖升级
