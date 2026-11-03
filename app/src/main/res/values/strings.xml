@@ -12,7 +12,7 @@
     <string name="settings_update_install">下载并安装</string>
     <string name="settings_update_checking">正在检查…</string>
     <string name="settings_update_downloading">正在下载 %1$d%%</string>
-    <string name="settings_update_failed">更新失败：%1$s</string>
+    <string name="settings_update_failed">更新失败：%1$s\n若车机网络访问不了 GitHub，可用手机或电脑打开 github.com/ylayljzmm/mp3-/releases 下载后拷到 U 盘安装。</string>
     <string name="settings_update_permission">请允许安装未知应用，返回后会继续安装</string>
     <string name="section_local">本地</string>
     <string name="section_online">在线</string>

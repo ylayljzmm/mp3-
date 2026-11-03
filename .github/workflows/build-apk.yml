@@ -88,15 +88,12 @@ jobs:
       - name: Test and build release APK (skip lint)
         run: gradle testDebugUnitTest assembleRelease --no-daemon -x lintDebug
 
-      - name: Prepare debug keystore
+      # 签名证书固定在仓库 signing/debug.p12，保证每次构建签名一致，
+      # 否则每次生成的证书都不同，车机覆盖安装会报「应用未安装」。
+      - name: Prepare signing keystore
         run: |
-          mkdir -p android
-          keytool -genkeypair -v \
-            -keystore android/debug.keystore \
-            -storepass android -keypass android \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10950 \
-            -dname "CN=Android Debug, O=Android, C=US"
+          test -f signing/debug.p12 || { echo "ERROR: signing/debug.p12 missing"; exit 1; }
+          ls -l signing/debug.p12
 
       - name: Zipalign
         run: |
@@ -105,11 +102,12 @@ jobs:
             app/build/outputs/apk/release/app-release-unsigned.apk \
             app/build/outputs/apk/release/app-release-aligned.apk
 
-      - name: Sign with debug keystore
+      - name: Sign with fixed keystore
         run: |
           BT="$ANDROID_HOME/build-tools/34.0.0"
           "$BT/apksigner" sign \
-            --ks android/debug.keystore \
+            --ks signing/debug.p12 \
+            --ks-type PKCS12 \
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
@@ -122,10 +120,8 @@ jobs:
           "$BT/apksigner" verify --verbose app/build/outputs/apk/release/mp3-player-${{ env.VERSION_NAME }}-signed.apk
           ls -la app/build/outputs/apk/release/
 
-      - name: Upload signed APK and keystore
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: MP3播放器-${{ env.VERSION_NAME }}-已签名
-          path: |
-            app/build/outputs/apk/release/mp3-player-${{ env.VERSION_NAME }}-signed.apk
-            android/debug.keystore
+          path: app/build/outputs/apk/release/mp3-player-${{ env.VERSION_NAME }}-signed.apk

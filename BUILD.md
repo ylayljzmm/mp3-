@@ -18,9 +18,9 @@ APK 不能像 zip 一样直接「生成」，必须用 **Android 编译工具**�
 ### 第 2 步：把项目上传到 GitHub
 
 1. 登录 GitHub，右上角 **+** → **New repository**
-2. 仓库名填：`mp3-player`，选 **Private** 或 Public，点 **Create repository**
-3. 按 GitHub 页面提示，把本地文件夹 `C:\Users\Administrator\Projects\mp3-player` 上传上去  
-   - 不会用 Git 的话：在仓库页点 **uploading an existing file**，把 `mp3-player` 文件夹里**所有文件**拖进去上传
+2. 仓库名填：`mp3-`，选 **Private** 或 Public，点 **Create repository**
+3. 按 GitHub 页面提示，把本地文件夹 `F:\WorkBuddy\cheji\mp3-` 上传上去  
+   - 不会用 Git 的话：在仓库页点 **uploading an existing file**，把 `mp3-` 文件夹里**所有文件**拖进去上传
 
 ### 第 3 步：触发自动编译
 
@@ -50,7 +50,7 @@ APK 不能像 zip 一样直接「生成」，必须用 **Android 编译工具**�
 ### 第 2 步：打开项目
 
 1. Android Studio 启动页 → **Open**
-2. 选文件夹：`C:\Users\Administrator\Projects\mp3-player`
+2. 选文件夹：`F:\WorkBuddy\cheji\mp3-`
 3. 点 **OK**
 4. 底部若提示 **Gradle Sync**，等它跑完（第一次较慢）
 
@@ -63,7 +63,7 @@ APK 不能像 zip 一样直接「生成」，必须用 **Android 编译工具**�
 默认路径：
 
 ```
-C:\Users\Administrator\Projects\mp3-player\app\build\outputs\apk\debug\app-debug.apk
+F:\WorkBuddy\cheji\mp3-\app\build\outputs\apk\debug\app-debug.apk
 ```
 
 ### 第 4 步：装到车机
@@ -111,7 +111,7 @@ A：个人仓库每月有免费额度，编译这个小项目足够用。
 
 ### 2. 一次更新要上传「成套」文件
 
-改了一个功能，相关文件要**一起上传**，不能只传一两个。例如 v3.4.0 至少要传这 13 个：
+改了一个功能，相关文件要**一起上传**，不能只传一两个。例如改动播放页时至少要传以下文件：
 
 ```
 app/build.gradle.kts
@@ -140,11 +140,12 @@ app/src/main/res/drawable/ic_launcher_foreground.xml
 | v3.3.0 | `VinylRecordView.kt` 写了 `ROTATION` 应为 `View.ROTATION` |
 | v3.3.1 | `LyricRenderer.kt` 多写了一行不存在的 `nextPaint` |
 
-**v3.4.0 本地已实测编译通过**，代码本身没问题。
+**当前版本（v4.4.1）由 GitHub Actions 编译并签名通过**，代码本身没问题。
 
 ### 4. 上传后确认版本号
 
-打开 GitHub 上 `app/build.gradle.kts`，确认 `versionName` 是你期望的版本（当前应为 `3.4.0`），再 Run workflow。
+打开 GitHub 上 `app/build.gradle.kts`，确认 `versionName` 是你期望的版本（当前为 `4.4.1`），再 Run workflow。
+改版本号时记得把 `versionCode` 也加 1，否则车机端的应用内更新不会认为这是新版本。
 
 ---
 
