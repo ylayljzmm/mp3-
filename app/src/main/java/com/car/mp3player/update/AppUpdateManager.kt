@@ -17,7 +17,14 @@ import org.json.JSONObject
 data class AppUpdateInfo(
     val version: String,
     val versionCode: Int,
+    /**
+     * 首选下载地址：GitHub 资产 API（api.github.com 域名）。
+     * 国内网络下 github.com/releases/download 常被拦截，而 api.github.com 一般可通，
+     * 该地址会 302 到 release-assets.githubusercontent.com 返回二进制。
+     */
     val apkUrl: String,
+    /** 备用下载地址：浏览器用的 release 直链，API 通道失败时再试 */
+    val backupUrl: String,
     /** 期望的 SHA-256（小写十六进制）；为空表示发布方未提供，只做大小校验 */
     val sha256: String,
     val sizeBytes: Long,
@@ -77,20 +84,23 @@ class AppUpdateManager(private val context: Context) {
 
             val assets = json.optJSONArray("assets")
             check(assets != null && assets.length() > 0) { "该版本没有可下载的安装包" }
-            var apkUrl: String? = null
+            var apiUrl: String? = null
+            var browserUrl = ""
             var sizeBytes = 0L
             var digest = ""
             for (i in 0 until assets.length()) {
                 val asset = assets.getJSONObject(i)
                 val name = asset.optString("name", "")
                 if (!name.endsWith(".apk", ignoreCase = true)) continue
-                apkUrl = asset.optString("browser_download_url", "")
+                apiUrl = asset.optString("url", "")
+                browserUrl = asset.optString("browser_download_url", "")
                 sizeBytes = asset.optLong("size", 0L)
                 digest = asset.optString("digest", "")
                 break
             }
-            check(!apkUrl.isNullOrBlank()) { "该版本没有可下载的安装包" }
-            val downloadUrl = apkUrl ?: throw IllegalStateException("该版本没有可下载的安装包")
+            val downloadUrl = apiUrl?.takeIf { it.isNotBlank() }
+                ?: browserUrl.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("该版本没有可下载的安装包")
             check(URL(downloadUrl).protocol == "https") { "更新地址不安全" }
             check(sizeBytes > 0L) { "更新包大小无效" }
 
@@ -107,6 +117,7 @@ class AppUpdateManager(private val context: Context) {
                 version = tag,
                 versionCode = parseVersionCode(notes),
                 apkUrl = downloadUrl,
+                backupUrl = browserUrl,
                 sha256 = sha256,
                 sizeBytes = sizeBytes,
                 notes = notes,
@@ -126,55 +137,76 @@ class AppUpdateManager(private val context: Context) {
 
     suspend fun download(info: AppUpdateInfo, onProgress: (Int) -> Unit): File =
         withContext(Dispatchers.IO) {
-            val connection = open(info.apkUrl)
-            val updateDir = File(context.externalCacheDir ?: context.cacheDir, "updates").apply { mkdirs() }
-            val target = File(updateDir, UpdateFilePolicy.apkFileName(info.version))
-            val partial = File(updateDir, "${target.name}.download")
-            try {
-                check(connection.responseCode in 200..299) { "下载更新失败（${connection.responseCode}）" }
-                check(connection.url.protocol == "https") { "更新下载被重定向到不安全地址" }
-                val expected = when {
-                    info.sizeBytes > 0 -> info.sizeBytes
-                    connection.contentLengthLong > 0 -> connection.contentLengthLong
-                    else -> -1L
+            val candidates = listOf(info.apkUrl, info.backupUrl)
+                .filter { it.isNotBlank() }
+                .distinct()
+            var lastError: Throwable? = null
+            for (url in candidates) {
+                try {
+                    return@withContext downloadFrom(url, info, onProgress)
+                } catch (error: Throwable) {
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    lastError = error
                 }
-                connection.inputStream.use { input ->
-                    partial.outputStream().buffered().use { output ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var copied = 0L
-                        var lastProgress = -1
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
-                            copied += count
-                            if (expected > 0) {
-                                val progress = ((copied * 100L) / expected).toInt().coerceIn(0, 100)
-                                if (progress != lastProgress) {
-                                    lastProgress = progress
-                                    onProgress(progress)
-                                }
+            }
+            throw lastError ?: IllegalStateException("没有可用的下载地址")
+        }
+
+    private fun downloadFrom(
+        url: String,
+        info: AppUpdateInfo,
+        onProgress: (Int) -> Unit,
+    ): File {
+        // 资产 API 需要 octet-stream 才会返回二进制，否则返回的是 JSON 元数据
+        val connection = open(url, accept = "application/octet-stream")
+        val updateDir = File(context.externalCacheDir ?: context.cacheDir, "updates").apply { mkdirs() }
+        val target = File(updateDir, UpdateFilePolicy.apkFileName(info.version))
+        val partial = File(updateDir, "${target.name}.download")
+        try {
+            check(connection.responseCode in 200..299) { "下载更新失败（${connection.responseCode}）" }
+            check(connection.url.protocol == "https") { "更新下载被重定向到不安全地址" }
+            val expected = when {
+                info.sizeBytes > 0 -> info.sizeBytes
+                connection.contentLengthLong > 0 -> connection.contentLengthLong
+                else -> -1L
+            }
+            connection.inputStream.use { input ->
+                partial.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var copied = 0L
+                    var lastProgress = -1
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        copied += count
+                        if (expected > 0) {
+                            val progress = ((copied * 100L) / expected).toInt().coerceIn(0, 100)
+                            if (progress != lastProgress) {
+                                lastProgress = progress
+                                onProgress(progress)
                             }
                         }
                     }
                 }
-                if (info.sizeBytes > 0) {
-                    check(partial.length() == info.sizeBytes) { "更新包大小校验失败" }
-                }
-                if (info.sha256.isNotEmpty()) {
-                    check(UpdateIntegrity.sha256(partial) == info.sha256) { "更新包完整性校验失败" }
-                }
-                if (target.exists()) target.delete()
-                check(partial.renameTo(target)) { "无法保存更新包" }
-                onProgress(100)
-                target
-            } catch (error: Throwable) {
-                partial.delete()
-                throw error
-            } finally {
-                connection.disconnect()
             }
+            if (info.sizeBytes > 0) {
+                check(partial.length() == info.sizeBytes) { "更新包大小校验失败" }
+            }
+            if (info.sha256.isNotEmpty()) {
+                check(UpdateIntegrity.sha256(partial) == info.sha256) { "更新包完整性校验失败" }
+            }
+            if (target.exists()) target.delete()
+            check(partial.renameTo(target)) { "无法保存更新包" }
+            onProgress(100)
+            return target
+        } catch (error: Throwable) {
+            partial.delete()
+            throw error
+        } finally {
+            connection.disconnect()
         }
+    }
 
     fun requestInstall(apk: File): InstallRequest {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
@@ -197,12 +229,15 @@ class AppUpdateManager(private val context: Context) {
         return InstallRequest.Launched
     }
 
-    private fun open(rawUrl: String): HttpURLConnection =
+    private fun open(
+        rawUrl: String,
+        accept: String = "application/vnd.github+json, application/json",
+    ): HttpURLConnection =
         (URL(rawUrl).openConnection() as HttpURLConnection).apply {
             connectTimeout = 12_000
             readTimeout = 45_000
             instanceFollowRedirects = true
-            setRequestProperty("Accept", "application/vnd.github+json, application/json")
+            setRequestProperty("Accept", accept)
             setRequestProperty("User-Agent", "MP3Player/${BuildConfig.VERSION_NAME}")
         }
 

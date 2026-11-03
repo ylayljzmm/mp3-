@@ -140,11 +140,11 @@ app/src/main/res/drawable/ic_launcher_foreground.xml
 | v3.3.0 | `VinylRecordView.kt` 写了 `ROTATION` 应为 `View.ROTATION` |
 | v3.3.1 | `LyricRenderer.kt` 多写了一行不存在的 `nextPaint` |
 
-**当前版本（v4.4.1）由 GitHub Actions 编译并签名通过**，代码本身没问题。
+**当前版本（v4.4.2）由 GitHub Actions 编译并签名通过**，代码本身没问题。
 
 ### 4. 上传后确认版本号
 
-打开 GitHub 上 `app/build.gradle.kts`，确认 `versionName` 是你期望的版本（当前为 `4.4.1`），再 Run workflow。
+打开 GitHub 上 `app/build.gradle.kts`，确认 `versionName` 是你期望的版本（当前为 `4.4.2`），再 Run workflow。
 改版本号时记得把 `versionCode` 也加 1，否则车机端的应用内更新不会认为这是新版本。
 
 ---
