@@ -28,6 +28,10 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat(KEY_PLAYER_NEXT_FONT_SIZE, 17f)
         set(value) = prefs.edit { putFloat(KEY_PLAYER_NEXT_FONT_SIZE, value) }
 
+    var playerLyricLines: Int
+        get() = prefs.getInt(KEY_PLAYER_LYRIC_LINES, 7).coerceIn(3, 12)
+        set(value) = prefs.edit { putInt(KEY_PLAYER_LYRIC_LINES, value.coerceIn(3, 12)) }
+
     var currentLineScale: Float
         get() = prefs.getFloat(KEY_CURRENT_SCALE, 1.05f)
         set(value) = prefs.edit { putFloat(KEY_CURRENT_SCALE, value) }
@@ -91,10 +95,6 @@ class SettingsRepository(context: Context) {
     var overlayStrokeWidth: Int
         get() = prefs.getInt(KEY_OVERLAY_STROKE_WIDTH, 3).coerceIn(1, 10)
         set(value) = prefs.edit { putInt(KEY_OVERLAY_STROKE_WIDTH, value.coerceIn(1, 10)) }
-
-    var startupSoundEnabled: Boolean
-        get() = prefs.getBoolean(KEY_STARTUP_SOUND, true)
-        set(value) = prefs.edit { putBoolean(KEY_STARTUP_SOUND, value) }
 
     var playMode: PlaybackMode
         get() = PlaybackMode.entries[prefs.getInt(KEY_PLAY_MODE, PlaybackMode.SHUFFLE.ordinal)]
@@ -307,6 +307,7 @@ class SettingsRepository(context: Context) {
         const val KEY_FONT_SIZE = "font_size"
         const val KEY_PLAYER_FONT_SIZE = "player_font_size"
         const val KEY_PLAYER_NEXT_FONT_SIZE = "player_next_font_size"
+        const val KEY_PLAYER_LYRIC_LINES = "player_lyric_lines"
         const val KEY_CURRENT_SCALE = "current_line_scale"
         const val KEY_NEXT_SCALE = "next_line_scale"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"
@@ -323,7 +324,6 @@ class SettingsRepository(context: Context) {
         const val KEY_OVERLAY_BOLD = "overlay_lyric_bold"
         const val KEY_OVERLAY_STROKE = "overlay_stroke_enabled"
         const val KEY_OVERLAY_STROKE_WIDTH = "overlay_stroke_width"
-        const val KEY_STARTUP_SOUND = "startup_sound"
         const val KEY_PLAY_MODE = "play_mode"
         const val KEY_CLUSTER_LYRICS = "cluster_lyrics"
         const val KEY_THEME = "theme_mode"

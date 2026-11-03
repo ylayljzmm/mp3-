@@ -12,7 +12,6 @@ import com.car.mp3player.data.PlaylistCache
 import com.car.mp3player.data.SettingsRepository
 import com.car.mp3player.model.LibraryKind
 import com.car.mp3player.playback.PlaybackStateHolder
-import com.car.mp3player.ui.StartupSoundPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,10 +32,10 @@ class BootResumeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         scope.launch {
             delay(BOOT_WAIT_MS)
-            var resumed = attemptResume(playGreeting = true)
+            var resumed = attemptResume()
             if (!resumed && !PlaybackStateHolder.isPlaying) {
                 delay(RETRY_WAIT_MS)
-                resumed = attemptResume(playGreeting = !StartupSoundPlayer.hasPlayedThisSession())
+                resumed = attemptResume()
             }
 
             if (settings.bootOpenApp) {
@@ -54,7 +53,7 @@ class BootResumeService : Service() {
         return START_NOT_STICKY
     }
 
-    private suspend fun attemptResume(playGreeting: Boolean): Boolean {
+    private suspend fun attemptResume(): Boolean {
         if (!settings.autoResumePlayback) return false
 
         val library = settings.lastActiveLibrary
@@ -72,9 +71,6 @@ class BootResumeService : Service() {
 
         PlaybackStateHolder.setActiveLibrary(library)
         PlaybackStateHolder.setPlaylist(songs, library = library)
-        if (playGreeting && settings.startupSoundEnabled && !StartupSoundPlayer.hasPlayedThisSession()) {
-            StartupSoundPlayer.playBeforeBootPlayback(this@BootResumeService, settings)
-        }
         PlaybackBootstrap.resumeIfNeeded(this@BootResumeService, songs, settings, library)
         return PlaybackStateHolder.isPlaying
     }

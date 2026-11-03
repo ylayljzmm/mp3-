@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 车机系统 Dock 安全区：把 App 底部导航 / 设置页末项抬到系统 Dock 之上，
+         适配 2021 款宋 PLUS DM-i（DiLink 3.0）默认横屏。改这一处即可全局微调。 -->
+    <dimen name="car_dock_safe_area">60dp</dimen>
+</resources>

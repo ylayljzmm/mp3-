@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    android:paddingBottom="@dimen/car_dock_safe_area">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -389,6 +390,21 @@
                     android:stepSize="1"
                     android:valueFrom="12"
                     android:valueTo="48" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/player_lyric_lines"
+                    android:textColor="@color/text_primary" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/playerLyricLinesSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:valueFrom="5"
+                    android:valueTo="10" />
 
                 <TextView
                     android:layout_width="match_parent"

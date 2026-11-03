@@ -135,7 +135,13 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     private fun blockHeight(style: LyricRenderer.Style): Float {
-        return style.currentSizePx * 1.35f * style.maxVisualLines + style.currentSizePx * 0.8f
+        val lines = settings.playerLyricLines
+        val h = height
+        if (h <= 0) {
+            return style.currentSizePx * 1.35f * style.maxVisualLines + style.currentSizePx * 0.8f
+        }
+        // 让一屏恰好容纳约 lines 行歌词（当前行居中），实现紧凑排布
+        return (h.toFloat() / lines).coerceAtLeast(style.currentSizePx * 1.25f)
     }
 
     private fun computeTargetScroll() {

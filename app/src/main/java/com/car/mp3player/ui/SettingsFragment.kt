@@ -46,7 +46,6 @@ class SettingsFragment : Fragment() {
     private var appThemeChipGroup: ChipGroup? = null
     private var switchBootOpenApp: SwitchMaterial? = null
     private var switchBootReturnHome: SwitchMaterial? = null
-    private var switchStartupSound: SwitchMaterial? = null
     private var switchOverlayBold: SwitchMaterial? = null
     private var switchOverlayStroke: SwitchMaterial? = null
     private var overlayStrokeWidthSlider: Slider? = null
@@ -98,7 +97,6 @@ class SettingsFragment : Fragment() {
         binding.switchAutoResume.isChecked = settings.autoResumePlayback
         binding.switchBootAutoStart.isChecked = settings.bootAutoStart
         setupBootExtraSwitches()
-        setupStartupSoundSwitch()
         binding.switchClusterLyrics.isChecked = settings.clusterLyricsEnabled
         binding.switchOverlay.isChecked = settings.overlayEnabled
         binding.switchOnlineLyrics.isChecked = settings.onlineLyricsEnabled
@@ -106,6 +104,7 @@ class SettingsFragment : Fragment() {
         binding.switchSmoothLyrics.isChecked = settings.smoothLyrics
         binding.playerFontSizeSlider.value = settings.playerFontSizeSp
         binding.playerNextFontSizeSlider.value = settings.playerNextFontSizeSp
+        binding.playerLyricLinesSlider.value = settings.playerLyricLines.toFloat()
         binding.fontSizeSlider.value = settings.fontSizeSp
         binding.currentLineScaleSlider.value = settings.currentLineScale
         binding.nextLineScaleSlider.value = settings.nextLineScale
@@ -194,6 +193,10 @@ class SettingsFragment : Fragment() {
         }
         binding.playerNextFontSizeSlider.addOnChangeListener { _, value, _ ->
             settings.playerNextFontSizeSp = value
+            notifyLyricStyleChanged()
+        }
+        binding.playerLyricLinesSlider.addOnChangeListener { _, value, _ ->
+            settings.playerLyricLines = value.toInt()
             notifyLyricStyleChanged()
         }
         binding.fontSizeSlider.addOnChangeListener { _, value, _ ->
@@ -329,19 +332,6 @@ class SettingsFragment : Fragment() {
         parent.addView(returnHome, insertAt + 1)
         switchBootOpenApp = openApp
         switchBootReturnHome = returnHome
-    }
-
-    private fun setupStartupSoundSwitch() {
-        val parent = binding.switchAutoResume.parent as? LinearLayout ?: return
-        switchStartupSound?.let { parent.removeView(it) }
-        val soundSwitch = SwitchMaterial(requireContext()).apply {
-            text = getString(R.string.startup_sound)
-            isChecked = settings.startupSoundEnabled
-            setOnCheckedChangeListener { _, checked -> settings.startupSoundEnabled = checked }
-        }
-        val insertAt = parent.indexOfChild(binding.switchAutoResume) + 1
-        parent.addView(soundSwitch, insertAt)
-        switchStartupSound = soundSwitch
     }
 
     private fun setupOverlayBoldSwitch() {

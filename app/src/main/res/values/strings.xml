@@ -60,6 +60,7 @@
     <string name="smooth_lyrics">歌词平滑滚动</string>
     <string name="player_font_size">播放页当前行字号</string>
     <string name="player_next_font_size">播放页下一行字号</string>
+    <string name="player_lyric_lines">播放页歌词行数</string>
     <string name="overlay_font_size">悬浮歌词字号</string>
     <string name="overlay_lyric_bold">悬浮歌词加粗</string>
     <string name="overlay_lyric_stroke">悬浮歌词描边</string>
@@ -76,7 +77,6 @@
     <string name="settings_playback">播放设置</string>
     <string name="auto_resume">启动时自动恢复播放</string>
     <string name="boot_auto_start">开机自动启动并续播</string>
-    <string name="startup_sound">打开应用时播放问候音</string>
     <string name="boot_open_app">开机时打开应用界面</string>
     <string name="boot_return_home">续播后自动返回桌面</string>
     <string name="cluster_lyrics">仪表屏滚动歌词</string>
