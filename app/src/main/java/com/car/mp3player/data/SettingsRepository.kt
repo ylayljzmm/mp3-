@@ -98,7 +98,11 @@ class SettingsRepository(context: Context) {
         set(value) = prefs.edit { putInt(KEY_OVERLAY_STROKE_WIDTH, value.coerceIn(1, 10)) }
 
     var playMode: PlaybackMode
-        get() = PlaybackMode.entries[prefs.getInt(KEY_PLAY_MODE, PlaybackMode.SHUFFLE.ordinal)]
+        // Guarded: a stored ordinal can fall outside the enum after a version change,
+        // and this getter is read on the main thread before the UI exists.
+        get() = PlaybackMode.entries.getOrElse(
+            prefs.getInt(KEY_PLAY_MODE, PlaybackMode.SHUFFLE.ordinal)
+        ) { PlaybackMode.SHUFFLE }
         set(value) = prefs.edit { putInt(KEY_PLAY_MODE, value.ordinal) }
 
     var clusterLyricsEnabled: Boolean
@@ -190,7 +194,9 @@ class SettingsRepository(context: Context) {
     }
 
     var themeMode: ThemeMode
-        get() = ThemeMode.entries[prefs.getInt(KEY_THEME, ThemeMode.SYSTEM.ordinal)]
+        get() = ThemeMode.entries.getOrElse(
+            prefs.getInt(KEY_THEME, ThemeMode.SYSTEM.ordinal)
+        ) { ThemeMode.SYSTEM }
         set(value) = prefs.edit { putInt(KEY_THEME, value.ordinal) }
 
     fun appTheme(): AppThemePreset = AppThemePreset.fromId(

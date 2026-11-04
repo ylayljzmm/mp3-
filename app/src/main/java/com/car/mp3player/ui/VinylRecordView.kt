@@ -26,6 +26,7 @@ class VinylRecordView @JvmOverloads constructor(
     private val discView: ImageView
     private val coverView: ImageView
     private var rotationAnimator: ObjectAnimator? = null
+    private var currentBitmap: Bitmap? = null
     private var discPx = 0
 
     init {
@@ -91,10 +92,18 @@ class VinylRecordView @JvmOverloads constructor(
     }
 
     fun setCoverBitmap(bitmap: Bitmap?) {
+        val previous = currentBitmap
+        currentBitmap = bitmap
         if (bitmap == null) {
             coverView.setImageResource(R.drawable.bg_album_placeholder)
         } else {
             coverView.setImageBitmap(bitmap)
+        }
+        // Release the old art only after the new one is attached, so the view never
+        // draws from a recycled bitmap. Without this, skipping through songs leaks one
+        // full cover bitmap per track.
+        if (previous != null && previous !== bitmap && !previous.isRecycled) {
+            previous.recycle()
         }
     }
 

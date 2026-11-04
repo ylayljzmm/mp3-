@@ -90,6 +90,12 @@ class SettingsFragment : Fragment() {
         settings = SettingsRepository(requireContext())
         updateManager = AppUpdateManager(requireContext().applicationContext)
         binding.updateStatus.text = getString(R.string.settings_update_current, BuildConfig.VERSION_NAME)
+        // Long-press the version line to send the last crash report. This is the only
+        // way to get a stack trace off a head unit without a PC attached.
+        binding.updateStatus.setOnLongClickListener {
+            shareCrashReport()
+            true
+        }
         binding.btnCheckUpdate.setOnClickListener {
             val update = availableUpdate
             if (update == null) checkForUpdate() else downloadAndInstall(update)
@@ -483,6 +489,30 @@ class SettingsFragment : Fragment() {
         LyricsOverlayService.refresh(requireContext())
         ClusterLyricService.refresh(requireContext())
         (activity as? MainHost)?.notifyLyricStyleChanged()
+    }
+
+    /** Shares the most recent crash report as plain text (no file, no extra permission). */
+    private fun shareCrashReport() {
+        val report = com.car.mp3player.util.CrashLogger.readLatest(requireContext())
+        if (report.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "没有崩溃记录", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val ok = runCatching {
+            startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "随声 崩溃日志 v${BuildConfig.VERSION_NAME}")
+                        putExtra(Intent.EXTRA_TEXT, report)
+                    },
+                    "发送崩溃日志"
+                )
+            )
+        }.isSuccess
+        if (!ok) {
+            Toast.makeText(requireContext(), "没有可用的发送方式", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun setupOnlineSettings() {

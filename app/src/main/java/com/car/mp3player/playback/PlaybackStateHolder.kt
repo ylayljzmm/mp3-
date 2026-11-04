@@ -105,7 +105,12 @@ object PlaybackStateHolder {
         this.positionMs = positionMs
         lrcLines = lines
         if (durationMs > 0) this.durationMs = durationMs
-        if (song != null) {
+        // This runs ~8 times per second. Scanning the whole library here (the old
+        // behaviour) is O(n) per tick — with a few thousand songs that is tens of
+        // thousands of string comparisons per second on the main thread, which is
+        // exactly the kind of stall a head unit turns into an ANR/"flash close".
+        // Compare against the current entry first and only scan on a real change.
+        if (song != null && currentSong?.path != song.path) {
             val idx = songs.indexOfFirst { it.path == song.path }
             if (idx >= 0) currentIndex = idx
         }

@@ -24,7 +24,6 @@ import com.car.mp3player.ui.MainHost
 import com.car.mp3player.ui.MainPagerAdapter
 import com.car.mp3player.ui.PlayerFragment
 import com.car.mp3player.ui.PlaylistFragment
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -169,20 +168,35 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     override fun scanMusic(onDone: ((Int) -> Unit)?) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val musicCount = withContext(Dispatchers.IO) {
-                PlaybackBootstrap.scanMusicLibrary(this@MainActivity, settings).also { musicSongs = it }.size
-            }
-            if (PlaybackStateHolder.activeLibrary == LibraryKind.MUSIC && musicSongs.isNotEmpty()) {
-                PlaybackStateHolder.setPlaylist(musicSongs, library = LibraryKind.MUSIC)
-            }
-            refreshPlaylistFragment()
-            if (!PlaybackStateHolder.isPlaying) {
-                val library = settings.lastActiveLibrary
-                val resumeList = resolveResumeList(library)
-                if (resumeList.isNotEmpty()) {
-                    PlaybackBootstrap.resumeIfNeeded(this@MainActivity, resumeList, settings, library)
+        // lifecycleScope instead of an orphan CoroutineScope: the old scope outlived the
+        // activity, so a scan started before the head unit went to sleep could resume
+        // against a destroyed FragmentManager. The whole body is also guarded — a scan
+        // failure must degrade to "no songs", never to a crash on launch.
+        lifecycleScope.launch {
+            val musicCount = runCatching {
+                withContext(Dispatchers.IO) {
+                    PlaybackBootstrap.scanMusicLibrary(this@MainActivity, settings)
+                        .also { musicSongs = it }
+                        .size
                 }
+            }.getOrElse {
+                android.util.Log.e("MainActivity", "scan failed", it)
+                0
+            }
+            runCatching {
+                if (PlaybackStateHolder.activeLibrary == LibraryKind.MUSIC && musicSongs.isNotEmpty()) {
+                    PlaybackStateHolder.setPlaylist(musicSongs, library = LibraryKind.MUSIC)
+                }
+                refreshPlaylistFragment()
+                if (!PlaybackStateHolder.isPlaying) {
+                    val library = settings.lastActiveLibrary
+                    val resumeList = resolveResumeList(library)
+                    if (resumeList.isNotEmpty()) {
+                        PlaybackBootstrap.resumeIfNeeded(this@MainActivity, resumeList, settings, library)
+                    }
+                }
+            }.onFailure {
+                android.util.Log.e("MainActivity", "post-scan refresh failed", it)
             }
             onDone?.invoke(musicCount)
         }

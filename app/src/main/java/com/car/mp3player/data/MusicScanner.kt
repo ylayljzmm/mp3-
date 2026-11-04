@@ -18,11 +18,20 @@ class MusicScanner(
 
     fun scan(): List<Song> {
         val merged = linkedMapOf<String, Song>()
-        scanMediaStore().forEach { merged[it.path] = it }
-        scanDirectories(resolvePaths()).forEach { song ->
-            if (!merged.containsKey(song.path)) merged[song.path] = song
-        }
-        scanDocumentTrees().forEach { merged[it.path] = it }
+        // Each source is guarded independently: one bad provider (a head unit with a
+        // restricted MediaStore projection, an unmounted USB volume, a revoked SAF
+        // grant) must not take the whole library — or the app — down with it.
+        runCatching { scanMediaStore() }
+            .getOrDefault(emptyList())
+            .forEach { merged[it.path] = it }
+        runCatching { scanDirectories(resolvePaths()) }
+            .getOrDefault(emptyList())
+            .forEach { song ->
+                if (!merged.containsKey(song.path)) merged[song.path] = song
+            }
+        runCatching { scanDocumentTrees() }
+            .getOrDefault(emptyList())
+            .forEach { merged[it.path] = it }
         return merged.values.sortedBy { it.title.lowercase() }
     }
 
@@ -53,22 +62,32 @@ class MusicScanner(
             null,
             MediaStore.Audio.Media.TITLE + " ASC"
         )?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-            val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            // getColumnIndexOrThrow is an unnecessary crash surface: several head-unit
+            // ROMs expose a trimmed projection, and a missing column would throw inside
+            // a background scan where nothing can catch it.
+            val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+            val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            if (dataCol < 0) return emptyList()
             while (cursor.moveToNext()) {
                 val path = cursor.getString(dataCol) ?: continue
                 if (!isAudioFile(path)) continue
+                val title = (if (titleCol >= 0) cursor.getString(titleCol) else null)
+                    ?: File(path).nameWithoutExtension
+                val artist = (if (artistCol >= 0) cursor.getString(artistCol) else null)
+                    ?: "未知歌手"
+                val trackDuration =
+                    if (durationCol >= 0) cursor.getLong(durationCol).coerceAtLeast(0L) else 0L
                 songs.add(
                     Song(
-                        id = cursor.getLong(idCol),
-                        title = cursor.getString(titleCol) ?: File(path).nameWithoutExtension,
-                        artist = cursor.getString(artistCol) ?: "未知歌手",
+                        id = if (idCol >= 0) cursor.getLong(idCol) else 0L,
+                        title = title,
+                        artist = artist,
                         path = path,
                         lrcPath = findLrc(path),
-                        durationMs = cursor.getLong(durationCol).coerceAtLeast(0L)
+                        durationMs = trackDuration
                     )
                 )
             }

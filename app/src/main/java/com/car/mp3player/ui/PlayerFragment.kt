@@ -2,6 +2,7 @@ package com.car.mp3player.ui
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
@@ -32,6 +33,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private val binding get() = _binding!!
     private var userSeeking = false
     private lateinit var settings: SettingsRepository
+    private var renderedStateKey: String? = null
     private var defaultThemeColor = Color.parseColor("#FF141B24")
     private var currentPlayerBgColor = Color.parseColor("#FF141B24")
 
@@ -186,14 +188,21 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     private fun renderState() {
         val song = PlaybackStateHolder.currentSong
-        binding.songTitle.text = song?.title ?: getString(R.string.app_name)
-        binding.songArtist.text = song?.artist ?: getString(R.string.no_songs)
-        binding.btnPlayPause.setImageResource(
-            if (PlaybackStateHolder.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-        )
-        binding.vinylRecord.setPlaying(PlaybackStateHolder.isPlaying)
+        // Called on every progress tick (~8 Hz). Only touch the views when something
+        // that actually affects them changed, otherwise the constant string/resource
+        // churn shows up as jank on a slow head unit.
+        val key = "${song?.path}|${PlaybackStateHolder.isPlaying}|${PlaybackStateHolder.playMode}|${song?.title}|${song?.artist}"
+        if (key != renderedStateKey) {
+            renderedStateKey = key
+            binding.songTitle.text = song?.title ?: getString(R.string.app_name)
+            binding.songArtist.text = song?.artist ?: getString(R.string.no_songs)
+            binding.btnPlayPause.setImageResource(
+                if (PlaybackStateHolder.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+            )
+            binding.vinylRecord.setPlaying(PlaybackStateHolder.isPlaying)
+            updateModeUi(PlaybackStateHolder.playMode)
+        }
         binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
-        updateModeUi(PlaybackStateHolder.playMode)
     }
 
     private fun updateProgressUi(positionMs: Long, durationMs: Long) {
@@ -225,7 +234,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             binding.vinylRecord.setCoverBitmap(null)
             return
         }
-        val bitmap = runCatching { BitmapFactory.decodeFile(coverPath) }.getOrNull()
+        // Downsample before decoding. Embedded art can be 3000x3000 (36 MB as
+        // ARGB_8888); decoding that on a low-RAM head unit is a reliable way to get
+        // killed while the user is simply opening the app.
+        val bitmap = decodeCover(coverPath)
         if (bitmap != null) {
             applyPlayerBackground(AlbumColorExtractor.backgroundColor(bitmap))
             binding.vinylRecord.setCoverBitmap(bitmap)
@@ -234,6 +246,16 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             binding.vinylRecord.setCoverBitmap(null)
         }
     }
+
+    private fun decodeCover(path: String): Bitmap? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        val longest = maxOf(bounds.outWidth, bounds.outHeight)
+        if (longest <= 0) return@runCatching null
+        var sample = 1
+        while (longest / sample > COVER_MAX_PX) sample *= 2
+        BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }.getOrNull()
 
     private fun updateModeUi(mode: PlaybackMode) {
         if (mode == PlaybackMode.SHUFFLE) {
@@ -316,5 +338,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     override fun onDestroyView() {
         _binding = null
         super.onDestroyView()
+    }
+
+    private companion object {
+        /** Longest edge, in pixels, used when decoding cover art for the player. */
+        const val COVER_MAX_PX = 768
     }
 }

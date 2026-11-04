@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -344,23 +345,36 @@ class MusicPlaybackService : MediaSessionService() {
     private fun ensureForeground() {
         if (foregroundStarted) return
         runCatching {
-            startForeground(NOTIFICATION_ID, buildNotification(playlist.getOrNull(currentIndex)))
+            startForegroundCompat(buildNotification(playlist.getOrNull(currentIndex)))
+            foregroundStarted = true
+        }.recoverCatching {
+            // Older/odd builds reject the media-style notification (missing icon,
+            // unsupported style). A bare notification still satisfies the contract.
+            startForegroundCompat(
+                NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle(getString(R.string.app_name))
+                    .setContentText(getString(R.string.now_playing))
+                    .setSmallIcon(android.R.drawable.ic_media_play)
+                    .setOngoing(true)
+                    .build()
+            )
             foregroundStarted = true
         }.onFailure {
-            runCatching {
-                startForeground(
-                    NOTIFICATION_ID,
-                    NotificationCompat.Builder(this, CHANNEL_ID)
-                        .setContentTitle(getString(R.string.app_name))
-                        .setContentText(getString(R.string.now_playing))
-                        .setSmallIcon(android.R.drawable.ic_media_play)
-                        .setOngoing(true)
-                        .build()
-                )
-                foregroundStarted = true
-            }.onFailure {
-                android.util.Log.e(TAG, "ensureForeground failed", it)
-            }
+            // Refused (background start restrictions on Android 12+). Keep running
+            // without the foreground state rather than crashing here.
+            android.util.Log.e(TAG, "ensureForeground failed", it)
+        }
+    }
+
+    /**
+     * Android 14 rejects a foreground service start whose type does not match the
+     * manifest declaration, so the type has to be passed explicitly on Q+.
+     */
+    private fun startForegroundCompat(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
     }
 
