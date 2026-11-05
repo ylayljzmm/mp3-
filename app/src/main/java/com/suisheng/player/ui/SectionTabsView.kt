@@ -160,13 +160,11 @@ class SectionTabsView @JvmOverloads constructor(
             typedValue,
             true,
         )
-        if (!resolved) {
+        // TypedValue 没有 drawable 字段（那是 TypedArray 的 API）；这里只能走 resourceId。
+        // resourceId 为 0 说明该 attr 指向的是内联值而非可复用资源，放弃前景即可。
+        if (!resolved || typedValue.resourceId == 0) {
             return null
         }
-        return if (typedValue.resourceId != 0) {
-            context.getDrawable(typedValue.resourceId)
-        } else {
-            typedValue.drawable
-        }
+        return runCatching { context.getDrawable(typedValue.resourceId) }.getOrNull()
     }
 }
