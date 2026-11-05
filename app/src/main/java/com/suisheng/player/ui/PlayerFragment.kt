@@ -235,6 +235,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 监听器一律返回 false，不消费事件，所以不改变任何既有行为。
      */
     private fun resetInteractionOnTouch(view: View) {
+        // Slider 自己有一套触摸实现，套 OnTouchListener 有覆盖其内部监听的风险；
+        // 它的「开始拖动」回调里已经调过 onUserInteraction()，这里跳过即可。
+        if (view.id == R.id.progressSlider) return
         view.setOnTouchListener { _, _ ->
             chrome.onUserInteraction()
             false

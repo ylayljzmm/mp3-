@@ -61,8 +61,10 @@ class PlayerChromeController(
     /** 唯一的对外入口。 */
     fun setState(next: State) {
         if (next == state) {
-            // 重复点「歌词」时也要能重置计时，否则停在长期隐藏的顶栏上
-            if (next != State.IMMERSIVE) scheduleIdle()
+            // 重复点同一个动作时只重置计时。**只有双栏态才有计时器**：
+            // 全屏歌词 / 仅封面 / 沉浸态若被 8s 回调踢一脚，会掉进别的状态
+            // （例如连点两次封面 → 全屏歌词 8s 后自己跳成沉浸态，中轴又冒出来）。
+            if (next == State.DUO) scheduleIdle() else cancelIdle()
             return
         }
         if (next == State.LYRICS_FULL && state != State.LYRICS_FULL) {
