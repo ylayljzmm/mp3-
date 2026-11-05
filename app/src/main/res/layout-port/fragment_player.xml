@@ -72,7 +72,7 @@
                 android:maxLines="1"
                 android:singleLine="true"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="35sp"
+                android:textSize="@dimen/player_title_text_size"
                 android:textStyle="bold" />
 
             <TextView
@@ -85,7 +85,7 @@
                 android:gravity="start"
                 android:singleLine="true"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="16sp" />
+                android:textSize="@dimen/player_artist_text_size" />
 
             <LinearLayout
                 android:id="@+id/progressRow"
@@ -252,8 +252,8 @@
 
                     <ImageView
                         android:id="@+id/iconActionLyrics"
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="@dimen/player_action_icon_size"
+                        android:layout_height="@dimen/player_action_icon_size"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_lyrics"
                         app:tint="?attr/colorOnSurfaceVariant" />
@@ -265,7 +265,7 @@
                         android:singleLine="true"
                         android:text="@string/player_action_lyrics"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp" />
+                        android:textSize="@dimen/player_action_label_text_size" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -284,8 +284,8 @@
                     app:layout_constraintTop_toTopOf="parent">
 
                     <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="@dimen/player_action_icon_size"
+                        android:layout_height="@dimen/player_action_icon_size"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_favorite_border"
                         app:tint="?attr/colorOnSurfaceVariant" />
@@ -297,7 +297,7 @@
                         android:singleLine="true"
                         android:text="@string/player_action_favorite"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp" />
+                        android:textSize="@dimen/player_action_label_text_size" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -315,8 +315,8 @@
                     app:layout_constraintTop_toTopOf="parent">
 
                     <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="@dimen/player_action_icon_size"
+                        android:layout_height="@dimen/player_action_icon_size"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_speed"
                         app:tint="?attr/colorOnSurfaceVariant" />
@@ -328,7 +328,7 @@
                         android:layout_marginTop="5dp"
                         android:singleLine="true"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp" />
+                        android:textSize="@dimen/player_action_label_text_size" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -347,8 +347,8 @@
                     app:layout_constraintTop_toTopOf="parent">
 
                     <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="@dimen/player_action_icon_size"
+                        android:layout_height="@dimen/player_action_icon_size"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_equalizer"
                         app:tint="?attr/colorOnSurfaceVariant" />
@@ -360,7 +360,7 @@
                         android:singleLine="true"
                         android:text="@string/player_action_sound"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp" />
+                        android:textSize="@dimen/player_action_label_text_size" />
                 </LinearLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>

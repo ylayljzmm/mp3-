@@ -11,8 +11,8 @@ android {
         applicationId = "com.suisheng.player"
         minSdk = 24
         targetSdk = 34
-        versionCode = 52
-        versionName = "5.1.0"
+        versionCode = 53
+        versionName = "5.2.0"
     }
 
     buildTypes {
