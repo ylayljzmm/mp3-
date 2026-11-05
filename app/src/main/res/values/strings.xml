@@ -20,6 +20,41 @@
     <string name="drawer_theme">主题</string>
     <string name="drawer_scanning">扫描中…</string>
     <string name="drawer_coming_soon">即将上线</string>
+
+    <!-- 分组页：专辑 / 艺术家 / 文件夹（2c-2） -->
+    <string name="library_albums_title">专辑</string>
+    <string name="library_artists_title">艺术家</string>
+    <string name="library_folders_title">文件夹</string>
+    <string name="library_album_count">%1$d 张专辑</string>
+    <string name="library_artist_count">%1$d 位艺术家</string>
+    <string name="library_folder_count">%1$d 个文件夹</string>
+    <string name="library_song_count">%1$d 首</string>
+    <string name="library_play_folder">播放本文件夹</string>
+    <string name="library_unknown_album">未知专辑</string>
+    <string name="library_unknown_artist">未知艺术家</string>
+    <string name="library_empty_album">还没有识别到专辑</string>
+    <string name="library_empty_album_hint">歌曲里没有专辑标签时不会出现在这里；补好标签后重新扫描即可。</string>
+    <string name="library_empty_artist">还没有艺术家信息</string>
+    <string name="library_empty_artist_hint">扫描到的歌曲都缺歌手标签；补好标签后重新扫描即可。</string>
+    <string name="library_empty_folder">还没有扫描到文件夹</string>
+    <string name="library_empty_folder_hint">先在设置里添加扫描目录，再回到这里。</string>
+    <string name="library_empty_folder_flat">这个文件夹里没有子文件夹</string>
+    <string name="library_empty_folder_flat_hint">点右上角「播放本文件夹」直接播放这里的歌。</string>
+    <string name="library_breadcrumb_root">全部</string>
+    <string name="library_empty_songs">还没有音乐</string>
+    <string name="library_empty_songs_hint">请先在设置里扫描音乐。</string>
+
+    <!-- 关于页（2c-2） -->
+    <string name="about_title">关于</string>
+    <string name="about_version">版本</string>
+    <string name="about_version_value">随声 %1$s（versionCode %2$d）</string>
+    <string name="about_download">下载地址</string>
+    <string name="about_download_value">github.com/ylayljzmm/mp3-/releases</string>
+    <string name="about_usb_title">U 盘安装说明</string>
+    <string name="about_usb_body">1. 用手机或电脑打开上面的下载地址，下载 APK；\n2. 把 APK 拷到 U 盘根目录；\n3. U 盘插到车机，用文件管理器打开 APK 安装。\n已装过旧版本可以直接覆盖安装，不需要先卸载。</string>
+    <string name="about_license_title">开源许可</string>
+    <string name="about_license_body">本应用基于以下开源项目构建：\n· AndroidX / Material Components（Apache-2.0）\n· AndroidX Media3 / ExoPlayer（Apache-2.0）\n· Media3 FFmpeg 解码扩展（LGPL-2.1）\n· Kotlin / Kotlinx Coroutines（Apache-2.0）\n各项目的完整许可文本见其官方仓库。</string>
+    <string name="about_no_browser">没有可以打开链接的应用</string>
     <string name="settings_update_title">应用更新</string>
     <string name="settings_update_current">当前版本 %1$s · 可直接在车机上更新</string>
     <string name="settings_update_ready">发现新版本 %1$s</string>

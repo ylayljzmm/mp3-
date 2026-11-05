@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明暗 4 档分段控件的底色（design/04 §3.7 A 段）：
+  选中段 primaryContainer 填充，未选中段透明（只留 1dp 描边）。
+  用 state_checked 而不是 state_selected —— MaterialButtonToggleGroup 里靠 check 状态驱动。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="?attr/colorPrimaryContainer" android:state_checked="true" />
+    <item android:color="@android:color/transparent" />
+</selector>

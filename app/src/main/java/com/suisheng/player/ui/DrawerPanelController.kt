@@ -15,6 +15,7 @@ import com.suisheng.player.R
 import com.suisheng.player.databinding.ActivityMainBinding
 import com.suisheng.player.databinding.ItemDrawerEntryBinding
 import com.suisheng.player.databinding.ItemDrawerGroupBinding
+import com.suisheng.player.model.LibraryGrouper
 import com.suisheng.player.model.Song
 import java.io.File
 
@@ -105,17 +106,21 @@ class DrawerPanelController(
     /**
      * 曲库变化后刷新计数。
      *
-     * 计数缺失时的规矩是**宁可不显示，也不显示 0**：`Song` 里没有专辑字段，
-     * 专辑数根本算不出来，所以「专辑」那条永远没有计数。
+     * 计数缺失时的规矩是**宁可不显示，也不显示 0**：曲库为空时四条都不挂数字。
+     * 四个数字都来自 [LibraryGrouper]，与四个分组页里看到的分组数完全同源，
+     * 不会出现「抽屉说 12 张专辑、点进去 11 张」这种自相矛盾。
      */
     fun updateLibrary(songs: List<Song>) {
         totalSongs = songs.size
-        val artists = songs.map { it.artist.trim() }.filter { it.isNotEmpty() }.toSet().size
+        val unknownAlbum = activity.getString(R.string.library_unknown_album)
+        val unknownArtist = activity.getString(R.string.library_unknown_artist)
+        val albums = LibraryGrouper.byAlbum(songs, unknownAlbum).size
+        val artists = LibraryGrouper.byArtist(songs, unknownArtist).size
         val folders = songs.map { folderOf(it.path) }.toSet().size
         setCount(Destination.SONGS, totalSongs.takeIf { it > 0 })
+        setCount(Destination.ALBUMS, albums.takeIf { it > 0 })
         setCount(Destination.ARTISTS, artists.takeIf { it > 0 })
         setCount(Destination.FOLDERS, folders.takeIf { it > 0 })
-        setCount(Destination.ALBUMS, null)
         renderBottomBar()
     }
 

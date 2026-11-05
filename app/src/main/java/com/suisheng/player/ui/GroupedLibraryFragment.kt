@@ -1,0 +1,287 @@
+package com.suisheng.player.ui
+
+import android.graphics.Color
+import android.os.Bundle
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.annotation.StringRes
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.MaterialColors
+import com.suisheng.player.R
+import com.suisheng.player.data.SettingsRepository
+import com.suisheng.player.databinding.FragmentGroupedLibraryBinding
+import com.suisheng.player.model.LibraryGroup
+import com.suisheng.player.model.LibraryGrouper
+import com.suisheng.player.model.LibraryKind
+import com.suisheng.player.model.Song
+import java.io.File
+import kotlin.math.max
+
+/**
+ * 专辑墙 / 艺术家 / 文件夹三个目的地共用的一页（`design/04 §3.5` 第 3–5 条）。
+ *
+ * 三页的差别只有两处：**怎么分组**（[Grouping]）与**格子还是行**（[LibraryGroupAdapter.Mode]），
+ * 所以做成一个 Fragment + 一个适配器，而不是三份 90% 相同的代码。
+ * 分组算法本身在 `LibraryGrouper`（纯 Kotlin，有单测），这里只负责画。
+ *
+ * 文件夹模式额外有：面包屑、下钻、「播放本文件夹」，以及**记忆上次层级**
+ * （存绝对路径，下次从抽屉进来还在原处）。
+ */
+class GroupedLibraryFragment : Fragment() {
+
+    /** 三种分组方式，与抽屉的 3 条条目一一对应。 */
+    enum class Grouping(
+        @StringRes val titleRes: Int,
+        val adapterMode: LibraryGroupAdapter.Mode,
+    ) {
+        ALBUM(R.string.library_albums_title, LibraryGroupAdapter.Mode.GRID),
+        ARTIST(R.string.library_artists_title, LibraryGroupAdapter.Mode.LIST),
+        FOLDER(R.string.library_folders_title, LibraryGroupAdapter.Mode.LIST),
+    }
+
+    private var _binding: FragmentGroupedLibraryBinding? = null
+    private val binding get() = _binding!!
+    private lateinit var settings: SettingsRepository
+    private lateinit var adapter: LibraryGroupAdapter
+
+    private var grouping: Grouping = Grouping.ALBUM
+    private var rootDir: File? = null
+    private var currentDir: File? = null
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        _binding = FragmentGroupedLibraryBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        settings = SettingsRepository(requireContext())
+        grouping = runCatching {
+            Grouping.valueOf(requireArguments().getString(ARG_GROUPING) ?: Grouping.ALBUM.name)
+        }.getOrDefault(Grouping.ALBUM)
+
+        binding.groupTitle.setText(grouping.titleRes)
+        binding.folderBar.visibility =
+            if (grouping == Grouping.FOLDER) View.VISIBLE else View.GONE
+
+        val coverLoader = AlbumCoverLoader(requireContext(), viewLifecycleOwner.lifecycleScope)
+        adapter = LibraryGroupAdapter(
+            mode = grouping.adapterMode,
+            coverLoader = coverLoader.takeIf { grouping == Grouping.ALBUM },
+            countText = { group -> getString(R.string.library_song_count, group.subtitle) },
+            onClick = ::onGroupClicked,
+        )
+        binding.groupList.adapter = adapter
+        binding.groupList.layoutManager = if (grouping.adapterMode == LibraryGroupAdapter.Mode.GRID) {
+            GridLayoutManager(requireContext(), albumSpanCount())
+        } else {
+            LinearLayoutManager(requireContext())
+        }
+        binding.btnPlayFolder.setOnClickListener { playCurrentFolder() }
+
+        refresh()
+    }
+
+    override fun onDestroyView() {
+        binding.groupList.adapter = null
+        _binding = null
+        super.onDestroyView()
+    }
+
+    // ---------------------------------------------------------------- 渲染
+
+    private fun refresh() {
+        val songs = allSongs()
+        val groups = when (grouping) {
+            Grouping.ALBUM -> LibraryGrouper.byAlbum(songs, getString(R.string.library_unknown_album))
+            Grouping.ARTIST -> LibraryGrouper.byArtist(songs, getString(R.string.library_unknown_artist))
+            Grouping.FOLDER -> folderGroups(songs)
+        }
+        adapter.submit(groups)
+        renderHeader(songs, groups)
+    }
+
+    private fun folderGroups(songs: List<Song>): List<LibraryGroup> {
+        val root = LibraryGrouper.commonRoot(songs)
+        rootDir = root
+        if (root == null) {
+            currentDir = null
+            binding.breadcrumbContainer.removeAllViews()
+            return emptyList()
+        }
+        // 记忆上次层级：只有仍落在当前曲库根之下才复用，否则回到根
+        val remembered = settings.folderBrowsePath
+            ?.let { File(it) }
+            ?.takeIf { LibraryGrouper.isAncestorOrSelf(root, it) }
+        val dir = remembered ?: currentDir?.takeIf { LibraryGrouper.isAncestorOrSelf(root, it) } ?: root
+        currentDir = dir
+        settings.folderBrowsePath = dir.absolutePath
+        renderBreadcrumb(root, dir)
+        return LibraryGrouper.folderChildren(songs, dir)
+    }
+
+    private fun renderHeader(songs: List<Song>, groups: List<LibraryGroup>) {
+        when (grouping) {
+            Grouping.ALBUM -> binding.groupCount.text =
+                getString(R.string.library_album_count, groups.size)
+
+            Grouping.ARTIST -> binding.groupCount.text =
+                getString(R.string.library_artist_count, groups.size)
+
+            Grouping.FOLDER -> {
+                val dir = currentDir
+                val visible = if (dir == null) 0 else LibraryGrouper.songsUnder(songs, dir).size
+                binding.groupCount.text = getString(R.string.library_song_count, visible)
+            }
+        }
+
+        val empty = groups.isEmpty()
+        binding.groupList.visibility = if (empty) View.GONE else View.VISIBLE
+        binding.emptyState.visibility = if (empty) View.VISIBLE else View.GONE
+        binding.btnPlayFolder.isEnabled = songs.isNotEmpty()
+        binding.btnPlayFolder.alpha = if (songs.isEmpty()) DISABLED_ALPHA else 1f
+        if (!empty) return
+
+        // 三个页面的空态必须说得不一样：「没找到专辑」和「还没扫描音乐」是两种处境。
+        // 文件夹再细分三档：整库没歌 / 有歌但没有可浏览的本地目录（全是在线曲目或 SAF 路径）/
+        // 当前这一层没有子文件夹（这种情况直接点「播放本文件夹」就行）。
+        val (titleRes, hintRes) = when (grouping) {
+            Grouping.ALBUM -> R.string.library_empty_album to R.string.library_empty_album_hint
+            Grouping.ARTIST -> R.string.library_empty_artist to R.string.library_empty_artist_hint
+            Grouping.FOLDER -> when {
+                songs.isEmpty() ->
+                    R.string.library_empty_songs to R.string.library_empty_songs_hint
+
+                currentDir == null ->
+                    R.string.library_empty_folder to R.string.library_empty_folder_hint
+
+                else ->
+                    R.string.library_empty_folder_flat to R.string.library_empty_folder_flat_hint
+            }
+        }
+        binding.emptyTitle.setText(titleRes)
+        binding.emptyHint.setText(hintRes)
+    }
+
+    /** 面包屑：根 → 当前层，每一级可点，点当前层无动作。 */
+    private fun renderBreadcrumb(root: File, current: File) {
+        val container = binding.breadcrumbContainer
+        container.removeAllViews()
+        val crumbs = LibraryGrouper.breadcrumb(root, current)
+        crumbs.forEachIndexed { index, dir ->
+            if (index > 0) {
+                container.addView(buildCrumbSeparator())
+            }
+            container.addView(buildCrumb(dir, isCurrent = index == crumbs.lastIndex) {
+                if (dir == current) return@buildCrumb
+                jumpToDirectory(dir)
+            })
+        }
+        binding.breadcrumbScroll.post {
+            binding.breadcrumbScroll.fullScroll(View.FOCUS_RIGHT)
+        }
+    }
+
+    private fun jumpToDirectory(dir: File) {
+        currentDir = dir
+        settings.folderBrowsePath = dir.absolutePath
+        refresh()
+    }
+
+    private fun buildCrumbSeparator(): TextView = TextView(requireContext()).apply {
+        text = "/"
+        textSize = 17f
+        gravity = Gravity.CENTER
+        setTextColor(attrColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+        setPadding(dp(6), 0, dp(6), 0)
+    }
+
+    private fun buildCrumb(dir: File, isCurrent: Boolean, onJump: () -> Unit): TextView =
+        TextView(requireContext()).apply {
+            text = if (dir == rootDir) getString(R.string.library_breadcrumb_root) else dir.name
+            textSize = 17f
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(6), dp(4), dp(6))
+            setTextColor(
+                attrColor(
+                    if (isCurrent) {
+                        com.google.android.material.R.attr.colorOnSurface
+                    } else {
+                        com.google.android.material.R.attr.colorPrimary
+                    }
+                )
+            )
+            if (!isCurrent) {
+                isClickable = true
+                setOnClickListener { onJump() }
+            }
+        }
+
+    // ---------------------------------------------------------------- 交互
+
+    private fun onGroupClicked(group: LibraryGroup) {
+        when (grouping) {
+            Grouping.ALBUM, Grouping.ARTIST -> playAndOpen(group.songs)
+            Grouping.FOLDER -> {
+                val dir = File(group.key)
+                // 还有下一层就下钻；已经是叶子目录就直接播放（省掉「进去再点播放」这一跳）
+                if (LibraryGrouper.folderChildren(group.songs, dir).isNotEmpty()) {
+                    currentDir = dir
+                    settings.folderBrowsePath = dir.absolutePath
+                    refresh()
+                } else {
+                    playAndOpen(group.songs)
+                }
+            }
+        }
+    }
+
+    private fun playCurrentFolder() {
+        val dir = currentDir ?: return
+        playAndOpen(LibraryGrouper.songsUnder(allSongs(), dir))
+    }
+
+    private fun playAndOpen(songs: List<Song>) {
+        val host = activity as? MainHost ?: return
+        if (songs.isEmpty()) return
+        host.playSongSubset(songs, 0, LibraryKind.MUSIC)
+        host.selectDestination(Destination.PLAYER)
+    }
+
+    private fun allSongs(): List<Song> = (activity as? MainHost)?.allSongs().orEmpty()
+
+    // ---------------------------------------------------------------- 工具
+
+    /** 横屏一屏 5 张、竖屏 2 张：按「可用宽度 / 200dp」算，最少 2 列。 */
+    private fun albumSpanCount(): Int {
+        val marginDp = resources.getDimension(R.dimen.library_page_margin_horizontal) /
+            resources.displayMetrics.density
+        val widthDp = resources.configuration.screenWidthDp - marginDp * 2
+        return max(2, (widthDp / 200f).toInt())
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun attrColor(attr: Int): Int =
+        MaterialColors.getColor(requireContext(), attr, Color.TRANSPARENT)
+
+    companion object {
+        private const val ARG_GROUPING = "grouping"
+        private const val DISABLED_ALPHA = 0.38f
+
+        fun newInstance(grouping: Grouping): GroupedLibraryFragment =
+            GroupedLibraryFragment().apply {
+                arguments = Bundle().apply { putString(ARG_GROUPING, grouping.name) }
+            }
+    }
+}

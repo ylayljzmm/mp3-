@@ -258,6 +258,16 @@ class SettingsRepository(context: Context) {
         }
 
     /**
+     * 文件夹浏览「记忆上次层级」（`design/04 §3.5` 第 5 条）。
+     * 存绝对路径；目录不存在或为空串时页面回到根。
+     */
+    var folderBrowsePath: String?
+        get() = prefs.getString(KEY_FOLDER_BROWSE, null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit {
+            if (value.isNullOrBlank()) remove(KEY_FOLDER_BROWSE) else putString(KEY_FOLDER_BROWSE, value)
+        }
+
+    /**
      * 解析播放页实际生效的强调色（`04 §2.6` 三条降级规则见 [ThemeController.resolvePlayerAccent]）。
      */
     fun resolvePlayerAccent(): ThemeController.PlayerAccentResolution =
@@ -425,7 +435,8 @@ class SettingsRepository(context: Context) {
         const val KEY_THEME_COVER_TINT = "theme_cover_tint_enabled"
         const val KEY_THEME_NIGHT_START = "theme_night_start"
         const val KEY_THEME_NIGHT_END = "theme_night_end"
-
+        /** 文件夹浏览上次所在的绝对路径（`design/04 §3.5` 的「记忆上次层级」）。 */
+        const val KEY_FOLDER_BROWSE = "folder_browse_path"
         /** [nightStartMinuteOverride] / [nightEndMinuteOverride] 的「未设置」哨兵值。 */
         const val NO_MINUTE_OVERRIDE = -1
         const val KEY_LYRIC_THEME = "lyric_theme"

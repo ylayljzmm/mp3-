@@ -15,7 +15,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.Fragment
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.suisheng.player.R
@@ -29,26 +29,20 @@ import java.util.Calendar
 /**
  * 主题设置页（`design/04 §3.7`）。
  *
- * 以全屏 DialogFragment 呈现，而不是走 Activity 内 Fragment 替换：
- * 设置页此刻活在 `ViewPager` 的一页里，直接 replace 会把分页结构拆坏；
- * 2c 引入抽屉导航后会重排页面栈，届时再把它并入正常导航。
+ * 2c-2 起是**普通 Fragment**（此前是全屏 DialogFragment）：
+ * 有了抽屉导航，主题页就是一个正常的目的地 [Destination.THEME]，
+ * 从抽屉底部第三格或「设置 → 外观」进来都走 `MainHost.openTheme()`，
+ * 返回键回它进来的那一页（由 `MainHost.navigateUp()` 决定）。
  *
  * 页面骨架严格按 §3.7 的 A–G 七段：
  * A 明暗 4 档 / B 夜间时段 / C 主题色网格 / D 预览卡 /
  * E 播放页单独配色 / F 封面取色 / G 恢复默认。
  */
-class ThemeFragment : DialogFragment() {
+class ThemeFragment : Fragment() {
 
     private var _binding: FragmentThemeBinding? = null
     private val binding get() = _binding!!
     private lateinit var settings: SettingsRepository
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        // 全屏、无标题、字色跟随主题：样式继承 Theme.Suisheng.Base，
-        // 所以页面里的 ?attr/ 都能解析（用系统 Theme.Material 会直接崩）。
-        setStyle(STYLE_NO_TITLE, R.style.Theme_Suisheng_FullScreenDialog)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -63,7 +57,7 @@ class ThemeFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         settings = SettingsRepository(requireContext())
 
-        binding.btnThemeBack.setOnClickListener { dismiss() }
+        binding.btnThemeBack.setOnClickListener { (activity as? MainHost)?.navigateUp() }
         setupModeToggle()
         setupNightRange()
         renderAccentGrid()
@@ -172,8 +166,9 @@ class ThemeFragment : DialogFragment() {
         renderSwatches(binding.swatchContainer, settings.themeAccent) { accent ->
             if (accent == settings.themeAccent) return@renderSwatches
             settings.themeAccent = accent
+            // 换主题要重建 Activity；重建后本页仍是当前目的地，用户留在原地看新配色，
+            // 不需要手动跳回（原来 Dialog 版本是 dismiss，那是「对话框必须关掉」的限制）。
             activity?.recreate()
-            dismiss()
         }
     }
 
@@ -367,7 +362,6 @@ class ThemeFragment : DialogFragment() {
         settings.nightEndMinuteOverride = null
         settings.applyTheme()
         activity?.recreate()
-        dismiss()
     }
 
     companion object {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 专辑墙格子封面（design/04 §2.8「圆角 = 边长 × 7.5%」，180dp 档 → 14dp）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/colorSurfaceContainerHighest" />
+    <corners android:radius="@dimen/library_card_corner" />
+</shape>

@@ -43,6 +43,23 @@
     <dimen name="drawer_bottom_pill_height">44dp</dimen>
 
     <!-- =========================================================
+         迷你条（design/04 §3.0：只在二级页出现，64dp）
+         ========================================================= -->
+    <dimen name="mini_player_height">64dp</dimen>
+    <dimen name="mini_player_cover_size">48dp</dimen>
+    <!-- 圆角 = 边长 × 7.5%（§2.8） -->
+    <dimen name="mini_player_cover_corner">8dp</dimen>
+
+    <!-- =========================================================
+         分组页（专辑 / 艺术家 / 文件夹）
+         ========================================================= -->
+    <dimen name="library_top_bar_height">56dp</dimen>
+    <dimen name="library_page_margin_horizontal">32dp</dimen>
+    <dimen name="library_row_height">72dp</dimen>
+    <dimen name="library_avatar_size">40dp</dimen>
+    <dimen name="library_card_corner">14dp</dimen>
+
+    <!-- =========================================================
          设置页 token（design/04 §3.6）
          ========================================================= -->
     <dimen name="settings_page_margin_horizontal">32dp</dimen>

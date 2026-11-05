@@ -52,6 +52,7 @@ class MusicScanner(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DURATION
         )
@@ -68,6 +69,7 @@ class MusicScanner(
             val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
             val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
             val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
             val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
             if (dataCol < 0) return emptyList()
@@ -78,6 +80,7 @@ class MusicScanner(
                     ?: File(path).nameWithoutExtension
                 val artist = (if (artistCol >= 0) cursor.getString(artistCol) else null)
                     ?: "未知歌手"
+                val album = if (albumCol >= 0) cursor.getString(albumCol).orEmpty().trim() else ""
                 val trackDuration =
                     if (durationCol >= 0) cursor.getLong(durationCol).coerceAtLeast(0L) else 0L
                 songs.add(
@@ -87,7 +90,8 @@ class MusicScanner(
                         artist = artist,
                         path = path,
                         lrcPath = findLrc(path),
-                        durationMs = trackDuration
+                        durationMs = trackDuration,
+                        album = album
                     )
                 )
             }
@@ -103,6 +107,7 @@ class MusicScanner(
             root.walkTopDown().maxDepth(8)
                 .filter { it.isFile && isAudioFile(it.absolutePath) }
                 .forEach { file ->
+                    val (durationMs, album) = readMetadata(file.absolutePath)
                     songs.add(
                         Song(
                             id = id++,
@@ -110,7 +115,8 @@ class MusicScanner(
                             artist = file.parentFile?.name ?: "本地音乐",
                             path = file.absolutePath,
                             lrcPath = findLrc(file.absolutePath),
-                            durationMs = readDurationMs(file.absolutePath)
+                            durationMs = durationMs,
+                            album = album
                         )
                     )
                 }
@@ -142,6 +148,7 @@ class MusicScanner(
         val uri = file.uri.toString()
         val id = nextId()
         val title = name.substringBeforeLast('.')
+        val (durationMs, album) = readMetadata(uri)
         out.add(
             Song(
                 id = id,
@@ -152,12 +159,19 @@ class MusicScanner(
                     context,
                     Song(id, title, "本地音乐", uri, null)
                 ),
-                durationMs = readDurationMs(uri)
+                durationMs = durationMs,
+                album = album
             )
         )
     }
 
-    private fun readDurationMs(pathOrUri: String): Long {
+    /**
+     * 一次 `MediaMetadataRetriever` 同时取时长与专辑名。
+     *
+     * 目录扫描是**逐文件**开 retriever 的，开两次比开一次贵一倍；车机上几千个文件的
+     * U 盘首次扫描本来就要几十秒，不能在这里翻倍。
+     */
+    private fun readMetadata(pathOrUri: String): Pair<Long, String> {
         val retriever = MediaMetadataRetriever()
         return runCatching {
             if (pathOrUri.startsWith("content://")) {
@@ -165,9 +179,16 @@ class MusicScanner(
             } else {
                 retriever.setDataSource(pathOrUri)
             }
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            val durationMs = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
                 ?.coerceAtLeast(0L) ?: 0L
-        }.getOrDefault(0L).also {
+            val album = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                .orEmpty()
+                .trim()
+            durationMs to album
+        }.getOrDefault(0L to "").also {
             runCatching { retriever.release() }
         }
     }

@@ -7,7 +7,6 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,12 +23,15 @@ import com.suisheng.player.databinding.ActivityMainBinding
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
+import com.suisheng.player.ui.AboutFragment
 import com.suisheng.player.ui.AppThemeManager
 import com.suisheng.player.ui.Destination
 import com.suisheng.player.ui.DrawerPanelController
+import com.suisheng.player.ui.GroupedLibraryFragment
 import com.suisheng.player.ui.ImmersiveHelper
 import com.suisheng.player.ui.LocalPlaylistFragment
 import com.suisheng.player.ui.MainHost
+import com.suisheng.player.ui.MiniPlayerController
 import com.suisheng.player.ui.OnlineMusicFragment
 import com.suisheng.player.ui.PlayerFragment
 import com.suisheng.player.ui.PlaylistFragment
@@ -51,20 +53,38 @@ class MainActivity : AppCompatActivity(), MainHost {
     private lateinit var binding: ActivityMainBinding
     private lateinit var settings: SettingsRepository
     private lateinit var drawer: DrawerPanelController
+    private lateinit var miniPlayer: MiniPlayerController
     private var musicSongs: List<Song> = emptyList()
 
     /** 当前挂在 `contentHost` 上的页面；Fragment 被销毁重建时由 FragmentManager 负责，这里只做引用。 */
     private var currentFragment: Fragment? = null
     private var currentDestination: Destination = Destination.HOME
 
+    /** 主题页是从哪一页进来的；返回时回到那里，而不是一律回播放页。 */
+    private var themeOrigin: Destination? = null
+
     private val storagePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { scanMusic() }
 
-    /** 返回键：抽屉开着就先收抽屉，收起状态下不拦截（交给系统退出）。 */
-    private val drawerBackCallback = object : OnBackPressedCallback(false) {
+    /**
+     * 唯一的返回键处理者（`design/04 §3.0` 的「播放页为中心」模型）：
+     * 抽屉开着 → 收抽屉；主题页 → 回来源页；其它二级页 → 回播放页；播放页 → 退出。
+     *
+     * 边缘滑动已经在 2c-2 关闭（见 `setupDrawer` 里的 `LOCK_MODE_LOCKED_CLOSED`），
+     * 所以返回键是二级页回退的主通道，必须常驻启用。
+     */
+    private val backCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(GravityCompat.START)
+                return
+            }
+            if (currentDestination == Destination.PLAYER) {
+                finish()
+                return
+            }
+            navigateUp()
         }
     }
 
@@ -79,11 +99,22 @@ class MainActivity : AppCompatActivity(), MainHost {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupMiniPlayer()
         setupDrawer(savedInstanceState)
         applyAppTheme()
 
         restoreCachedLibraries(resumePlayback = false)
         requestPermissionsAndScan()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        PlaybackStateHolder.addListener(miniPlayer)
+    }
+
+    override fun onStop() {
+        PlaybackStateHolder.removeListener(miniPlayer)
+        super.onStop()
     }
 
     override fun onResume() {
@@ -100,6 +131,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_DESTINATION, currentDestination.name)
+        // 「主题页是从哪来的」也要一起存：主题页里换配色会 `recreate()`，
+        // 不存的话重建后 themeOrigin 丢了，「设置 → 外观 → 返回」会错误地落到播放页。
+        outState.putString(KEY_THEME_ORIGIN, themeOrigin?.name)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -111,6 +145,9 @@ class MainActivity : AppCompatActivity(), MainHost {
 
     private fun setupDrawer(savedInstanceState: Bundle?) {
         binding.drawerLayout.setScrimColor(DRAWER_SCRIM_COLOR)
+        // 只认按钮、不做边缘滑动（03 §6.1 的裁定）。LOCK_MODE_LOCKED_CLOSED 只拦手势，
+        // openDrawer() 仍然有效，所以播放页的 ☰ 与代码调用不受影响。
+        binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         applyDrawerWidth()
         drawer = DrawerPanelController(
             activity = this,
@@ -123,7 +160,7 @@ class MainActivity : AppCompatActivity(), MainHost {
                     }
                 }
             },
-            onTheme = { openThemeSettings() },
+            onTheme = { openTheme() },
         )
         drawer.bind()
 
@@ -131,6 +168,13 @@ class MainActivity : AppCompatActivity(), MainHost {
         currentDestination = Destination.fromName(savedInstanceState?.getString(KEY_DESTINATION))
             ?.takeIf { it.available }
             ?: Destination.HOME
+        // 只有「重建时正停在主题页」才需要恢复来源页；其余情况来源上下文已作废
+        themeOrigin = if (currentDestination == Destination.THEME) {
+            Destination.fromName(savedInstanceState?.getString(KEY_THEME_ORIGIN))
+                ?.takeIf { it.available && it != Destination.THEME }
+        } else {
+            null
+        }
         if (savedInstanceState == null) {
             showDestination(currentDestination)
         } else {
@@ -139,16 +183,15 @@ class MainActivity : AppCompatActivity(), MainHost {
         }
         drawer.select(currentDestination)
 
-        onBackPressedDispatcher.addCallback(this, drawerBackCallback)
-        binding.drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
-            override fun onDrawerOpened(drawerView: View) {
-                drawerBackCallback.isEnabled = true
-            }
+        onBackPressedDispatcher.addCallback(this, backCallback)
+    }
 
-            override fun onDrawerClosed(drawerView: View) {
-                drawerBackCallback.isEnabled = false
-            }
-        })
+    /** 迷你条：点整条回播放页，点播放键就地播放/暂停。 */
+    private fun setupMiniPlayer() {
+        miniPlayer = MiniPlayerController(this, binding) {
+            selectDestination(Destination.PLAYER)
+        }
+        miniPlayer.bind()
     }
 
     /** 横屏 400dp，竖屏 300dp；屏宽不足 360dp 时取 0.84 × 屏宽（`design/04 §3.5`）。 */
@@ -180,13 +223,36 @@ class MainActivity : AppCompatActivity(), MainHost {
             Toast.makeText(this, R.string.drawer_coming_soon, Toast.LENGTH_SHORT).show()
             return
         }
-        val alreadyHere = destination == currentDestination
         binding.drawerLayout.closeDrawer(GravityCompat.START)
-        if (alreadyHere) return
+        if (destination == currentDestination) return
+        // 主动从抽屉切页 → 主题页的来源上下文作废（返回键按「二级页回播放页」走）
+        themeOrigin = null
         currentDestination = destination
         showDestination(destination)
         drawer.select(destination)
         applyAppTheme()
+    }
+
+    override fun openTheme() {
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
+        if (currentDestination == Destination.THEME) return
+        // 从播放页进来时不需要记来源：返回键本来就是「非播放页回播放页」
+        themeOrigin = if (currentDestination == Destination.PLAYER) null else currentDestination
+        currentDestination = Destination.THEME
+        showDestination(Destination.THEME)
+        drawer.select(Destination.THEME)
+    }
+
+    override fun navigateUp() {
+        val origin = themeOrigin
+        themeOrigin = null
+        if (currentDestination == Destination.THEME && origin != null && origin.available) {
+            currentDestination = origin
+            showDestination(origin)
+            drawer.select(origin)
+            return
+        }
+        selectDestination(Destination.PLAYER)
     }
 
     /**
@@ -202,23 +268,21 @@ class MainActivity : AppCompatActivity(), MainHost {
             .replace(R.id.contentHost, fragment, destination.tag)
             .commit()
         currentFragment = fragment
+        // 播放页自己不挂迷你条：那一页已经有整套控件，再挂一条是重复
+        miniPlayer.setHiddenForDestination(destination == Destination.PLAYER)
     }
 
     private fun createFragment(destination: Destination): Fragment = when (destination) {
         Destination.HOME -> PlaylistFragment()
         Destination.SONGS -> LocalPlaylistFragment()
+        Destination.ALBUMS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ALBUM)
+        Destination.ARTISTS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ARTIST)
+        Destination.FOLDERS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.FOLDER)
         Destination.ONLINE -> OnlineMusicFragment()
         Destination.SETTINGS -> SettingsFragment()
+        Destination.ABOUT -> AboutFragment()
         Destination.PLAYER -> PlayerFragment()
-        // 未落地的 3 条在 selectDestination() 已被拦下，这里只是为了让 when 穷举。
-        Destination.ALBUMS, Destination.ARTISTS, Destination.FOLDERS, Destination.ABOUT ->
-            PlaylistFragment()
-    }
-
-    private fun openThemeSettings() {
-        binding.drawerLayout.closeDrawer(GravityCompat.START)
-        if (supportFragmentManager.findFragmentByTag(ThemeFragment.TAG) != null) return
-        ThemeFragment().show(supportFragmentManager, ThemeFragment.TAG)
+        Destination.THEME -> ThemeFragment()
     }
 
     // ------------------------------------------------------------ 播放/扫描
@@ -393,6 +457,9 @@ class MainActivity : AppCompatActivity(), MainHost {
 
         /** 保存当前目的地的键，值取 [Destination.name]。 */
         const val KEY_DESTINATION = "main_destination"
+
+        /** 保存主题页来源页的键，值取 [Destination.name]；null 表示从播放页进来的。 */
+        const val KEY_THEME_ORIGIN = "theme_origin"
 
         /** 竖屏抽屉宽与屏宽的比例上限（屏宽 < 360dp 时生效）。 */
         const val PORTRAIT_DRAWER_RATIO = 0.84f

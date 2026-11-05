@@ -162,7 +162,8 @@ class SettingsFragment : Fragment() {
         }
 
         binding.rowThemeEntry.setOnClickListener {
-            ThemeFragment().show(parentFragmentManager, ThemeFragment.TAG)
+            // 两条入口（设置 → 外观 / 抽屉底部第三格）走同一条导航，主题页是普通目的地
+            (activity as? MainHost)?.openTheme()
         }
 
         binding.switchOverlay.setOnCheckedChangeListener { _, checked ->

@@ -18,12 +18,33 @@
     android:background="?attr/colorSurface"
     android:fitsSystemWindows="false">
 
-    <!-- 内容区：首页 / 歌曲 / 在线 / 设置 全部挂在这里，由 Fragment 事务切换 -->
-    <FrameLayout
-        android:id="@+id/contentHost"
+    <!--
+      内容列：页面区（Fragment 容器）+ 迷你条 + 车机 Dock 安全区。
+      迷你条放在页面区**下面**而不是叠在上面：叠上去就得给每个页面算底部 padding，
+      而迷你条只在二级页出现（播放页隐藏），高度会变，叠着算必然漏。
+    -->
+    <LinearLayout
+        android:id="@+id/contentColumn"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="@dimen/car_dock_safe_area" />
+        android:orientation="vertical">
+
+        <!-- 页面区：首页 / 歌曲 / 专辑 / 艺术家 / 文件夹 / 在线 / 设置 / 关于 全部挂在这里 -->
+        <FrameLayout
+            android:id="@+id/contentHost"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <include
+            android:id="@+id/miniPlayer"
+            layout="@layout/view_mini_player" />
+
+        <View
+            android:id="@+id/dockSafeArea"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/car_dock_safe_area" />
+    </LinearLayout>
 
     <!-- 抽屉面板：左侧贴边直角、右侧 28dp 圆角（背景在 DrawerPanelController 里用
          GradientDrawable 的 cornerRadii 画，才能做到「只有右边两角是圆的」） -->

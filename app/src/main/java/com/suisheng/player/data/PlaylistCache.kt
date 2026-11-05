@@ -49,6 +49,7 @@ object PlaylistCache {
                     put("path", song.path)
                     put("lrcPath", song.lrcPath)
                     put("durationMs", song.durationMs)
+                    put("album", song.album)
                 }
             )
         }
@@ -72,7 +73,9 @@ object PlaylistCache {
                             artist = item.optString("artist"),
                             path = item.optString("path"),
                             lrcPath = item.optString("lrcPath").takeIf { it.isNotBlank() },
-                            durationMs = item.optLong("durationMs")
+                            durationMs = item.optLong("durationMs"),
+                            // 新增字段：老缓存里没有这一项，optString 给空串，正好落到「未知专辑」
+                            album = item.optString("album")
                         )
                     )
                 }

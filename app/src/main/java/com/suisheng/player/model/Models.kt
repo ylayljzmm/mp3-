@@ -6,7 +6,13 @@ data class Song(
     val artist: String,
     val path: String,
     val lrcPath: String?,
-    val durationMs: Long = 0L
+    val durationMs: Long = 0L,
+    /**
+     * 专辑名。本地曲库来自 MediaStore 的 `ALBUM` 列或 `METADATA_KEY_ALBUM`；
+     * 取不到就是空串——专辑墙会把空串统一归到「未知专辑」，而不是丢歌。
+     * 在线曲目由 `OnlineMusicApi` 填。
+     */
+    val album: String = "",
 )
 
 data class ArtistGroup(

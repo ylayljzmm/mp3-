@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 迷你条封面（design/04 §2.8「圆角 = 边长 × 7.5%」，48dp → 8dp）。
+     ImageView 上配 android:clipToOutline="true" 才能把加载进来的位图裁圆。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/colorSurfaceContainerHighest" />
+    <corners android:radius="@dimen/mini_player_cover_corner" />
+</shape>

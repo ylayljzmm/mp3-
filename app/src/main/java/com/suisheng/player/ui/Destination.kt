@@ -58,21 +58,21 @@ enum class Destination(
         labelRes = R.string.drawer_albums,
         iconRes = R.drawable.ic_drawer_album,
         group = DrawerGroup.LIBRARY,
-        available = false,
+        available = true,
         showsCount = true,
     ),
     ARTISTS(
         labelRes = R.string.drawer_artists,
         iconRes = R.drawable.ic_drawer_artist,
         group = DrawerGroup.LIBRARY,
-        available = false,
+        available = true,
         showsCount = true,
     ),
     FOLDERS(
         labelRes = R.string.drawer_folders,
         iconRes = R.drawable.ic_drawer_folder,
         group = DrawerGroup.LIBRARY,
-        available = false,
+        available = true,
         showsCount = true,
     ),
     ONLINE(
@@ -93,7 +93,7 @@ enum class Destination(
         labelRes = R.string.drawer_about,
         iconRes = R.drawable.ic_drawer_about,
         group = DrawerGroup.SYSTEM,
-        available = false,
+        available = true,
         showsCount = false,
     ),
 
@@ -106,6 +106,20 @@ enum class Destination(
         labelRes = R.string.playing_now,
         iconRes = R.drawable.ic_drawer_song,
         group = DrawerGroup.LIBRARY,
+        available = true,
+        showsCount = false,
+        shownInDrawer = false,
+    ),
+
+    /**
+     * 主题设置页。同样不在抽屉里——它由抽屉**底部第三格**的「主题」药丸直达，
+     * 也可以从「设置 → 外观」进来；两处都走 `MainHost.openTheme()`。
+     * 2c-2 起它是普通 Fragment，不再是全屏 Dialog。
+     */
+    THEME(
+        labelRes = R.string.theme_title,
+        iconRes = R.drawable.ic_drawer_theme,
+        group = DrawerGroup.SYSTEM,
         available = true,
         showsCount = false,
         shownInDrawer = false,

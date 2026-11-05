@@ -70,55 +70,46 @@
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/modeGroup"
+                style="@style/Widget.Suisheng.SegmentedGroup"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/theme_mode_toggle_height"
-                android:layout_marginTop="12dp"
-                app:selectionRequired="true"
-                app:singleSelection="true">
+                android:layout_marginTop="12dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeLight"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Suisheng.Segmented"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
                     android:text="@string/theme_light"
-                    android:textSize="17sp" />
+                    />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeDark"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Suisheng.Segmented"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
                     android:text="@string/theme_dark"
-                    android:textSize="17sp" />
+                    />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeSystem"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Suisheng.Segmented"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
                     android:text="@string/theme_system"
-                    android:textSize="17sp" />
+                    />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeAuto"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Suisheng.Segmented"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
                     android:text="@string/theme_auto"
-                    android:textSize="17sp" />
+                    />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <TextView

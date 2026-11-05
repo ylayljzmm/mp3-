@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  分段控件（design/04 §3.7 A 段）。
+
+  刻意**不写进 themes.xml**：那个文件整份由 `tools/gen_theme_styles.py` 生成，
+  手改会被下次生成覆盖。这里单独一个文件放「非生成段」的控件样式。
+
+  也**没有**挂到 `Theme.Suisheng.Base` 的 `materialButtonToggleGroupStyle` 上：
+  全局 toggle 样式影响所有 MaterialButtonToggleGroup（设置页里还有别的分组），
+  这里按用户裁定「单个控件单独指定」。
+
+  注意 AAPT 的隐式父样式规则：`<style name="A.B">` 不写 parent 时它会去找 `A`，
+  找不到就报 `resource style/A not found`（2b-2 踩过一次）。所以没有父样式的必须写 `parent=""`。
+-->
+<resources>
+
+    <!-- 分组容器：只负责单选语义，外观交给子按钮 -->
+    <style name="Widget.Suisheng.SegmentedGroup" parent="">
+        <item name="singleSelection">true</item>
+        <item name="selectionRequired">true</item>
+    </style>
+
+    <!-- 单个分段：高 56dp、圆角 full、1dp 描边、选中 primaryContainer -->
+    <style name="Widget.Suisheng.Segmented" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textColor">@color/segmented_text</item>
+        <item name="backgroundTint">@color/segmented_bg</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/segmented_stroke</item>
+        <item name="cornerRadius">28dp</item>
+        <item name="rippleColor">?attr/colorPrimary</item>
+    </style>
+
+</resources>
