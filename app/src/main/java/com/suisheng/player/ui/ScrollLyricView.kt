@@ -361,10 +361,21 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     private companion object {
+        /**
+         * 单行字号的「字形占位」倍率（字体度量用，不是排版行距）。
+         *
+         * 本类的全部排版规格都在这里与 [LyricRenderer.Style] 里，**不放布局文件**：
+         * 歌词是 Canvas 自绘的，没有逐行 View（8Hz 进度回调下逐行 View 会带来
+         * GC 抖动与每帧 requestLayout）。`design/05 §9.2` 给的四个数落在：
+         *  - 行距 `1.72`      → `SettingsRepository.playerLyricLineSpacing`
+         *  - 当前行 `1.55`    → `SettingsRepository.currentLineScale`
+         *  - 基准 `20 → 27sp` → `SettingsRepository.playerFontSizeSp` × [FULLSCREEN_SIZE_SCALE]
+         *  - 遮罩 `96dp`      → [FADE_HEIGHT_DP]
+         */
         const val ROW_RATIO = 1.35f
 
-        /** 全屏歌词字号放大：33 / 27 ≈ 1.22（`design/05 §7` 第三行）。 */
-        const val FULLSCREEN_SIZE_SCALE = 1.22f
+        /** 全屏歌词字号放大：20 × 1.35 = 27sp（`design/05 §9.2`「基准 20→27sp」）。 */
+        const val FULLSCREEN_SIZE_SCALE = 1.35f
 
         /** 上下渐隐遮罩高度（`design/05 §6`）。 */
         const val FADE_HEIGHT_DP = 96f

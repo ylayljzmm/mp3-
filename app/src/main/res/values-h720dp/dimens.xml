@@ -7,7 +7,7 @@
   720dp 画布减顶栏 64、上下各 24 安全边距 → 可用 608dp，余量 25dp，不滚动。
 
   只覆盖受屏高约束的那几个尺寸；其余（轴宽 300、时间 38、进度高 10 …）由
-  `values/dimens.xml` 提供，两档一致。
+  `values/dimens.xml` 提供，三档一致。
 -->
 <resources>
     <dimen name="vinyl_size">292dp</dimen>
@@ -20,4 +20,6 @@
     <dimen name="player_gap_transport_actions">8dp</dimen>
     <dimen name="player_transport_size">78dp</dimen>
     <dimen name="player_action_row_height">68dp</dimen>
+    <!-- 主键图标恒为 (78 − 2×22) = 34dp（§3.3） -->
+    <dimen name="player_transport_padding">22dp</dimen>
 </resources>

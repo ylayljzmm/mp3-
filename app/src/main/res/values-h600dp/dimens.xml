@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  播放页中轴 · 中间档（600 ~ 719dp 屏高）。
+
+  可用高度 = 600 − 64（顶栏）− 48（上下各 24 安全边距）= 488dp
+  该档总高 = 232 + 18 + 42 + 4 + 20 + 12 + 10 + 10 + 66 + 6 + 58 = 478dp ≤ 488 ✓
+
+  典型的 1024×600 车机（密度 1.0 → 600dp）落这一档。
+  只覆盖受屏高约束的尺寸；轴宽 300、时间 38、进度带 10、主键 52 等由 `values/dimens.xml`
+  提供，三档一致。
+-->
+<resources>
+    <dimen name="vinyl_size">232dp</dimen>
+    <!-- 封面直径 = 唱片 × 0.664（§4.1 L4）：232 × 0.664 ≈ 154 -->
+    <dimen name="vinyl_art">154dp</dimen>
+    <dimen name="player_gap_vinyl_title">18dp</dimen>
+    <dimen name="player_gap_title_artist">4dp</dimen>
+    <dimen name="player_gap_artist_progress">12dp</dimen>
+    <dimen name="player_gap_progress_transport">10dp</dimen>
+    <dimen name="player_gap_transport_actions">6dp</dimen>
+    <dimen name="player_transport_size">66dp</dimen>
+    <dimen name="player_action_row_height">58dp</dimen>
+    <!-- 主键图标恒为 (66 − 2×16) = 34dp（§3.3） -->
+    <dimen name="player_transport_padding">16dp</dimen>
+</resources>

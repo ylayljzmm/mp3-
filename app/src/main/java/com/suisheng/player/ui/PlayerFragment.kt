@@ -173,18 +173,49 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     private fun setupSlider() {
-        binding.progressSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+        val slider = binding.progressSlider
+        // §3.2：拖动中把两条时间都转成主色、滑块从 13dp 放大到 16dp；
+        // 静止态的颜色与半径取自 XML（@dimen/player_slider_thumb_radius = 6.5dp 半径 = 13dp 直径）。
+        val idleTextColor = MaterialColors.getColor(
+            binding.timeCurrent,
+            com.google.android.material.R.attr.colorOnSurfaceVariant,
+        )
+        val activeTextColor = MaterialColors.getColor(
+            binding.timeCurrent,
+            com.google.android.material.R.attr.colorPrimary,
+        )
+        // BaseSlider 的 thumbRadius 是 @Px int，不是 float
+        val thumbIdlePx = resources.getDimensionPixelSize(R.dimen.player_slider_thumb_radius)
+        val thumbActivePx = resources.getDimensionPixelSize(R.dimen.player_slider_thumb_radius_active)
+
+        slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
                 userSeeking = true
                 chrome.onUserInteraction()
+                slider.thumbRadius = thumbActivePx
+                binding.timeCurrent.setTextColor(activeTextColor)
+                binding.timeTotal.setTextColor(activeTextColor)
             }
 
             override fun onStopTrackingTouch(slider: Slider) {
                 userSeeking = false
+                slider.thumbRadius = thumbIdlePx
+                binding.timeCurrent.setTextColor(idleTextColor)
+                binding.timeTotal.setTextColor(idleTextColor)
                 // 只有抬手才 seek，拖动过程中不打断播放（§3.2 末段）
-                seekTo(slider.value.toLong())
+                val target = slider.value.toLong()
+                seekTo(target)
+                // 先把界面钉到手抬起的值，避免下一次状态回调把滑块弹回旧位置
+                updateProgressUi(target, PlaybackStateHolder.durationMs)
             }
         })
+
+        // §3.2：拖动过程中「当前时间」实时跟手（只动文字，不动播放位置）
+        slider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser && userSeeking) {
+                binding.timeCurrent.text = formatTime(value.toLong())
+            }
+        }
     }
 
     // ------------------------------------------------------- 四态与交互计时

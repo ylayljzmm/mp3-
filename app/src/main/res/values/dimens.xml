@@ -68,30 +68,36 @@
     <dimen name="settings_group_corner_radius">16dp</dimen>
 
     <!-- =========================================================
-         播放页中轴（design/05 §3.1，方案 D）
+         播放页中轴（design/05 §3.1，方案 D）—— 三档按屏高分
 
-         这里的值是**紧凑档**：供屏高 < 720dp 的车机使用（例如 1024×600 密度 1.0
-         时可用高度只有 536dp，装不下 §3.1 的 583dp 中轴）。
-         `values-h720dp/dimens.xml` 用文档原值覆盖同一批名字，720dp 及以上
-         （1280×720 / 1920×1080）拿到的就是 05 文档的 292dp 一档。
+         | 档位 | 适用 | 可用高度 | 该档总高 |
+         | 本文件（默认） | 屏高 < 600dp | 540 − 64 − 48 = 428 | 419 |
+         | values-h600dp | 600 ~ 719dp | 600 − 64 − 48 = 488 | 478 |
+         | values-h720dp | ≥ 720dp | 720 − 64 − 48 = 608 | 583 |
 
-         为什么必须分两档：§10 验收第 2 条要求 1024×600 下"根布局 canScrollVertically
-         恒为 false"，而 §3.1 的固定 292dp 中轴 + 64dp 顶栏在 600dp 高的屏上物理溢出 47dp。
-         两条自相矛盾，只能按屏高分档，不能靠滚动或百分比缩放解决。
+         为什么必须分档：§10 验收第 2 条要求「根布局 canScrollVertically 恒为 false」，
+         而 §3.1 的 292dp 中轴 + 64dp 顶栏在 600dp 高的屏上物理溢出 47dp，两条自相矛盾。
+         只能按屏高给不同尺度的同一批名字，不能靠滚动或百分比缩放解决。
+
+         默认档必须按 **540dp** 算而不是按 600dp：1920×1080 的面板若按 320dpi 上报
+         （车机很常见），dp 高度就是 540，此时 `-h600dp` 不匹配，会落进这一档。
+
+         三档都**不动歌名 42dp / 歌手 20dp 行高**：用户要的是大字，宁可缩唱片也不缩字。
          ========================================================= -->
     <dimen name="player_axis_width">300dp</dimen>
     <dimen name="player_axis_offset">8dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
-    <dimen name="vinyl_size">232dp</dimen>
-    <dimen name="vinyl_art">154dp</dimen>
-    <dimen name="player_gap_vinyl_title">18dp</dimen>
+    <!-- 196 + 16 + 42 + 4 + 20 + 10 + 10 + 8 + 58 + 5 + 50 = 419 ≤ 428 ✓ -->
+    <dimen name="vinyl_size">196dp</dimen>
+    <dimen name="vinyl_art">130dp</dimen>
+    <dimen name="player_gap_vinyl_title">16dp</dimen>
     <dimen name="player_gap_title_artist">4dp</dimen>
-    <dimen name="player_gap_artist_progress">12dp</dimen>
-    <dimen name="player_gap_progress_transport">10dp</dimen>
-    <dimen name="player_gap_transport_actions">6dp</dimen>
-    <dimen name="player_transport_size">66dp</dimen>
+    <dimen name="player_gap_artist_progress">10dp</dimen>
+    <dimen name="player_gap_progress_transport">8dp</dimen>
+    <dimen name="player_gap_transport_actions">5dp</dimen>
+    <dimen name="player_transport_size">58dp</dimen>
     <dimen name="player_transport_btn">52dp</dimen>
-    <dimen name="player_action_row_height">58dp</dimen>
+    <dimen name="player_action_row_height">50dp</dimen>
     <dimen name="player_action_cell_width">64dp</dimen>
     <dimen name="player_time_width">38dp</dimen>
     <dimen name="player_progress_height">10dp</dimen>
@@ -100,4 +106,12 @@
     <dimen name="player_topbar_padding">12dp</dimen>
     <dimen name="player_lyrics_padding_start">16dp</dimen>
     <dimen name="player_lyrics_padding_end">64dp</dimen>
+
+    <!-- 主键内边距：保证图标恒为 (按钮 − 2×padding) ≈ 34dp（§3.3「图标 34dp」）。
+         78dp 档 22dp、58dp 档 12dp。 -->
+    <dimen name="player_transport_padding">12dp</dimen>
+
+    <!-- 进度条滑块半径：静止 6.5dp（直径 13dp），拖动中 8dp（直径 16dp）（§3.2）。 -->
+    <dimen name="player_slider_thumb_radius">6.5dp</dimen>
+    <dimen name="player_slider_thumb_radius_active">8dp</dimen>
 </resources>
