@@ -1,6 +1,7 @@
 package com.suisheng.player.ui
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -20,6 +21,7 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
 import com.suisheng.player.MusicPlaybackService
 import com.suisheng.player.R
+import com.suisheng.player.data.FavoriteStore
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.DialogLyricSearchBinding
 import com.suisheng.player.databinding.FragmentPlayerBinding
@@ -49,10 +51,16 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private lateinit var settings: SettingsRepository
     private lateinit var chrome: PlayerChromeController
 
+    /** 本地收藏（`filesDir/favorites.json`）；首次用到时才创建，避免 onCreateView 里多一次 IO。 */
+    private val favorites by lazy { FavoriteStore(requireContext()) }
+
     private var userSeeking = false
 
     /** 上一帧渲染的状态关键字，挡住每秒 8 次的进度回调（保留自 2c-2，别删）。 */
     private var renderedStateKey: String? = null
+
+    /** 收藏图标的去重关键字（`Song.path|是否已收藏`），View 重建时置空。 */
+    private var favoriteUiKey: String? = null
 
     private var singleColumn = false
 
@@ -99,6 +107,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
         applyPrimaryButtonTint()
         updateSpeedLabel()
+        updateFavoriteUi(PlaybackStateHolder.currentSong)
         resetInteractionOnTouch(binding.root)
 
         renderState()
@@ -124,6 +133,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     override fun onDestroyView() {
         chrome.detach()
         _binding = null
+        // 视图重建后图标从 XML 的默认态开始，去重键必须跟着失效，否则不会重画
+        favoriteUiKey = null
         super.onDestroyView()
     }
 
@@ -134,8 +145,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnNext.setOnClickListener { sendAction(MusicPlaybackService.ACTION_NEXT) }
         binding.btnPrev.setOnClickListener { sendAction(MusicPlaybackService.ACTION_PREV) }
         binding.btnMode.setOnClickListener { toggleMode() }
-        // 第 5 位（播放队列）本期置灰占位，队列面板留期 4
-        binding.btnQueue.setOnClickListener { toastComingSoon() }
+        // 第 5 位：播放队列（与顶栏 btnTopQueue 打开的是同一份队列）
+        binding.btnQueue.setOnClickListener { openQueuePanel() }
     }
 
     private fun bindActionRow() {
@@ -143,7 +154,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             chrome.onUserInteraction()
             chrome.toggleFullLyrics()
         }
-        binding.btnActionFavorite.setOnClickListener { toastComingSoon() }
+        binding.btnActionFavorite.setOnClickListener { toggleFavorite() }
         binding.btnActionSound.setOnClickListener { toastComingSoon() }
         binding.btnActionSpeed.setOnClickListener { openSpeedPanel() }
     }
@@ -157,8 +168,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             chrome.onUserInteraction()
             chrome.exitFullLyrics()
         }
-        binding.btnTopQueue.setOnClickListener { toastComingSoon() }
-        binding.btnMore.setOnClickListener { toastComingSoon() }
+        binding.btnTopQueue.setOnClickListener { openQueuePanel() }
+        binding.btnMore.setOnClickListener { openMorePanel() }
     }
 
     private fun bindVinyl() {
@@ -297,10 +308,25 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
         binding.scrollLyricView.update(lines, positionMs)
         if (!userSeeking) updateProgressUi(positionMs, PlaybackStateHolder.durationMs)
+        // 切歌 / 恢复播放后收藏图标要跟着当前曲目走（收藏是按 Song.path 记的）
+        updateFavoriteUi(song)
     }
 
     override fun onPlayModeChanged(mode: PlaybackMode) {
         updateModeUi(mode)
+    }
+
+    /**
+     * 队列增删 / 清空后回调。
+     *
+     * 面板本身每次打开都重新读 [PlaybackStateHolder.songs] 快照，所以这里不缓存队列；
+     * 只把「有没有队列」映射到两个队列入口的透明度上——空队列时点开是个空面板，先给个暗示。
+     */
+    override fun onPlaylistChanged(songs: List<Song>) {
+        val view = _binding ?: return
+        val alpha = if (songs.isEmpty()) QUEUE_EMPTY_ALPHA else 1f
+        view.btnQueue.alpha = alpha
+        view.btnTopQueue.alpha = alpha
     }
 
     override fun onCoverChanged(coverPath: String?) {
@@ -401,6 +427,114 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         } else {
             binding.btnMode.setImageResource(R.drawable.ic_mode_order)
             binding.btnMode.contentDescription = getString(R.string.mode_order)
+        }
+    }
+
+    // ---------------------------------------------------------------- 队列 / 收藏 / 更多
+
+    /** 传输行第 5 位与顶栏队列按钮共用：弹出真实队列面板。 */
+    private fun openQueuePanel() {
+        chrome.onUserInteraction()
+        QueuePanel.show(
+            requireContext(),
+            onJump = { index -> sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_JUMP, index) },
+            onRemove = { index -> sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_REMOVE, index) },
+            onClear = {
+                sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_CLEAR, null)
+                Toast.makeText(requireContext(), R.string.queue_cleared, Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+
+    /** 顶栏「更多」：收藏 / 从队列移除 / 歌曲信息。 */
+    private fun openMorePanel() {
+        chrome.onUserInteraction()
+        val song = PlaybackStateHolder.currentSong
+        if (song == null) {
+            Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val queue = PlaybackStateHolder.songs
+        MorePanel.show(
+            requireContext(),
+            song = song,
+            isFavorite = favorites.isFavorite(song.path),
+            // 只剩一首时「从队列移除」等于停播，没有意义，直接收起来
+            canRemoveFromQueue = queue.size > 1 && queue.any { it.path == song.path },
+            onToggleFavorite = ::toggleFavorite,
+            onRemoveFromQueue = ::removeCurrentFromQueue,
+        )
+    }
+
+    /** 功能行第 2 格：切换当前曲目的收藏状态（立即落盘 + 立即换图标）。 */
+    private fun toggleFavorite() {
+        chrome.onUserInteraction()
+        val song = PlaybackStateHolder.currentSong
+        if (song == null) {
+            Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val favorite = favorites.toggle(song.path)
+        updateFavoriteUi(song)
+        Toast.makeText(
+            requireContext(),
+            if (favorite) R.string.favorite_added else R.string.favorite_removed,
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    /** 更多面板里的「从播放队列移除」：按当前曲目在队列里的下标发指令。 */
+    private fun removeCurrentFromQueue() {
+        val song = PlaybackStateHolder.currentSong ?: return
+        val index = PlaybackStateHolder.songs.indexOfFirst { it.path == song.path }
+        if (index < 0) return
+        sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_REMOVE, index)
+    }
+
+    /**
+     * 收藏按钮的两种态：已收藏 = 实心 + 主色；未收藏 = 空心 + onSurfaceVariant。
+     * 两态 `alpha` 都固定 1f（置灰由 [onPlaylistChanged] 之外的逻辑负责，收藏态不置灰）。
+     *
+     * `onPlaybackChanged` 每秒来 8 次，`setImageResource` 会重建 drawable，
+     * 所以按「曲目路径 + 收藏态」做一次去重，只有真变了才碰图标。
+     */
+    private fun updateFavoriteUi(song: Song?) {
+        val view = _binding ?: return
+        val favorite = song != null && favorites.isFavorite(song.path)
+        val key = "${song?.path}|$favorite"
+        if (key == favoriteUiKey) return
+        favoriteUiKey = key
+        view.iconActionFavorite.setImageResource(
+            if (favorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+        )
+        val colorAttr = if (favorite) {
+            com.google.android.material.R.attr.colorPrimary
+        } else {
+            com.google.android.material.R.attr.colorOnSurfaceVariant
+        }
+        view.iconActionFavorite.imageTintList =
+            ColorStateList.valueOf(MaterialColors.getColor(view.iconActionFavorite, colorAttr))
+        view.btnActionFavorite.alpha = 1f
+    }
+
+    /**
+     * 队列指令统一出口。
+     *
+     * @param index `null` 时不带 [MusicPlaybackService.EXTRA_INDEX]（清空队列用）
+     */
+    private fun sendQueueCommand(action: String, index: Int?) {
+        // 面板在 BottomSheet 里，触摸事件不在播放页视图树上，这里补一次交互计时重置
+        chrome.onUserInteraction()
+        runCatching {
+            ContextCompat.startForegroundService(
+                requireContext(),
+                Intent(requireContext(), MusicPlaybackService::class.java).apply {
+                    this.action = action
+                    if (index != null) putExtra(MusicPlaybackService.EXTRA_INDEX, index)
+                },
+            )
+        }.onFailure {
+            Toast.makeText(requireContext(), R.string.playback_start_failed, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -516,5 +650,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
         /** 全屏歌词行宽上限（`design/05 §7` 第三行「行宽 clamp 900dp 居中」）。 */
         const val MAX_LYRICS_WIDTH_DP = 900f
+
+        /** 队列为空时两个队列入口的透明度（有队列时回到 1f）。 */
+        const val QUEUE_EMPTY_ALPHA = 0.5f
     }
 }

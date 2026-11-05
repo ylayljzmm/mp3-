@@ -243,12 +243,11 @@
                         app:layout_constraintTop_toTopOf="parent"
                         app:tint="?attr/colorOnSurface" />
 
-                    <!-- 第 5 位：播放队列（本期置灰 + Toast，队列面板留期 4） -->
+                    <!-- 第 5 位：播放队列（点开队列面板，与顶栏 btnTopQueue 同一份队列） -->
                     <ImageButton
                         android:id="@+id/btnQueue"
                         android:layout_width="@dimen/player_transport_btn"
                         android:layout_height="@dimen/player_transport_btn"
-                        android:alpha="0.5"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/player_queue"
                         android:padding="12dp"
@@ -302,12 +301,11 @@
                             android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
 
-                    <!-- 第 2 格：收藏（本期置灰 + Toast） -->
+                    <!-- 第 2 格：收藏（空心 / 实心由 PlayerFragment.updateFavoriteUi 切换） -->
                     <LinearLayout
                         android:id="@+id/btnActionFavorite"
                         android:layout_width="@dimen/player_action_cell_width"
                         android:layout_height="match_parent"
-                        android:alpha="0.5"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
@@ -319,6 +317,7 @@
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
+                            android:id="@+id/iconActionFavorite"
                             android:layout_width="@dimen/player_action_icon_size"
                             android:layout_height="@dimen/player_action_icon_size"
                             android:contentDescription="@null"
@@ -462,7 +461,6 @@
                 android:id="@+id/btnTopQueue"
                 android:layout_width="@dimen/player_topbar_button"
                 android:layout_height="@dimen/player_topbar_button"
-                android:alpha="0.5"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/player_queue"
                 android:padding="18dp"

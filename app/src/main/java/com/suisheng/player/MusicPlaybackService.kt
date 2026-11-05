@@ -278,13 +278,25 @@ class MusicPlaybackService : MediaSessionService() {
                 runCatching { exoPlayer?.seekTo(seek.coerceAtLeast(0L)) }
             }
             ACTION_RELOAD_LYRICS -> intent?.let { reloadLyrics(it) }
+            ACTION_QUEUE_JUMP -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                val index = cmd.getIntExtra(EXTRA_INDEX, -1)
+                // 越界直接忽略：面板刚删完一行就点跳转时可能出现这种瞬时错位
+                if (index in playlist.indices) playSongAt(index)
+            }
+            ACTION_QUEUE_REMOVE -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                removeFromQueue(cmd.getIntExtra(EXTRA_INDEX, -1))
+            }
+            ACTION_QUEUE_CLEAR -> clearQueue()
         }
         return if (playlist.isNotEmpty()) START_STICKY else START_NOT_STICKY
     }
 
     private fun requiresForeground(action: String?): Boolean {
         return when (action) {
-            ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP -> false
+            ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP,
+            ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR -> false
             else -> true
         }
     }
@@ -777,6 +789,94 @@ class MusicPlaybackService : MediaSessionService() {
         shuffleQueue = playlist.indices.filter { it != currentIndex }.shuffled().toMutableList()
     }
 
+    // ------------------------------------------------------------ 队列增删（期 4）
+
+    /**
+     * 从播放队列移除第 [index] 首。
+     *
+     * `currentIndex` 的调整规则（与 [com.suisheng.player.ui.QueuePanel] 本地快照严格一致）：
+     * - `index < currentIndex` → `currentIndex--`，当前这首不被打断；
+     * - `index > currentIndex` → 不变；
+     * - `index == currentIndex` → 接着播「原来的下一首」：`playlist` 已经缩短，
+     *   `index` 天然就指向它；删的是最后一项时回退到新的末位（不越界、也不会随机跳）；
+     * - 删空 → 停播并把队列置空。
+     */
+    private fun removeFromQueue(index: Int) {
+        if (index !in playlist.indices) return
+
+        val removedCurrent = index == currentIndex
+        playlist = playlist.toMutableList().apply { removeAt(index) }
+
+        if (playlist.isEmpty()) {
+            currentIndex = -1
+            runCatching { exoPlayer?.pause() }
+            runCatching { exoPlayer?.stop() }
+            // 播放器里还挂着刚被移出的那一首，不清掉的话通知/媒体会话会继续显示它
+            runCatching { exoPlayer?.clearMediaItems() }
+            refillShuffleQueue()
+            PlaybackStateHolder.notifyQueueChanged(emptyList(), -1)
+            // saveQueue 对空列表直接 return（不会覆盖旧文件），所以这里改走删除
+            clearPersistedQueue()
+            updateNotification(null)
+            return
+        }
+
+        if (removedCurrent) {
+            val target = index.coerceAtMost(playlist.lastIndex)
+            currentIndex = target
+            refillShuffleQueue()
+            // 先同步队列再起播：playSongAt 内部会按 PlaybackStateHolder.songs 反查索引，
+            // 列表还是旧的话它会算出错的下标
+            PlaybackStateHolder.notifyQueueChanged(playlist, currentIndex)
+            playSongAt(target)
+            persistQueue()
+            return
+        }
+
+        if (index < currentIndex) currentIndex -= 1
+        refillShuffleQueue()
+        PlaybackStateHolder.notifyQueueChanged(playlist, currentIndex)
+        persistQueue()
+    }
+
+    /** 清空整个播放队列并停播。 */
+    private fun clearQueue() {
+        playlist = emptyList()
+        currentIndex = -1
+        runCatching { exoPlayer?.stop() }
+        // 队列空了就别再让播放器挂着一个 mediaItem（通知 / 车机会继续显示那一首）
+        runCatching { exoPlayer?.clearMediaItems() }
+        refillShuffleQueue()
+        PlaybackStateHolder.setQueue(emptyList(), -1)
+        clearPersistedQueue()
+        updateNotification(null)
+    }
+
+    /** 队列变动后落盘（与 `persistSongLrcPath` 同一条链路，只是多带了当前媒体库）。 */
+    private fun persistQueue() {
+        val snapshot = playlist
+        if (snapshot.isEmpty()) return
+        val library = PlaybackStateHolder.activeLibrary
+        metadataScope.launch(Dispatchers.IO) {
+            PlaylistCache.saveQueue(applicationContext, snapshot, library)
+        }
+    }
+
+    /**
+     * 删除落盘队列。
+     *
+     * `PlaylistCache` 没有「清空」接口，而且 `saveQueue()` 遇到空列表会直接 return，
+     * 所以清空队列时只能按它使用的文件名把文件删掉；文件名与 `data/PlaylistCache.kt`
+     * 里的常量一一对应，那边改了这里要跟着改。
+     */
+    private fun clearPersistedQueue() {
+        metadataScope.launch(Dispatchers.IO) {
+            PERSISTED_QUEUE_FILES.forEach { name ->
+                runCatching { File(filesDir, name).delete() }
+            }
+        }
+    }
+
     private fun reloadLyrics(intent: Intent) {
         val song = playlist.getOrNull(currentIndex) ?: return
         val title = intent.getStringExtra(EXTRA_SEARCH_TITLE)?.trim().orEmpty()
@@ -904,6 +1004,12 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_RESUME = "resume"
         const val ACTION_SEEK = "seek"
         const val ACTION_RELOAD_LYRICS = "reload_lyrics"
+        /** 队列跳转：`EXTRA_INDEX` = 目标下标（越界忽略）。 */
+        const val ACTION_QUEUE_JUMP = "queue_jump"
+        /** 队列移除：`EXTRA_INDEX` = 要移出的下标（越界忽略）。 */
+        const val ACTION_QUEUE_REMOVE = "queue_remove"
+        /** 队列清空：无参数，清空列表 + 停播 + 删除落盘队列。 */
+        const val ACTION_QUEUE_CLEAR = "queue_clear"
         const val ACTION_STOP = "stop"
         const val EXTRA_INDEX = "index"
         const val EXTRA_SEEK = "seek"
@@ -919,6 +1025,15 @@ class MusicPlaybackService : MediaSessionService() {
         private val MEDIA_CONTROL_ACTIONS = setOf(
             ACTION_PLAY_INDEX, ACTION_TOGGLE, ACTION_PLAY, ACTION_PAUSE,
             ACTION_NEXT, ACTION_PREV, ACTION_RESUME
+        )
+
+        /** `data/PlaylistCache.kt` 里的队列文件名，清空队列时按名删除（那边没有 clear 接口）。 */
+        private val PERSISTED_QUEUE_FILES = listOf(
+            "play_queue.json",
+            "play_queue_music.json",
+            "play_queue_online.json",
+            "play_queue_radio.json",
+            "play_queue_podcast.json",
         )
     }
 }

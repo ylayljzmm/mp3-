@@ -67,6 +67,33 @@ object PlaybackStateHolder {
         activeLibrary = library
     }
 
+    /**
+     * 整体替换播放队列并同步当前项（清空队列时传 `emptyList()` + `-1`）。
+     *
+     * 与 [setPlaylist] 的唯一区别：**不动 `activeLibrary`** —— 队列内容变了，但用户仍停在同一
+     * 个媒体库里，把 activeLibrary 一起改掉会让「上次播放位置」「队列落盘分档」串到别的库。
+     * 会触发 [Listener.onPlaylistChanged]，随后统一触发一次 [Listener.onPlaybackChanged]。
+     */
+    fun setQueue(list: List<Song>, startIndex: Int) {
+        songs = list
+        currentIndex = if (list.isEmpty()) -1 else startIndex.coerceIn(0, list.lastIndex)
+        listeners.forEach { it.onPlaylistChanged(list) }
+        notify()
+    }
+
+    /**
+     * 队列内部变动（增删 / 排序）后同步并通知，语义同 [setQueue]。
+     *
+     * 单独留一个名字是为了让调用点读起来就是「队列变了一条」，而不是「换了一个队列」；
+     * 两者的状态写入规则必须保持一致，改一个记得改另一个。
+     */
+    fun notifyQueueChanged(list: List<Song>, startIndex: Int) {
+        songs = list
+        currentIndex = if (list.isEmpty()) -1 else startIndex.coerceIn(0, list.lastIndex)
+        listeners.forEach { it.onPlaylistChanged(list) }
+        notify()
+    }
+
     /** 切歌时只更新索引，避免 2000 首歌列表反复触发 UI 全量刷新导致车机 ANR/闪退 */
     fun setCurrentIndex(index: Int) {
         if (songs.isEmpty()) return

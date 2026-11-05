@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  播放页「队列 / 收藏 / 更多」三个入口的文案（期 4）。
+
+  刻意单独成文件：res/values/strings.xml 里已有 player_queue / player_action_favorite 等
+  同义文案，改它容易和并行改动冲突，所以本期新增文案全部放这里。
+  重名会直接编译失败，所以下面每个 name 都先 grep 过 strings.xml / strings_library.xml。
+-->
+<resources>
+
+    <!-- 队列面板 -->
+    <string name="queue_title">播放队列</string>
+    <string name="queue_count">共 %1$d 首</string>
+    <string name="queue_clear">清空</string>
+    <string name="queue_clear_confirm">清空后当前播放也会停止，确定要清空播放队列吗？</string>
+    <string name="queue_empty">播放队列是空的</string>
+    <string name="queue_remove">移出队列</string>
+    <string name="queue_cleared">已清空队列</string>
+
+    <!-- 收藏 -->
+    <string name="favorite_add">收藏</string>
+    <string name="favorite_remove">取消收藏</string>
+    <string name="favorite_added">已收藏</string>
+    <string name="favorite_removed">已取消收藏</string>
+
+    <!-- 更多面板 -->
+    <string name="more_title">更多</string>
+    <string name="more_song_info">歌曲信息</string>
+    <string name="more_info_title">歌曲信息</string>
+    <string name="more_info_song">歌曲名：%1$s</string>
+    <string name="more_info_artist">歌手：%1$s</string>
+    <string name="more_info_album">专辑：%1$s</string>
+    <string name="more_info_duration">时长：%1$s</string>
+    <string name="more_info_path">文件路径：%1$s</string>
+    <string name="more_info_lrc">歌词路径：%1$s</string>
+    <string name="more_info_unknown">未知</string>
+
+    <!-- 通用（strings.xml 里没有 common_cancel，这里补一个；已有同名会编译失败） -->
+    <string name="common_cancel">取消</string>
+
+</resources>
