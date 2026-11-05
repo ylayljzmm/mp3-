@@ -21,6 +21,14 @@ interface MainHost {
 
     fun scanMusic(onDone: ((Int) -> Unit)? = null)
     fun allSongs(): List<Song>
+
+    /**
+     * 隐藏/恢复文件夹之后重算「可见曲库」并刷新受影响 UI（抽屉计数、首页列表、当前页）。
+     *
+     * 走宿主而不是让每个页面自己过滤：曲库是宿主持有的单一数据源，
+     * 页面各自过滤会立刻退化成「这页过滤了、那页没过滤」的不一致状态。
+     */
+    fun refreshHiddenFilter()
     fun notifyLyricStyleChanged()
     fun refreshAppTheme()
 }

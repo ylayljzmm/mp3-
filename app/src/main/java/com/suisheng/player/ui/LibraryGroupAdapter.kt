@@ -19,12 +19,14 @@ import com.suisheng.player.model.LibraryGroup
  * @param coverLoader 只有格子模式需要封面；行模式传 null
  * @param countText 计数文案，由页面决定（「12 首」）
  * @param onClick 整格/整行点击
+ * @param onLongClick 整格/整行长按；传 null 表示这一模式没有长按语义（专辑/艺术家）
  */
 class LibraryGroupAdapter(
     private val mode: Mode,
     private val coverLoader: AlbumCoverLoader?,
     private val countText: (LibraryGroup) -> String,
     private val onClick: (LibraryGroup) -> Unit,
+    private val onLongClick: ((LibraryGroup) -> Unit)? = null,
 ) : RecyclerView.Adapter<LibraryGroupAdapter.GroupViewHolder>() {
 
     enum class Mode { GRID, LIST }
@@ -69,12 +71,28 @@ class LibraryGroupAdapter(
                 source = group.songs.firstOrNull(),
             )
             grid.root.setOnClickListener { onClick(group) }
+            bindLongClick(grid.root, group)
         }
         holder.row?.let { row ->
             row.rowTitle.text = group.title
             row.rowCount.text = countText(group)
             row.rowLetter.text = group.title.trim().take(1).uppercase()
             row.root.setOnClickListener { onClick(group) }
+            bindLongClick(row.root, group)
+        }
+    }
+
+    /**
+     * 挂长按。
+     *
+     * 没有长按语义时必须返回 `false`：返回 `true` 会「宣称已消费」这次长按，
+     * 父容器（RecyclerView 的滚动/选中、车机旋钮的焦点处理）就再也收不到它。
+     */
+    private fun bindLongClick(view: android.view.View, group: LibraryGroup) {
+        val handler = onLongClick ?: return
+        view.setOnLongClickListener {
+            handler(group)
+            true
         }
     }
 

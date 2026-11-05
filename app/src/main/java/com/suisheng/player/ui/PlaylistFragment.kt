@@ -6,14 +6,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
 import com.suisheng.player.R
 import com.suisheng.player.databinding.FragmentPlaylistBinding
-import com.google.android.material.tabs.TabLayoutMediator
 
 class PlaylistFragment : Fragment() {
     private var _binding: FragmentPlaylistBinding? = null
     private val binding get() = _binding!!
-    private var tabMediator: TabLayoutMediator? = null
+    private var pageChangeCallback: ViewPager2.OnPageChangeCallback? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaylistBinding.inflate(inflater, container, false)
@@ -24,14 +24,23 @@ class PlaylistFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.sectionPager.adapter = PlaylistSectionAdapter(this)
         binding.sectionPager.offscreenPageLimit = 4
-        tabMediator = TabLayoutMediator(binding.sectionTabs, binding.sectionPager) { tab, position ->
-            tab.text = when (position) {
-                0 -> getString(R.string.section_local)
-                1 -> getString(R.string.section_online)
-                2 -> getString(R.string.section_radio)
-                else -> getString(R.string.section_podcast)
+
+        val titles = listOf(
+            getString(R.string.section_local),
+            getString(R.string.section_online),
+            getString(R.string.section_radio),
+            getString(R.string.section_podcast),
+        )
+        binding.sectionTabs.setTitles(titles)
+        binding.sectionTabs.onSelected = { index -> binding.sectionPager.setCurrentItem(index, true) }
+
+        val callback = object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                binding.sectionTabs.setSelectedIndex(position)
             }
-        }.also { it.attach() }
+        }
+        pageChangeCallback = callback
+        binding.sectionPager.registerOnPageChangeCallback(callback)
     }
 
     fun refreshFromHost() {
@@ -44,8 +53,8 @@ class PlaylistFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        tabMediator?.detach()
-        tabMediator = null
+        pageChangeCallback?.let { binding.sectionPager.unregisterOnPageChangeCallback(it) }
+        pageChangeCallback = null
         _binding = null
         super.onDestroyView()
     }

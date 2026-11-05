@@ -6,20 +6,12 @@
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-    <com.google.android.material.tabs.TabLayout
+    <com.suisheng.player.ui.SectionTabsView
         android:id="@+id/sectionTabs"
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:background="?attr/colorSurface"
-        android:paddingHorizontal="18dp"
-        app:tabGravity="fill"
-        app:tabIndicatorColor="?attr/colorPrimary"
-        app:tabIndicatorFullWidth="false"
-        app:tabIndicatorHeight="4dp"
-        app:tabMode="fixed"
-        app:tabRippleColor="@android:color/transparent"
-        app:tabSelectedTextColor="?attr/colorOnSurface"
-        app:tabTextColor="?attr/colorOnSurfaceVariant" />
+        android:paddingHorizontal="8dp" />
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/sectionPager"

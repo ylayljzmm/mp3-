@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -14,7 +15,9 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.suisheng.player.R
+import com.suisheng.player.data.HiddenFolderStore
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentGroupedLibraryBinding
 import com.suisheng.player.model.LibraryGroup
@@ -51,6 +54,9 @@ class GroupedLibraryFragment : Fragment() {
     private lateinit var settings: SettingsRepository
     private lateinit var adapter: LibraryGroupAdapter
 
+    /** 隐藏文件夹的存储。只在这一页用到，所以不放宿主。 */
+    private val hiddenStore by lazy { HiddenFolderStore(requireContext()) }
+
     private var grouping: Grouping = Grouping.ALBUM
     private var rootDir: File? = null
     private var currentDir: File? = null
@@ -81,6 +87,12 @@ class GroupedLibraryFragment : Fragment() {
             coverLoader = coverLoader.takeIf { grouping == Grouping.ALBUM },
             countText = { group -> getString(R.string.library_song_count, group.subtitle) },
             onClick = ::onGroupClicked,
+            // 只有「文件夹」有长按语义：专辑/艺术家长按隐藏没有意义（同一张专辑散落在多个目录）
+            onLongClick = if (grouping == Grouping.FOLDER) {
+                { group: LibraryGroup -> onGroupLongClicked(group) }
+            } else {
+                null
+            },
         )
         binding.groupList.adapter = adapter
         binding.groupList.layoutManager = if (grouping.adapterMode == LibraryGroupAdapter.Mode.GRID) {
@@ -152,6 +164,14 @@ class GroupedLibraryFragment : Fragment() {
         binding.btnPlayFolder.isEnabled = songs.isNotEmpty()
         binding.btnPlayFolder.alpha = if (songs.isEmpty()) DISABLED_ALPHA else 1f
         if (!empty) return
+
+        // 「藏到一首不剩」三个页面都可能发生（把唯一的目录隐藏掉就会出现）。
+        // 此时如果还说「还没扫描音乐」，用户会以为曲库被清空、跑去重新扫描 —— 统一换成隐藏相关的文案。
+        if (songs.isEmpty() && hiddenStore.count() > 0) {
+            binding.emptyTitle.setText(R.string.hidden_folder_all_hidden)
+            binding.emptyHint.setText(R.string.hidden_folder_all_hidden_hint)
+            return
+        }
 
         // 三个页面的空态必须说得不一样：「没找到专辑」和「还没扫描音乐」是两种处境。
         // 文件夹再细分三档：整库没歌 / 有歌但没有可浏览的本地目录（全是在线曲目或 SAF 路径）/
@@ -245,6 +265,62 @@ class GroupedLibraryFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /**
+     * 长按文件夹 → 确认后隐藏（参考 SaltPlayer 的做法）。
+     *
+     * 隐藏的粒度是**整棵子树**：`LibraryGrouper` 的文件夹条目本来就带着整个子目录的歌，
+     * 所以确认框里报的 `group.songs.size` 就是「这次会一起消失多少首」，用户不必猜。
+     */
+    private fun onGroupLongClicked(group: LibraryGroup) {
+        if (grouping != Grouping.FOLDER) return
+        if (!isAdded) return
+        val dir = File(group.key)
+        val songCount = group.songs.size
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.hidden_folder_title)
+            .setMessage(getString(R.string.hidden_folder_message, group.title, songCount))
+            .setNegativeButton(R.string.hidden_folder_cancel, null)
+            .setPositiveButton(R.string.hidden_folder_confirm) { _, _ -> hideFolder(dir) }
+            .show()
+    }
+
+    /**
+     * 真正落盘 + 通知宿主 + 重画本页。
+     *
+     * 顺序是有讲究的：先写存储（宿主重算过滤时读的就是它），再让宿主重算全局可见曲库
+     * （抽屉计数、首页列表跟着变），最后才重画本页 —— 本页 `refresh()` 会重新走
+     * `folderGroups()` 并读一次 `allSongs()`，此时宿主的数据已经是新的了。
+     */
+    private fun hideFolder(dir: File) {
+        hiddenStore.hide(dir.absolutePath)
+        retreatIfBrowsingHidden()
+        (activity as? MainHost)?.refreshHiddenFilter()
+        refresh()
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.hidden_folder_hidden, dir.name),
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    /**
+     * 隐藏后如果**当前浏览位置**正好被隐藏覆盖，退回扫描根。
+     *
+     * 不做这一步的话，用户会在原地下钻过的层级里看到空目录，而面包屑还在，
+     * 又因为 `settings.folderBrowsePath` 会被记忆，退出再进来仍然是那个空目录
+     * （`folderGroups()` 只校验「是否仍在根之下」，不校验「是否被隐藏」）。
+     * 所以这里必须同时改 `currentDir` 与记忆值，两处都指向根才真的回得去。
+     */
+    private fun retreatIfBrowsingHidden() {
+        val current = currentDir ?: return
+        val root = rootDir ?: return
+        val covered = hiddenStore.hiddenDirs()
+            .any { LibraryGrouper.isAncestorOrSelf(it, current) }
+        if (!covered) return
+        currentDir = root
+        settings.folderBrowsePath = root.absolutePath
     }
 
     private fun playCurrentFolder() {

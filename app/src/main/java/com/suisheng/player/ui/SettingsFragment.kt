@@ -1,13 +1,19 @@
 package com.suisheng.player.ui
 
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.text.TextUtils
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +24,7 @@ import com.suisheng.player.BuildConfig
 import com.suisheng.player.ClusterLyricService
 import com.suisheng.player.LyricsOverlayService
 import com.suisheng.player.R
+import com.suisheng.player.data.HiddenFolderStore
 import com.suisheng.player.data.ScanPathHelper
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentSettingsBinding
@@ -26,6 +33,7 @@ import com.suisheng.player.model.LyricThemePreset
 import com.suisheng.player.update.AppUpdateInfo
 import com.suisheng.player.update.AppUpdateManager
 import com.suisheng.player.update.InstallRequest
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -122,6 +130,7 @@ class SettingsFragment : Fragment() {
         setupLyricFontChips()
         refreshScanPathsUi()
         setupOnlineSettings()
+        setupHiddenFolders()
 
         binding.btnPickFolder.setOnClickListener { pickFolder.launch(null) }
         binding.btnAddMusic.setOnClickListener { addPresetPath("内置 Music") }
@@ -555,6 +564,181 @@ class SettingsFragment : Fragment() {
             Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${requireContext().packageName}"))
         )
     }
+
+    // ------------------------------------------------------- 已隐藏的文件夹
+
+    /**
+     * 隐藏文件夹的恢复入口。
+     *
+     * 面板用 `BottomSheetDialog` + 代码建行，不新增 XML 布局：这一块的行数随隐藏项变化，
+     * 用 XML 只能写死一个空容器再往里塞 view，反而多一层 ViewBinding 改动
+     * （与 `SpeedPanel` 的处理方式保持一致）。
+     */
+    private fun setupHiddenFolders() {
+        binding.rowHiddenFolders.setOnClickListener { showHiddenFoldersPanel() }
+        refreshHiddenFolderCount()
+    }
+
+    /** 入口行右侧的「N 个」；0 个时留空，避免出现「0 个」这种噪音。 */
+    private fun refreshHiddenFolderCount() {
+        // 走 _binding 而不是非空断言：恢复动作可能在页面已经开始销毁后回调
+        val views = _binding ?: return
+        val count = HiddenFolderStore(requireContext()).count()
+        views.hiddenFolderCount.text =
+            if (count > 0) getString(R.string.hidden_folder_count, count) else ""
+    }
+
+    private fun showHiddenFoldersPanel() {
+        if (!isAdded) return
+        val context = requireContext()
+        val dialog = BottomSheetDialog(context)
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(16), dp(20), dp(20))
+        }
+        // 外面套一层 ScrollView：隐藏项多起来时（比如一整个 U 盘的分类目录），
+        // 面板不能顶出屏幕，否则底部的「恢复」反而点不到。
+        val scroller = ScrollView(context).apply { addView(container) }
+        dialog.setContentView(scroller)
+        rebuildHiddenFolderRows(container)
+        dialog.show()
+    }
+
+    /**
+     * 重建面板内容。恢复一个就整块重建，而不是「删掉某一行」：
+     * 恢复父目录会连带让子目录条目失效（父目录被移除后，子目录本来就该独立成条），
+     * 重新从存储读一次最省心，也不会出现「列表与存储对不上」的中间态。
+     */
+    private fun rebuildHiddenFolderRows(container: LinearLayout) {
+        if (!isAdded) return
+        val context = requireContext()
+        val store = HiddenFolderStore(context)
+        container.removeAllViews()
+
+        container.addView(
+            TextView(context).apply {
+                text = getString(R.string.hidden_folder_settings_entry)
+                textSize = 18f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(
+                    MaterialColors.getColor(
+                        context,
+                        com.google.android.material.R.attr.colorOnSurface,
+                        Color.BLACK,
+                    )
+                )
+            }
+        )
+
+        val paths = store.paths()
+        if (paths.isEmpty()) {
+            container.addView(
+                TextView(context).apply {
+                    text = getString(R.string.hidden_folder_empty)
+                    textSize = 15f
+                    setPadding(0, dp(12), 0, 0)
+                    setTextColor(
+                        MaterialColors.getColor(
+                            context,
+                            com.google.android.material.R.attr.colorOnSurfaceVariant,
+                            Color.GRAY,
+                        )
+                    )
+                }
+            )
+            return
+        }
+
+        paths.forEach { path ->
+            container.addView(
+                buildHiddenFolderRow(context, path) {
+                    store.restore(path)
+                    // 立刻生效：宿主持有唯一的可见曲库，恢复后无需重扫
+                    (activity as? MainHost)?.refreshHiddenFilter()
+                    Toast.makeText(context, R.string.hidden_folder_restored, Toast.LENGTH_SHORT).show()
+                    refreshHiddenFolderCount()
+                    rebuildHiddenFolderRows(container)
+                }
+            )
+        }
+    }
+
+    /** 一行 = 目录名 + 完整路径（小字、单行、尾部省略），整行可点即「恢复」。 */
+    private fun buildHiddenFolderRow(
+        context: Context,
+        path: String,
+        onRestore: () -> Unit,
+    ): LinearLayout = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        isClickable = true
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dp(12) }
+        // 点击反馈：从主题里取 selectableItemBackground，兼容明暗两套配色
+        val outValue = TypedValue()
+        if (context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)) {
+            setBackgroundResource(outValue.resourceId)
+        }
+        addView(
+            buildHiddenFolderLabels(context, path),
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        addView(
+            TextView(context).apply {
+                text = getString(R.string.hidden_folder_restore)
+                textSize = 15f
+                setPadding(dp(12), dp(10), 0, dp(10))
+                setTextColor(
+                    MaterialColors.getColor(
+                        context,
+                        com.google.android.material.R.attr.colorPrimary,
+                        Color.BLACK,
+                    )
+                )
+            }
+        )
+        setOnClickListener { onRestore() }
+    }
+
+    private fun buildHiddenFolderLabels(context: Context, path: String): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(10), 0, dp(10))
+            addView(
+                TextView(context).apply {
+                    text = File(path).name.ifEmpty { path }
+                    textSize = 16f
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    setTextColor(
+                        MaterialColors.getColor(
+                            context,
+                            com.google.android.material.R.attr.colorOnSurface,
+                            Color.BLACK,
+                        )
+                    )
+                }
+            )
+            addView(
+                TextView(context).apply {
+                    text = path
+                    textSize = 12f
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    setTextColor(
+                        MaterialColors.getColor(
+                            context,
+                            com.google.android.material.R.attr.colorOnSurfaceVariant,
+                            Color.GRAY,
+                        )
+                    )
+                }
+            )
+        }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroyView() {
         _binding = null

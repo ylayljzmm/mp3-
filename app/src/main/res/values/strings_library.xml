@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    「本地音乐分类 / 隐藏文件夹」相关的文案。
+
+    刻意放在独立文件里：res/values/strings.xml 是并行开发时最容易撞车的文件，
+    新增文案全部落在这里，合并成本为零。资源名与 strings.xml 同一个命名空间，
+    引用方式（R.string.xxx / @string/xxx）完全一样。
+-->
+<resources>
+
+    <!-- 文件夹长按 → 隐藏确认框 -->
+    <string name="hidden_folder_title">隐藏文件夹</string>
+    <string name="hidden_folder_message">隐藏「%1$s」及其中的 %2$d 首歌？隐藏后可在「设置 › 已隐藏的文件夹」中恢复。</string>
+    <string name="hidden_folder_confirm">隐藏</string>
+    <string name="hidden_folder_cancel">取消</string>
+    <string name="hidden_folder_hidden">已隐藏「%1$s」</string>
+
+    <!-- 恢复入口（设置页 + 弹出的面板） -->
+    <string name="hidden_folder_restore">恢复</string>
+    <string name="hidden_folder_empty">暂无隐藏的文件夹</string>
+    <string name="hidden_folder_settings_entry">已隐藏的文件夹</string>
+    <string name="hidden_folder_settings_summary">长按文件夹可隐藏，在这里恢复</string>
+    <string name="hidden_folder_count">%1$d 个</string>
+    <string name="hidden_folder_restored">已恢复</string>
+
+    <!-- 空态提示（文件夹页没有可展示的子目录时引导用户「长按」这个手势） -->
+    <string name="hidden_folder_long_press_hint">长按文件夹可隐藏，可从设置中恢复</string>
+
+    <!-- 全部歌曲都落在隐藏目录里时的空态（藏到一首都不剩，是可真实发生的） -->
+    <string name="hidden_folder_all_hidden">歌曲都已隐藏</string>
+    <string name="hidden_folder_all_hidden_hint">在「设置 › 已隐藏的文件夹」中恢复即可重新出现。</string>
+
+</resources>

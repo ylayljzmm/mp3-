@@ -16,10 +16,12 @@ import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.suisheng.player.data.HiddenFolderStore
 import com.suisheng.player.data.PlaybackBootstrap
 import com.suisheng.player.data.PlaylistCache
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.ActivityMainBinding
+import com.suisheng.player.model.LibraryGrouper
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
@@ -54,7 +56,25 @@ class MainActivity : AppCompatActivity(), MainHost {
     private lateinit var settings: SettingsRepository
     private lateinit var drawer: DrawerPanelController
     private lateinit var miniPlayer: MiniPlayerController
+
+    /**
+     * 对外可见的曲库：**已经**过「隐藏文件夹」过滤。
+     *
+     * 全项目只有这一个列表是「用户能看到的歌」——`allSongs()`、播放队列、抽屉计数
+     * 都从它出发，所以隐藏的效果只需要在这里体现一次，不会出现某个页面忘了过滤。
+     */
     private var musicSongs: List<Song> = emptyList()
+
+    /**
+     * 未过滤的原始曲库（缓存恢复 / 扫描结果）。
+     *
+     * 必须单独留一份：可见列表是「原始列表的函数」。如果在 [musicSongs] 上反复过滤，
+     * 恢复某个文件夹时就没法把歌找回来了（被过滤掉的歌已经不在列表里）。
+     */
+    private var rawMusicSongs: List<Song> = emptyList()
+
+    /** 隐藏文件夹的持久化；首次访问时才开 prefs（[onCreate] 早期用不到）。 */
+    private val hiddenFolders by lazy { HiddenFolderStore(this) }
 
     /** 当前挂在 `contentHost` 上的页面；Fragment 被销毁重建时由 FragmentManager 负责，这里只做引用。 */
     private var currentFragment: Fragment? = null
@@ -317,7 +337,11 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     private fun restoreCachedLibraries(resumePlayback: Boolean = true) {
-        musicSongs = PlaybackBootstrap.loadCachedMusic(this)
+        // 缓存里的曲库同样要过一遍隐藏过滤：隐藏项存在 prefs 里，冷启动时列表必须一致，
+        // 否则会先闪出一批「已隐藏」的歌、等扫描完才消失。
+        val loaded = PlaybackBootstrap.loadCachedMusic(this)
+        rawMusicSongs = loaded
+        musicSongs = LibraryGrouper.visibleSongs(loaded, hiddenFolders.hiddenDirs())
         drawer.updateLibrary(musicSongs)
         binding.root.post {
             refreshPlaylistFragment()
@@ -378,9 +402,14 @@ class MainActivity : AppCompatActivity(), MainHost {
         lifecycleScope.launch {
             val musicCount = runCatching {
                 withContext(Dispatchers.IO) {
-                    PlaybackBootstrap.scanMusicLibrary(this@MainActivity, settings)
-                        .also { musicSongs = it }
-                        .size
+                    val scanned = PlaybackBootstrap.scanMusicLibrary(this@MainActivity, settings)
+                    // 原始结果先落 raw，再派生出可见列表；顺序不能反，
+                    // 否则下次重算过滤时只能在「已过滤」的列表上做减法。
+                    rawMusicSongs = scanned
+                    musicSongs = LibraryGrouper.visibleSongs(scanned, hiddenFolders.hiddenDirs())
+                    // 回报的是**可见**曲目数而不是扫描命中数：紧跟着的 Toast 和抽屉计数
+                    // 都读这个口径，两个数字不一致会让用户以为扫描漏歌了。
+                    musicSongs.size
                 }
             }.getOrElse {
                 android.util.Log.e("MainActivity", "scan failed", it)
@@ -408,6 +437,26 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     override fun allSongs(): List<Song> = musicSongs
+
+    /**
+     * 重算「原始曲库 − 隐藏目录」并刷新 UI。
+     *
+     * 刻意**不重扫全库**：隐藏只是可见性开关，曲目一首都没变，
+     * 重扫一遍（车机上要几秒到几十秒）会让长按隐藏这个动作变得不可接受。
+     *
+     * 也刻意**不动播放队列**：正在播放的歌可能正好在刚被隐藏的目录里，
+     * 把这批歌从队列里抽走会让当前曲目位置错位甚至跳歌。队列是「按当时的曲库生成的快照」，
+     * 下次选歌时自然会用新的可见列表。
+     */
+    private fun applyHiddenFilter() {
+        musicSongs = LibraryGrouper.visibleSongs(rawMusicSongs, hiddenFolders.hiddenDirs())
+        drawer.updateLibrary(musicSongs)
+        refreshPlaylistFragment()
+    }
+
+    override fun refreshHiddenFilter() {
+        applyHiddenFilter()
+    }
 
     override fun refreshAppTheme() {
         applyAppTheme()

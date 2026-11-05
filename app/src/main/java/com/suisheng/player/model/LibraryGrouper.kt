@@ -80,6 +80,32 @@ object LibraryGrouper {
         return chain.toList()
     }
 
+    /**
+     * 过滤掉位于任一 [hiddenDirs] 之下（含自身）的歌曲。
+     *
+     * 「隐藏文件夹」的可见性口径就定在这一层：全部歌曲 / 专辑 / 歌手 / 文件夹 / 抽屉计数
+     * 全部只吃过滤后的这一个列表，避免四处各写一份判断而口径漂移。
+     *
+     * 取舍：`content://`、`online://`、`http(s)://` 这类带 `://` 的路径没法用 [File]
+     * 做祖先比较（[parentDir] 返回 null），一律**视为可见**。宁可漏隐藏一首 SAF 引入的曲目，
+     * 也不要把「隐藏了某个本地目录」误伤成「在线曲目凭空消失」——后者用户根本无从排查。
+     *
+     * @return [hiddenDirs] 为空时**原样返回同一个引用**（不分配新列表），
+     *   因为绝大多数用户的曲库没有隐藏项，这条热路径不该有额外开销。
+     */
+    fun visibleSongs(songs: List<Song>, hiddenDirs: List<File>): List<Song> {
+        if (hiddenDirs.isEmpty()) return songs
+        return songs.filterNot { isHidden(it, hiddenDirs) }
+    }
+
+    /** 单曲判定，规则同 [visibleSongs]（带 `://` 的路径永远可见）。 */
+    fun isHidden(song: Song, hiddenDirs: List<File>): Boolean {
+        if (hiddenDirs.isEmpty()) return false
+        // parentDir 为 null ⇒ 不是真实文件路径 ⇒ 不参与目录级隐藏
+        val dir = parentDir(song) ?: return false
+        return hiddenDirs.any { isAncestorOrSelf(it, dir) }
+    }
+
     /** 是否 [target] 自身或位于 [dir] 之下。 */
     fun isAncestorOrSelf(dir: File, target: File): Boolean {
         var cursor: File? = target
