@@ -69,7 +69,7 @@ class DrawerPanelController(
         rows.clear()
         val inflater = LayoutInflater.from(activity)
         var renderedGroup: DrawerGroup? = null
-        Destination.entries.forEach { destination ->
+        Destination.entries.filter { it.shownInDrawer }.forEach { destination ->
             if (destination.group != renderedGroup) {
                 renderedGroup = destination.group
                 val group = ItemDrawerGroupBinding.inflate(inflater, binding.drawerMenuContainer, false)

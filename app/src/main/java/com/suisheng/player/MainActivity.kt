@@ -209,7 +209,8 @@ class MainActivity : AppCompatActivity(), MainHost {
         Destination.SONGS -> LocalPlaylistFragment()
         Destination.ONLINE -> OnlineMusicFragment()
         Destination.SETTINGS -> SettingsFragment()
-        // 未落地的 4 条在 selectDestination() 已被拦下，这里只是为了让 when 穷举。
+        Destination.PLAYER -> PlayerFragment()
+        // 未落地的 3 条在 selectDestination() 已被拦下，这里只是为了让 when 穷举。
         Destination.ALBUMS, Destination.ARTISTS, Destination.FOLDERS, Destination.ABOUT ->
             PlaylistFragment()
     }

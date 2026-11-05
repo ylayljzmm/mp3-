@@ -16,7 +16,8 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
 }
 
 /**
- * 抽屉里的 8 个目的地，枚举顺序就是 `design/04 §3.5` 清单里的 1–8 顺序，不要重排。
+ * 抽屉里的 8 个目的地（外加 1 个不在抽屉里出现的播放页），
+ * 枚举顺序就是 `design/04 §3.5` 清单里的 1–8 顺序，不要重排。
  *
  * 刻意用 enum 而不是 String / Int 序号：
  * ① 编译期可穷举，新增页面时 `when` 会提醒；
@@ -27,6 +28,9 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
  * @property group 所属分组
  * @property available 页面是否已落地；false = 条目置灰、点击提示「即将上线」（期 2c-2 补齐）
  * @property showsCount 是否在条目右侧显示计数（设计里只有歌曲/专辑/艺术家/文件夹 4 条有）
+ * @property shownInDrawer 是否在抽屉里出现。只有 [PLAYER] 是 false ——
+ *   「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地，
+ *   由歌曲点击 `selectDestination(Destination.PLAYER)` 触发，抽屉里不占一条。
  */
 enum class Destination(
     @StringRes val labelRes: Int,
@@ -34,6 +38,7 @@ enum class Destination(
     val group: DrawerGroup,
     val available: Boolean,
     val showsCount: Boolean,
+    val shownInDrawer: Boolean = true,
 ) {
     HOME(
         labelRes = R.string.drawer_home,
@@ -90,6 +95,20 @@ enum class Destination(
         group = DrawerGroup.SYSTEM,
         available = false,
         showsCount = false,
+    ),
+
+    /**
+     * 播放页。故意放在 8 条之后并且 [shownInDrawer] = false：
+     * 它不是抽屉条目，而是「点了歌之后去哪儿」的目的地。
+     * 放在最后也保证前面 8 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
+     */
+    PLAYER(
+        labelRes = R.string.playing_now,
+        iconRes = R.drawable.ic_drawer_song,
+        group = DrawerGroup.LIBRARY,
+        available = true,
+        showsCount = false,
+        shownInDrawer = false,
     ),
     ;
 
