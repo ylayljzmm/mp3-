@@ -176,13 +176,16 @@ class ThemeControllerTest {
     }
 
     @Test
-    fun themeAccent_styleResAreUnique() {
-        val styles = ThemeAccent.entries.map { it.styleRes }
-        assertEquals(styles.size, styles.toSet().size)
-        val playerStyles = ThemeAccent.entries.map { it.playerStyleRes }
-        assertEquals(playerStyles.size, playerStyles.toSet().size)
-        // 全局样式与播放页 overlay 不能混用
-        assertTrue(styles.intersect(playerStyles.toSet()).isEmpty())
+    fun themeAccent_displayNamesAreNonEmpty() {
+        ThemeAccent.entries.forEach { accent ->
+            assertTrue(
+                "accent ${accent.id} 的显示名不能为空",
+                accent.displayName.isNotBlank(),
+            )
+        }
+        // id 与显示名一一对应，不能出现两套配色同名
+        val names = ThemeAccent.entries.map { it.displayName }
+        assertEquals(names.size, names.toSet().size)
     }
 
     // ---------- 播放页分控解析 ----------

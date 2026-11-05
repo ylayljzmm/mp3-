@@ -13,8 +13,6 @@
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Suisheng.AlertDialog</item>
         <item name="sliderStyle">@style/Widget.Suisheng.Slider</item>
         <item name="chipStyle">@style/Widget.Suisheng.Chip</item>
-        <item name="materialButtonToggleGroupStyle">@style/Widget.Suisheng.ButtonToggleGroup</item>
-        <item name="materialSwitchStyle">@style/Widget.Suisheng.Switch</item>
 
         <!-- 系统栏与窗口底色：全部走 attr，切主题自动跟随 -->
         <item name="android:windowBackground">?attr/colorSurface</item>
@@ -48,12 +46,12 @@
         <item name="chipCornerRadius">18dp</item>
     </style>
 
-    <style name="Widget.Suisheng.ButtonToggleGroup" parent="Widget.Material3.Button.TonalButton">
+    <style name="Widget.Suisheng.ButtonToggleGroup" parent="Widget.Material3.Button">
         <item name="android:minHeight">56dp</item>
         <item name="android:textSize">17sp</item>
     </style>
 
-    <style name="Widget.Suisheng.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+    <style name="Widget.Suisheng.Switch">
         <item name="android:minHeight">48dp</item>
     </style>
 
