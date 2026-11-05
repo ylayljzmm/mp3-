@@ -5,11 +5,8 @@ enum class PlaybackMode {
     SHUFFLE
 }
 
-enum class ThemeMode {
-    LIGHT,
-    DARK,
-    SYSTEM
-}
+// 明暗档位已迁到 com.suisheng.player.theme.NightMode（4 档，含按时间自动），
+// 旧的 3 档 ThemeMode 在 2b-2 删除，避免两个枚举长期并存、谁都说不清该读哪个。
 
 enum class LibraryKind {
     MUSIC,

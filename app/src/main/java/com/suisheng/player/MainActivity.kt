@@ -40,7 +40,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         settings = SettingsRepository(this)
         settings.applyTheme()
-        setTheme(settings.appTheme().styleRes)
+        // 主题在 super.onCreate 之前套用：此时 inflate 出的每个 View 都会按新 theme 取色，
+        // 不存在「先按旧色画一遍再刷新」的中间帧（`04 §2.5`）。
+        setTheme(settings.themeStyleRes())
         super.onCreate(savedInstanceState)
         ImmersiveHelper.apply(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -74,10 +76,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun onResume() {
         super.onResume()
         ImmersiveHelper.apply(this)
+        // 旧实现在这里额外回刷播放页底栏的封面取色；该链路已随主题重构移除，
+        // 底栏颜色由 applyAppTheme() 统一按主题 token 处理。
         applyAppTheme()
-        if (binding.viewPager.currentItem == 1) {
-            (supportFragmentManager.findFragmentByTag("f1") as? PlayerFragment)?.syncBottomNavTheme()
-        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -208,13 +209,6 @@ class MainActivity : AppCompatActivity(), MainHost {
         applyAppTheme()
     }
 
-    override fun syncPlayerBottomNav(backgroundColor: Int) {
-        if (binding.viewPager.currentItem != 1) return
-        val palette = AppThemeManager.palette(this, settings)
-        AppThemeManager.applyPlayerBottomNav(binding.bottomNav, palette, backgroundColor, binding.bottomDock)
-        window.navigationBarColor = AppThemeManager.playerBottomNavColors(palette, backgroundColor)
-    }
-
     private fun refreshPlaylistFragment() {
         (supportFragmentManager.findFragmentByTag("f0") as? PlaylistFragment)?.refreshFromHost()
     }
@@ -223,6 +217,11 @@ class MainActivity : AppCompatActivity(), MainHost {
         val palette = AppThemeManager.palette(this, settings)
         binding.root.setBackgroundColor(palette.background)
         AppThemeManager.applyBottomNav(binding.bottomNav, palette, dock = binding.bottomDock)
+        // API 29+ 系统会在浅色底上给导航栏加一条深色对比带，页面底部因此出现黑缝
+        // （`design/04 §3.2` 第③条）。关掉它，导航栏颜色完全由我们决定。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         window.navigationBarColor = palette.bottomNavBg
         window.statusBarColor = android.graphics.Color.TRANSPARENT
     }

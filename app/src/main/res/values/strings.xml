@@ -55,7 +55,7 @@
     <string name="settings_overlay_grant">开启悬浮窗权限</string>
     <string name="font_size">悬浮歌词字号</string>
     <string name="lyric_theme">歌词配色</string>
-    <string name="app_theme">选择一套适合驾驶的深色配色</string>
+    <string name="app_theme">强调色（浅色/深色两套自动适配）</string>
     <string name="lyric_font">歌词字体</string>
     <string name="smooth_lyrics">歌词平滑滚动</string>
     <string name="player_font_size">播放页当前行字号</string>

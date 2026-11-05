@@ -2,17 +2,22 @@ package com.suisheng.player.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.StyleRes
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
-import com.suisheng.player.model.AppThemePreset
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
 import com.suisheng.player.model.PlaybackMode
-import com.suisheng.player.model.ThemeMode
+import com.suisheng.player.model.ThemeAccent
+import com.suisheng.player.theme.NightMode
+import com.suisheng.player.theme.ThemeController
 import com.suisheng.player.util.MediaPath
+import java.util.Calendar
 
 class SettingsRepository(context: Context) {
+    /** Application Context 留一份给 [applyTheme]：它需要读资源数组算夜间区间。 */
+    private val appContext: Context = context.applicationContext
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -193,19 +198,83 @@ class SettingsRepository(context: Context) {
         }
     }
 
-    var themeMode: ThemeMode
-        get() = ThemeMode.entries.getOrElse(
-            prefs.getInt(KEY_THEME, ThemeMode.SYSTEM.ordinal)
-        ) { ThemeMode.SYSTEM }
-        set(value) = prefs.edit { putInt(KEY_THEME, value.ordinal) }
+    // ---------- 主题（`design/04 §2.2` / §2.6） ----------
 
-    fun appTheme(): AppThemePreset = AppThemePreset.fromId(
-        prefs.getString(KEY_APP_THEME, AppThemePreset.NETEASE.id) ?: AppThemePreset.NETEASE.id
-    )
+    /**
+     * 明暗档位，4 档（`04 §2.2`）。出厂默认 [NightMode.DEFAULT] = 浅色（`05 §5.2` 裁定）。
+     *
+     * 键名带 `_v2` 是防后人误读，**不代表需要迁移**：期 2a 已把 `applicationId` 改成
+     * `com.suisheng.player`，旧包名的 SharedPreferences 文件在物理上不可达，
+     * 全新安装从默认值起步即可，这里不要写任何迁移代码。
+     * 旧键 `theme_mode` 存的是 `ThemeMode` 的 ordinal，语义（3 档 / 4 档）与编码（int / 字符串）
+     * 都不同，所以也不复用同一个键。
+     */
+    var nightMode: NightMode
+        get() = NightMode.fromId(prefs.getString(KEY_THEME_MODE_V2, null))
+        set(value) = prefs.edit { putString(KEY_THEME_MODE_V2, value.id) }
 
-    fun setAppTheme(preset: AppThemePreset) {
-        prefs.edit { putString(KEY_APP_THEME, preset.id) }
-    }
+    /** 全局强调色，非法值回落 [ThemeAccent.DEFAULT]。 */
+    var themeAccent: ThemeAccent
+        get() = ThemeAccent.fromId(prefs.getString(KEY_THEME_ACCENT, null))
+        set(value) = prefs.edit { putString(KEY_THEME_ACCENT, value.id) }
+
+    /** 播放页独立强调色（仅在 [playerThemeSplitEnabled] 为 true 时生效）。 */
+    var playerThemeAccent: ThemeAccent
+        get() = ThemeAccent.fromId(prefs.getString(KEY_THEME_ACCENT_PLAYER, null))
+        set(value) = prefs.edit { putString(KEY_THEME_ACCENT_PLAYER, value.id) }
+
+    /** 播放页分控开关：是否允许播放页用与全局不同的强调色（`04 §2.6`）。 */
+    var playerThemeSplitEnabled: Boolean
+        get() = prefs.getBoolean(KEY_THEME_SPLIT_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_THEME_SPLIT_ENABLED, value) }
+
+    /** 播放页封面取色：封面主色是否参与播放页背景（`04 §2.6`）。 */
+    var playerCoverTintEnabled: Boolean
+        get() = prefs.getBoolean(KEY_THEME_COVER_TINT, true)
+        set(value) = prefs.edit { putBoolean(KEY_THEME_COVER_TINT, value) }
+
+    /** 夜间开始时刻的手动覆盖（当日第几分钟）；`null` 表示「用内置日出日落表」。 */
+    var nightStartMinuteOverride: Int?
+        get() = prefs.getInt(KEY_THEME_NIGHT_START, NO_MINUTE_OVERRIDE)
+            .takeIf { it != NO_MINUTE_OVERRIDE }
+        set(value) = prefs.edit {
+            if (value == null) {
+                remove(KEY_THEME_NIGHT_START)
+            } else {
+                putInt(KEY_THEME_NIGHT_START, ThemeController.normalizeMinute(value))
+            }
+        }
+
+    /** 夜间结束时刻的手动覆盖（当日第几分钟）；`null` 表示「用内置日出日落表」。 */
+    var nightEndMinuteOverride: Int?
+        get() = prefs.getInt(KEY_THEME_NIGHT_END, NO_MINUTE_OVERRIDE)
+            .takeIf { it != NO_MINUTE_OVERRIDE }
+        set(value) = prefs.edit {
+            if (value == null) {
+                remove(KEY_THEME_NIGHT_END)
+            } else {
+                putInt(KEY_THEME_NIGHT_END, ThemeController.normalizeMinute(value))
+            }
+        }
+
+    /**
+     * 解析播放页实际生效的强调色（`04 §2.6` 三条降级规则见 [ThemeController.resolvePlayerAccent]）。
+     */
+    fun resolvePlayerAccent(): ThemeController.PlayerAccentResolution =
+        ThemeController.resolvePlayerAccent(
+            global = themeAccent,
+            playerAccentId = prefs.getString(KEY_THEME_ACCENT_PLAYER, null),
+            splitEnabled = playerThemeSplitEnabled,
+        )
+
+    /** 全局主题样式（浅/深由资源限定符自动切换，调用方不必判断日夜）。 */
+    @StyleRes
+    fun themeStyleRes(): Int = ThemeController.accentStyleRes(themeAccent)
+
+    /** 播放页分控主题 overlay；分控关闭时返回全局样式。 */
+    @StyleRes
+    fun playerThemeStyleRes(): Int =
+        ThemeController.accentStyleRes(resolvePlayerAccent().accent, forPlayer = true)
 
     fun lyricTheme(): LyricThemePreset = LyricThemePreset.fromId(
         prefs.getString(KEY_LYRIC_THEME, LyricThemePreset.NETEASE.id) ?: LyricThemePreset.NETEASE.id
@@ -276,13 +345,29 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    /**
+     * 把当前明暗档位落到 `AppCompatDelegate`。
+     *
+     * 签名保持无参（与 2b 之前一致），Context 用构造时拿到的 [appContext]：
+     * [NightMode.TIME_AUTO] 要用内置日出日落表（`R.array.night_schedule_*`）
+     * 与当前日期算出夜间区间，而资源只能从 Context 取。
+     *
+     * 内部一律包 `runCatching`：这是启动路径上的第一行代码之一，
+     * 主题算错最多导致配色不对，绝不能让车机开机时闪退。
+     */
     fun applyTheme() {
-        val mode = when (themeMode) {
-            ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
-            ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
-            ThemeMode.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        runCatching {
+            val mode = ThemeController.nightModeConstant(
+                mode = nightMode,
+                isNightNow = ThemeController.isNightNow(
+                    context = appContext,
+                    calendar = Calendar.getInstance(),
+                    overrideStart = nightStartMinuteOverride,
+                    overrideEnd = nightEndMinuteOverride,
+                ),
+            )
+            AppCompatDelegate.setDefaultNightMode(mode)
         }
-        AppCompatDelegate.setDefaultNightMode(mode)
     }
 
     private fun migrateLegacyLastSong(library: LibraryKind): String? {
@@ -333,8 +418,16 @@ class SettingsRepository(context: Context) {
         const val KEY_OVERLAY_STROKE_WIDTH = "overlay_stroke_width"
         const val KEY_PLAY_MODE = "play_mode"
         const val KEY_CLUSTER_LYRICS = "cluster_lyrics"
-        const val KEY_THEME = "theme_mode"
-        const val KEY_APP_THEME = "app_theme"
+        const val KEY_THEME_MODE_V2 = "theme_mode_v2"
+        const val KEY_THEME_ACCENT = "theme_accent"
+        const val KEY_THEME_ACCENT_PLAYER = "theme_accent_player"
+        const val KEY_THEME_SPLIT_ENABLED = "theme_split_enabled"
+        const val KEY_THEME_COVER_TINT = "theme_cover_tint_enabled"
+        const val KEY_THEME_NIGHT_START = "theme_night_start"
+        const val KEY_THEME_NIGHT_END = "theme_night_end"
+
+        /** [nightStartMinuteOverride] / [nightEndMinuteOverride] 的「未设置」哨兵值。 */
+        const val NO_MINUTE_OVERRIDE = -1
         const val KEY_LYRIC_THEME = "lyric_theme"
         const val KEY_LYRIC_FONT = "lyric_font"
         const val KEY_LAST_SONG_LEGACY = "last_song_path"

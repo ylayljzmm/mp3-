@@ -11,5 +11,4 @@ interface MainHost {
     fun allSongs(): List<Song>
     fun notifyLyricStyleChanged()
     fun refreshAppTheme()
-    fun syncPlayerBottomNav(backgroundColor: Int)
 }

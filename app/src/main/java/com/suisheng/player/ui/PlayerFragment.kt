@@ -35,7 +35,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private lateinit var settings: SettingsRepository
     private var renderedStateKey: String? = null
     private var defaultThemeColor = Color.parseColor("#FF141B24")
-    private var currentPlayerBgColor = Color.parseColor("#FF141B24")
 
     /** 竖屏（手机）下是否只显示歌词 */
     private var portraitLyricsOnly = false
@@ -74,7 +73,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         renderState()
         renderCover(PlaybackStateHolder.coverArtPath)
         updateProgressUi(PlaybackStateHolder.positionMs, PlaybackStateHolder.durationMs)
-        syncBottomNavTheme()
     }
 
     private fun isLandscape(): Boolean =
@@ -223,9 +221,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     private fun applyPlayerBackground(color: Int) {
-        currentPlayerBgColor = color
         binding.themeBackground.setBackgroundColor(color)
-        syncBottomNavTheme()
     }
 
     private fun renderCover(coverPath: String?) {
@@ -297,10 +293,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }.onFailure {
             Toast.makeText(requireContext(), R.string.playback_start_failed, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    fun syncBottomNavTheme() {
-        (activity as? MainHost)?.syncPlayerBottomNav(currentPlayerBgColor)
     }
 
     fun refreshLyricStyle() {

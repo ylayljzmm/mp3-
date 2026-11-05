@@ -22,10 +22,10 @@ import com.suisheng.player.R
 import com.suisheng.player.data.ScanPathHelper
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentSettingsBinding
-import com.suisheng.player.model.AppThemePreset
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
-import com.suisheng.player.model.ThemeMode
+import com.suisheng.player.model.ThemeAccent
+import com.suisheng.player.theme.NightMode
 import com.suisheng.player.update.AppUpdateInfo
 import com.suisheng.player.update.AppUpdateManager
 import com.suisheng.player.update.InstallRequest
@@ -116,10 +116,12 @@ class SettingsFragment : Fragment() {
         binding.nextLineScaleSlider.value = settings.nextLineScale
         binding.maxLyricLinesSlider.value = settings.maxLyricVisualLines.toFloat()
 
-        when (settings.themeMode) {
-            ThemeMode.LIGHT -> binding.themeLight.isChecked = true
-            ThemeMode.DARK -> binding.themeDark.isChecked = true
-            ThemeMode.SYSTEM -> binding.themeSystem.isChecked = true
+        when (settings.nightMode) {
+            NightMode.LIGHT -> binding.themeLight.isChecked = true
+            NightMode.DARK -> binding.themeDark.isChecked = true
+            // TIME_AUTO 没有独立 RadioButton（该控件当前是 gone，第 4 档的 UI 入口
+            // 留给 2c 重排设置页时统一提供），这里落到「跟随系统」以免出现三个都不选。
+            NightMode.FOLLOW_SYSTEM, NightMode.TIME_AUTO -> binding.themeSystem.isChecked = true
         }
         when (settings.overlayPosition) {
             SettingsRepository.POSITION_TOP -> binding.posTop.isChecked = true
@@ -172,10 +174,10 @@ class SettingsFragment : Fragment() {
         }
 
         binding.themeGroup.setOnCheckedChangeListener { _, checkedId ->
-            settings.themeMode = when (checkedId) {
-                R.id.themeLight -> ThemeMode.LIGHT
-                R.id.themeDark -> ThemeMode.DARK
-                else -> ThemeMode.SYSTEM
+            settings.nightMode = when (checkedId) {
+                R.id.themeLight -> NightMode.LIGHT
+                R.id.themeDark -> NightMode.DARK
+                else -> NightMode.FOLLOW_SYSTEM
             }
             settings.applyTheme()
             activity?.recreate()
@@ -429,15 +431,19 @@ class SettingsFragment : Fragment() {
         parent.addView(chipGroup, insertIndex + 1)
         appThemeChipGroup = chipGroup
 
-        val current = settings.appTheme()
-        AppThemePreset.entries.forEach { preset ->
+        val current = settings.themeAccent
+        ThemeAccent.entries.forEach { accent ->
             val chip = Chip(requireContext()).apply {
-                text = preset.displayName
+                text = accent.displayName
                 isCheckable = true
-                isChecked = preset == current
+                isChecked = accent == current
                 setOnClickListener {
-                    settings.setAppTheme(preset)
-                    activity?.recreate()
+                    if (accent != settings.themeAccent) {
+                        settings.themeAccent = accent
+                        // 主题在 onCreate 的 setTheme 里一次性套用，改完必须重建 Activity
+                        // 才能让已 inflate 的视图树按新 theme 重新取色（`04 §2.5`）。
+                        activity?.recreate()
+                    }
                 }
             }
             chipGroup.addView(chip)
