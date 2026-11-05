@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  主界面外壳（design/04 §3.5）：左侧抽屉 + 右侧内容区。
-  底部 3 tab 已移除，导航完全交给抽屉（2c-1）。
+  主界面外壳（design/04 §3.5）：左侧抽屉 + 右侧内容列。
+  导航完全交给抽屉：首页已经拆掉，它内部的 4 个分区标签成了抽屉条目本身。
+
+  内容列自下而上是「全局页头 64dp → 页面区 → 迷你条 → 车机 Dock 安全区」。
+  页头是所有二级页共用的一条，页面里不再各自挂标题条。
 
   注意两点：
   ① DrawerLayout 的 `fitsSystemWindows` 必须是 false —— 沉浸模式由 ImmersiveHelper 打开，
@@ -19,7 +22,7 @@
     android:fitsSystemWindows="false">
 
     <!--
-      内容列：页面区（Fragment 容器）+ 迷你条 + 车机 Dock 安全区。
+      内容列：全局页头 + 页面区（Fragment 容器）+ 迷你条 + 车机 Dock 安全区。
       迷你条放在页面区**下面**而不是叠在上面：叠上去就得给每个页面算底部 padding，
       而迷你条只在二级页出现（播放页隐藏），高度会变，叠着算必然漏。
     -->
@@ -29,7 +32,106 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- 页面区：首页 / 歌曲 / 专辑 / 艺术家 / 文件夹 / 在线 / 设置 / 关于 全部挂在这里 -->
+        <!--
+          全局页头 64dp：标题 + 左上角「返回 / 菜单」二选一 + 右侧动作位。
+
+          刻意不用 MaterialToolbar：页头要随目的地整体换标题、换返回语义，还会被
+          页面内部层级（歌单详情 / 歌手详情 / 文件夹下钻）临时改写副标题与返回箭头。
+          启用 Toolbar 自带的 title / menu / NavigationOnClickListener 那一套机制，
+          会和页面自己的状态机打架；这里就是三个普通 View，谁来改都由
+          `PageHeaderController` 一处决定。
+
+          播放页与主题页整条 GONE：这两页各自带一条完整的顶栏（返回 + 自己的 27sp 标题），
+          叠上一层全局页头就等于同一个页面两个标题。这条规则写在
+          `PageHeaderController.bind()` 里，布局里不写 visibility。
+        -->
+        <LinearLayout
+            android:id="@+id/pageHeader"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/page_header_height"
+            android:background="?attr/colorSurface"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <!-- 返回箭头与汉堡键叠在同一格里，靠 visibility 二选一：
+                 两者尺寸、内边距、触控区完全一致，切换时标题不会左右跳动。 -->
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp">
+
+                <ImageButton
+                    android:id="@+id/btnPageBack"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/nav_back"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_arrow_back"
+                    android:tint="?attr/colorOnSurface" />
+
+                <ImageButton
+                    android:id="@+id/btnPageMenu"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/menu"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_menu_drawer"
+                    android:tint="?attr/colorOnSurface"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <!-- 标题两行：主标题固定 22sp，副标题承载「共 N 首」「歌手名」「歌单名」这类
+                 页面内部层级信息；没有副标题时整行 GONE，标题自动垂直居中。 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/pageTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/pageSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 右侧动作位：本期没有页面用到，默认 GONE，但结构先留好，
+                 后面加「排序 / 搜索 / 多选」不用再动页头。 -->
+            <ImageButton
+                android:id="@+id/btnPageAction"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/nav_page_action"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_more_vert"
+                android:tint="?attr/colorOnSurface"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- 页面区：歌曲 / 专辑 / 艺术家 / 文件夹 / 在线 / 电台 / 播客 / 设置 / 关于
+             + 播放页 / 主题页全部挂在这里。首页已随分区标签一起删除。 -->
         <FrameLayout
             android:id="@+id/contentHost"
             android:layout_width="match_parent"

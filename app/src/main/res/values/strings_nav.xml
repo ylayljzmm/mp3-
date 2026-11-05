@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  侧边栏重排 / 全局页头的文案。
+
+  刻意单独开一个文件而不是往 strings.xml 里加：那两个文件有人并行在改，
+  分文件可以避免同一时刻的合并冲突（Android 允许多个 values 文件并存）。
+-->
+<resources>
+    <!-- 抽屉「在线」组里新增的两条（原「首页」的第 3、4 个分区标签） -->
+    <string name="drawer_radio">电台</string>
+    <string name="drawer_podcast">播客</string>
+
+    <!-- 全局页头 -->
+    <string name="nav_back">返回</string>
+    <string name="nav_page_action">更多操作</string>
+</resources>

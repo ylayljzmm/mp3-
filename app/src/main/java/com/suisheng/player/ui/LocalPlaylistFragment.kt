@@ -19,7 +19,14 @@ import com.suisheng.player.model.PlaylistViewMode
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
 
-class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
+/**
+ * 「歌曲」目的地（原来的首页第 1 个分区，现在是抽屉里的第一条）。
+ *
+ * 页面自己不再有标题条：标题由全局页头给出，「歌手筛选 / 歌手详情」这类页面内部状态
+ * 走页头副标题。所以本页实现 [PageBackHandler]：进了某个歌手之后，
+ * 页头的返回键先把用户送回歌手列表，再按一次才离开这个目的地。
+ */
+class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler {
     private var _binding: FragmentLocalPlaylistBinding? = null
     private val binding get() = _binding!!
     private lateinit var songAdapter: SongAdapter
@@ -50,7 +57,7 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
         )
         artistAdapter = ArtistAdapter { group ->
             selectedArtist = group.name
-            updateToolbar()
+            updateHeader()
             applyFilter()
         }
 
@@ -75,7 +82,6 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
             }
             applyFilter()
         }
-        binding.toolbar.setNavigationOnClickListener { exitArtistDetail() }
         refreshFromHost()
     }
 
@@ -84,15 +90,28 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
         selectedArtist = null
         binding.chipAllSongs.isChecked = mode == PlaylistViewMode.ALL_SONGS
         binding.chipArtists.isChecked = mode == PlaylistViewMode.BY_ARTIST
-        updateToolbar()
+        updateHeader()
         applyFilter()
     }
 
     private fun exitArtistDetail() {
         if (selectedArtist == null) return
         selectedArtist = null
-        updateToolbar()
+        updateHeader()
         applyFilter()
+    }
+
+    // ------------------------------------------------------- 页面内层级（返回键）
+
+    /** 「按歌手」并且已经点进某一位歌手——这时页头的返回键要先退回歌手列表。 */
+    override fun hasInnerLevel(): Boolean =
+        _binding != null && viewMode == PlaylistViewMode.BY_ARTIST && selectedArtist != null
+
+    override fun handlePageBack(): Boolean {
+        if (!hasInnerLevel()) return false
+        exitArtistDetail()
+        syncPageHeaderBack()
+        return true
     }
 
     override fun onStart() {
@@ -174,16 +193,21 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
         )
     }
 
-    private fun updateToolbar() {
-        val inArtistDetail = viewMode == PlaylistViewMode.BY_ARTIST && selectedArtist != null
-        binding.toolbar.navigationIcon = if (inArtistDetail) {
-            requireContext().getDrawable(android.R.drawable.ic_menu_revert)
-        } else null
-        binding.toolbar.subtitle = when {
+    /**
+     * 把「当前在筛选/看谁」的状态交给页头副标题。
+     *
+     * 原来这条信息挂在 `MaterialToolbar.subtitle` 上，返回箭头则是 `navigationIcon`。
+     * 标题条删掉之后，副标题照样有（`pageSubtitle`），返回箭头由 [PageBackHandler] +
+     * [syncPageHeaderBack] 驱动，两个信息都没丢，只是搬到了全局页头。
+     */
+    private fun updateHeader() {
+        val subtitle = when {
             selectedArtist != null -> selectedArtist
             viewMode == PlaylistViewMode.BY_ARTIST -> getString(R.string.filter_artists)
             else -> null
         }
+        setPageSubtitle(subtitle)
+        syncPageHeaderBack()
     }
 
     override fun onDestroyView() {

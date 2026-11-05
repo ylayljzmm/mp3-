@@ -37,7 +37,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
+/**
+ * 「在线音乐」目的地。页面自己不再有标题条：标题由全局页头给出，
+ * 「我的 / 歌单详情 / 搜索结果」这三种页面内部状态改走页头副标题，
+ * 返回键先退这些内层（[PageBackHandler]）再离开目的地。
+ */
+class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler {
     private var _binding: FragmentOnlineMusicBinding? = null
     private val binding get() = _binding!!
     private lateinit var settings: SettingsRepository
@@ -110,7 +115,6 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
 
         binding.chipDiscover.setOnClickListener { switchMine(false) }
         binding.chipMine.setOnClickListener { switchMine(true) }
-        binding.toolbar.setNavigationOnClickListener { showDiscoverHome() }
 
         binding.btnPlayAll.setOnClickListener { playActivePlaylist(shuffle = false) }
         binding.btnShufflePlay.setOnClickListener { playActivePlaylist(shuffle = true) }
@@ -147,8 +151,8 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
         mineMode = false
         clearActivePlaylist()
         binding.chipDiscover.isChecked = true
-        binding.toolbar.navigationIcon = null
-        binding.toolbar.subtitle = null
+        setPageSubtitle(null)
+        syncPageHeaderBack()
         binding.discoverScroll.visibility = View.VISIBLE
         binding.playlistDetailContainer.visibility = View.GONE
         binding.emptyText.visibility = View.GONE
@@ -159,8 +163,8 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
         clearActivePlaylist()
         binding.discoverScroll.visibility = View.GONE
         binding.playlistDetailContainer.visibility = View.VISIBLE
-        binding.toolbar.navigationIcon = requireContext().getDrawable(android.R.drawable.ic_menu_revert)
-        binding.toolbar.subtitle = getString(R.string.online_mine)
+        setPageSubtitle(getString(R.string.online_mine))
+        syncPageHeaderBack()
         val playlistHeaders = library.userPlaylists().map { playlist ->
             Song(
                 id = playlist.id.hashCode().toLong(),
@@ -211,8 +215,8 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
 
         binding.discoverScroll.visibility = View.GONE
         binding.playlistDetailContainer.visibility = View.VISIBLE
-        binding.toolbar.navigationIcon = requireContext().getDrawable(android.R.drawable.ic_menu_revert)
-        binding.toolbar.subtitle = title
+        setPageSubtitle(title)
+        syncPageHeaderBack()
         currentSongs = songs
         renderSongList(songs, getString(R.string.online_empty))
         updatePlaylistActionBar()
@@ -311,8 +315,8 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
             clearActivePlaylist()
             binding.discoverScroll.visibility = View.GONE
             binding.playlistDetailContainer.visibility = View.VISIBLE
-            binding.toolbar.navigationIcon = requireContext().getDrawable(android.R.drawable.ic_menu_revert)
-            binding.toolbar.subtitle = getString(R.string.online_search_result, keyword)
+            setPageSubtitle(getString(R.string.online_search_result, keyword))
+            syncPageHeaderBack()
             val playlistRows = playlists.take(8).map { summary ->
                 Song(
                     id = summary.id.hashCode().toLong(),
@@ -344,6 +348,17 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
 
     fun refreshLibrary() {
         if (mineMode) showMineLibrary()
+    }
+
+    // ------------------------------------------------------- 页面内层级（返回键）
+
+    /** 歌单详情 / 「我的」/ 搜索结果都在 [playlistDetailContainer] 里，算内层。 */
+    override fun hasInnerLevel(): Boolean = _binding != null && showingDetail
+
+    override fun handlePageBack(): Boolean {
+        if (!hasInnerLevel()) return false
+        showDiscoverHome()
+        return true
     }
 
     private fun formatCount(value: Long): String = when {

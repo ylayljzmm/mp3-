@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  抽屉「播客」。24dp、纯黑填充，实际颜色由使用处 tint 决定。
+
+  麦克风造型：话筒（圆角胶囊）+ 支架弧 + 底座立杆，与 ic_drawer_online 等
+  既有 Material 面型图标同一套口径。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 话筒：9..15 宽、上部圆头，底部圆角收口 -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,14c1.66,0 2.99,-1.34 2.99,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3z" />
+
+    <!-- 支架：半环 + 立杆 + 底座横线 -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M17,11c0,2.76 -2.24,5 -5,5s-5,-2.24 -5,-5H5c0,3.53 2.61,6.43 6,6.92V21h2v-3.08c3.39,-0.49 6,-3.39 6,-6.92h-2z" />
+</vector>

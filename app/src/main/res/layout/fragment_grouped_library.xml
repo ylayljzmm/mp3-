@@ -3,42 +3,13 @@
   分组页（专辑墙 / 艺术家 / 文件夹共用，design/04 §3.2 版式的数据驱动版本）。
 
   三个页面只有「怎么分组」和「格子还是行」两处不同，骨架完全一致：
-  56dp 顶栏（标题 + 计数）→ 文件夹模式多一条面包屑栏 → 列表/网格 + 空态。
+  （全局页头提供标题；分组数作为副标题交给页头）→ 文件夹模式多一条面包屑栏 → 列表/网格 + 空态。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
     android:orientation="vertical">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/library_top_bar_height"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/library_page_margin_horizontal"
-        android:paddingEnd="24dp">
-
-        <TextView
-            android:id="@+id/groupTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="27sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/groupCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:singleLine="true"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="17sp" />
-    </LinearLayout>
 
     <!-- 文件夹模式：面包屑 + 播放本文件夹 -->
     <LinearLayout

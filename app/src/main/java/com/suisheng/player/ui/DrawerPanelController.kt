@@ -26,7 +26,7 @@ import java.io.File
  * 而我们的条目要在右侧挂「共 N 首」这类运行时计数，还要做「已落地/未落地」两态，
  * 与其和它的私有样式搏斗，不如用一个 [android.widget.LinearLayout] 自己填。
  *
- * 8 条条目 + 3 个分组标题在 [bind] 里一次性 inflate 出来（总共 11 个很轻的 View），
+ * 9 条条目 + 3 个分组标题在 [bind] 里一次性 inflate 出来（总共 12 个很轻的 View），
  * 之后只改颜色与文字，不重建。
  *
  * @param activity 宿主 Activity，用于取资源与 string
@@ -52,11 +52,19 @@ class DrawerPanelController(
     )
 
     private val rows = LinkedHashMap<Destination, Row>()
-    private var selected: Destination = Destination.HOME
+
+    /**
+     * 当前选中的条目；**可以为 null**。
+     *
+     * 播放页与主题页不在抽屉里（`shownInDrawer = false`），停在这两页时抽屉里
+     * 不该有任何一条是「选中」的 —— 早先这里固定成 HOME，害得「在播放页时抽屉仍高亮
+     * 首页」。首页删掉之后更是必须可空，否则只能硬塞一个假的高亮项。
+     */
+    private var selected: Destination? = null
     private var totalSongs = 0
     private var scanning = false
 
-    /** 建面板：背景、头部、8 条条目、底部三格。只应调用一次（Activity 每次重建各调一次）。 */
+    /** 建面板：背景、头部、9 条条目、底部三格。只应调用一次（Activity 每次重建各调一次）。 */
     fun bind() {
         binding.drawerPanelBody.background = panelBackground()
         binding.drawerHeaderSubtitle.text = activity.getString(
@@ -97,7 +105,7 @@ class DrawerPanelController(
         renderBottomBar()
     }
 
-    /** 把某个条目置为选中态（其余回到未选中）。 */
+    /** 把某个条目置为选中态（其余回到未选中）；传不在抽屉里的目的地则全部取消选中。 */
     fun select(destination: Destination) {
         selected = destination
         applySelection(destination)
@@ -130,7 +138,7 @@ class DrawerPanelController(
         renderBottomBar()
     }
 
-    private fun applySelection(destination: Destination) {
+    private fun applySelection(destination: Destination?) {
         val accent = color(com.google.android.material.R.attr.colorPrimaryContainer)
         val onAccent = color(com.google.android.material.R.attr.colorOnPrimaryContainer)
         val idleLabel = color(com.google.android.material.R.attr.colorOnSurface)

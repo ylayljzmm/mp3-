@@ -16,8 +16,17 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
 }
 
 /**
- * 抽屉里的 8 个目的地（外加 1 个不在抽屉里出现的播放页），
- * 枚举顺序就是 `design/04 §3.5` 清单里的 1–8 顺序，不要重排。
+ * 抽屉里的 9 个目的地（外加 2 个不在抽屉里出现的：[PLAYER]、[THEME]）。
+ *
+ * **首页（HOME）已经不存在了。** 它原来是个壳：自己没有任何内容，只用一个 ViewPager2
+ * 挂「本地 / 在线 / 电台 / 播客」4 个分区标签页，标题还要靠分区栏去标识。
+ * 这 4 个分区被提升成抽屉条目之后，这个壳与 [SONGS] 在用户眼里就是同一件事，
+ * 留着只会让抽屉里出现两条通往同一份曲库的入口。所以：
+ *
+ * ① [HOME] 从枚举里删除。老版本存档里存着 "HOME" 时由 `MainActivity` 回落到 [SONGS]，
+ *    保证升级不会崩；
+ * ② 原分区的 4 个分区各自成为一等目的地：[SONGS]（本地）、[ONLINE]、[RADIO]、[PODCAST]；
+ * ③ 枚举顺序 = 抽屉渲染顺序，`design/04 §3.5` 的清单同步变成 9 条。
  *
  * 刻意用 enum 而不是 String / Int 序号：
  * ① 编译期可穷举，新增页面时 `when` 会提醒；
@@ -26,11 +35,11 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
  * @property labelRes 条目文字
  * @property iconRes 条目图标（24dp 纯黑矢量，实际颜色由使用处 tint 决定）
  * @property group 所属分组
- * @property available 页面是否已落地；false = 条目置灰、点击提示「即将上线」（期 2c-2 补齐）
+ * @property available 页面是否已落地；false = 条目置灰、点击提示「即将上线」
  * @property showsCount 是否在条目右侧显示计数（设计里只有歌曲/专辑/艺术家/文件夹 4 条有）
- * @property shownInDrawer 是否在抽屉里出现。只有 [PLAYER] 是 false ——
- *   「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地，
- *   由歌曲点击 `selectDestination(Destination.PLAYER)` 触发，抽屉里不占一条。
+ * @property shownInDrawer 是否在抽屉里出现。只有 [PLAYER] 与 [THEME] 是 false ——
+ *   「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地；
+ *   主题页由抽屉底部的药丸与「设置 → 外观」直达。
  */
 enum class Destination(
     @StringRes val labelRes: Int,
@@ -40,13 +49,7 @@ enum class Destination(
     val showsCount: Boolean,
     val shownInDrawer: Boolean = true,
 ) {
-    HOME(
-        labelRes = R.string.drawer_home,
-        iconRes = R.drawable.ic_drawer_home,
-        group = DrawerGroup.LIBRARY,
-        available = true,
-        showsCount = false,
-    ),
+    // ---------------------------------------------------------------- 媒体库
     SONGS(
         labelRes = R.string.drawer_songs,
         iconRes = R.drawable.ic_drawer_song,
@@ -75,6 +78,8 @@ enum class Destination(
         available = true,
         showsCount = true,
     ),
+
+    // ---------------------------------------------------------------- 在线
     ONLINE(
         labelRes = R.string.drawer_online,
         iconRes = R.drawable.ic_drawer_online,
@@ -82,6 +87,29 @@ enum class Destination(
         available = true,
         showsCount = false,
     ),
+
+    /**
+     * 电台。原来是「首页」里的第 3 个分区标签，提升为独立条目后有自己的抽屉入口
+     * 与自己的返回栈位置：用户可以直接从「电台」退回进来之前的「专辑」。
+     */
+    RADIO(
+        labelRes = R.string.drawer_radio,
+        iconRes = R.drawable.ic_drawer_radio,
+        group = DrawerGroup.ONLINE,
+        available = true,
+        showsCount = false,
+    ),
+
+    /** 播客。与原「首页」第 4 个分区同源，同样提升为独立条目。 */
+    PODCAST(
+        labelRes = R.string.drawer_podcast,
+        iconRes = R.drawable.ic_drawer_podcast,
+        group = DrawerGroup.ONLINE,
+        available = true,
+        showsCount = false,
+    ),
+
+    // ---------------------------------------------------------------- 系统
     SETTINGS(
         labelRes = R.string.drawer_settings,
         iconRes = R.drawable.ic_drawer_settings,
@@ -98,9 +126,9 @@ enum class Destination(
     ),
 
     /**
-     * 播放页。故意放在 8 条之后并且 [shownInDrawer] = false：
+     * 播放页。故意放在 9 条之后并且 [shownInDrawer] = false：
      * 它不是抽屉条目，而是「点了歌之后去哪儿」的目的地。
-     * 放在最后也保证前面 8 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
+     * 放在最后也保证前面 9 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
      */
     PLAYER(
         labelRes = R.string.playing_now,
@@ -114,7 +142,7 @@ enum class Destination(
     /**
      * 主题设置页。同样不在抽屉里——它由抽屉**底部第三格**的「主题」药丸直达，
      * 也可以从「设置 → 外观」进来；两处都走 `MainHost.openTheme()`。
-     * 2c-2 起它是普通 Fragment，不再是全屏 Dialog。
+     * 它是普通 Fragment，不再是全屏 Dialog。
      */
     THEME(
         labelRes = R.string.theme_title,
@@ -130,7 +158,12 @@ enum class Destination(
     val tag: String get() = "dest_$name"
 
     companion object {
-        /** 状态恢复用：拿不到（旧版本存档 / 名字被改过）就返回 null，由调用方回落到首页。 */
+        /**
+         * 状态恢复用：拿不到（旧版本存档里的 "HOME" / 名字被改过）就返回 null。
+         *
+         * 调用方**必须**自己兜底：`Destination.fromName(...)` 的结果可能为 null，
+         * 直接赋给非空类型的字段会在升级首启时 NPE。
+         */
         fun fromName(name: String?): Destination? =
             name?.let { value -> entries.firstOrNull { it.name == value } }
     }

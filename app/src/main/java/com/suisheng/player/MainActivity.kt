@@ -35,8 +35,11 @@ import com.suisheng.player.ui.LocalPlaylistFragment
 import com.suisheng.player.ui.MainHost
 import com.suisheng.player.ui.MiniPlayerController
 import com.suisheng.player.ui.OnlineMusicFragment
+import com.suisheng.player.ui.PageBackHandler
+import com.suisheng.player.ui.PageHeaderController
 import com.suisheng.player.ui.PlayerFragment
-import com.suisheng.player.ui.PlaylistFragment
+import com.suisheng.player.ui.PodcastFragment
+import com.suisheng.player.ui.RadioFragment
 import com.suisheng.player.ui.SettingsFragment
 import com.suisheng.player.ui.ThemeFragment
 import kotlinx.coroutines.Dispatchers
@@ -44,10 +47,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 主界面。期 2c-1 起导航从「底部 3 tab + ViewPager2」换成「左侧抽屉 + Fragment 事务」：
+ * 主界面。导航是「左侧抽屉 + Fragment 事务 + 一条全局页头」：
  *
- * - 抽屉条目只有 4 条在本期真正落地（首页 / 歌曲 / 在线 / 设置），其余 4 条置灰占位；
- * - 页面之间用 [FragmentTransaction.replace] 切换，不再保留 3 个常驻 Fragment；
+ * - 抽屉里是 9 条真正的目的地（歌曲 / 专辑 / 艺术家 / 文件夹 / 在线 / 电台 / 播客 /
+ *   设置 / 关于）。原来的「首页」已经拆掉，它内部的 4 个分区标签各自变成了条目；
+ * - 页面之间用 Fragment 事务（`replace`）切换，不再保留常驻 Fragment；
+ * - 页面切换走**显式目的地栈** [destStack]：从抽屉跳页也会入栈，所以「连跳三页」
+ *   能「连退三次」，退到栈空才退出应用。页面内部如果还有一层（歌手详情 / 歌单详情 /
+ *   文件夹下钻），由页面自己实现 [PageBackHandler] 先消费掉；
  * - 播放状态不在 Fragment 里，而在 `PlaybackStateHolder` + `MusicPlaybackService`，
  *   所以页面被销毁重建不会打断播放。
  */
@@ -78,27 +85,40 @@ class MainActivity : AppCompatActivity(), MainHost {
 
     /** 当前挂在 `contentHost` 上的页面；Fragment 被销毁重建时由 FragmentManager 负责，这里只做引用。 */
     private var currentFragment: Fragment? = null
+
     /**
-     * 当前目的地。冷启动兜底是**播放页**，不是首页（`design/04` 的「播放页为中心」模型，
-     * 用户在期 2 方案确认时明确选过「默认落播放页」）。
+     * 当前目的地。冷启动兜底是**播放页**，不是任何一个抽屉条目
+     * （`design/04` 的「播放页为中心」模型，用户在期 2 方案确认时明确选过「默认落播放页」）。
      * 播放页本身不在抽屉里（[Destination.shownInDrawer] = false），所以它只作为
      * 「什么时候都不在别的页」时的归宿存在。
      */
     private var currentDestination: Destination = Destination.PLAYER
 
-    /** 主题页是从哪一页进来的；返回时回到那里，而不是一律回播放页。 */
-    private var themeOrigin: Destination? = null
+    /**
+     * 目的地返回栈，栈顶 = 「上一页」。
+     *
+     * 规则（见 [goBack]）：
+     * ① 只有**真正发生了切页**才入栈；
+     * ② 入栈前去重相邻重复项 —— 抽屉连点同一页、页面内反复点同一个入口，
+     *    都不该在栈里堆出一串相同项，否则「返回」要按好几次才有反应；
+     * ③ 从抽屉直接跳页**不清空**栈。用户的心理模型是「我点了三页，就能连退三次」，
+     *    清栈会让返回键直接退出应用。
+     */
+    private val destStack = ArrayDeque<Destination>()
+
+    /** 全局页头；在 [setupPageHeader] 里创建，之后由 [showDestination] / 页面回写驱动。 */
+    private var header: PageHeaderController? = null
 
     private val storagePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { scanMusic() }
 
     /**
-     * 唯一的返回键处理者（`design/04 §3.0` 的「播放页为中心」模型）：
-     * 抽屉开着 → 收抽屉；主题页 → 回来源页；其它二级页 → 回播放页；播放页 → 退出。
+     * 唯一的返回键处理者：抽屉开着 → 收抽屉；否则 → [goBack]（先让页面退内层，
+     * 再弹目的地栈，栈空则退出）。
      *
      * 边缘滑动已经在 2c-2 关闭（见 `setupDrawer` 里的 `LOCK_MODE_LOCKED_CLOSED`），
-     * 所以返回键是二级页回退的主通道，必须常驻启用。
+     * 所以返回键是回退的主通道，必须常驻启用。
      */
     private val backCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -106,11 +126,7 @@ class MainActivity : AppCompatActivity(), MainHost {
                 binding.drawerLayout.closeDrawer(GravityCompat.START)
                 return
             }
-            if (currentDestination == Destination.PLAYER) {
-                finish()
-                return
-            }
-            navigateUp()
+            goBack()
         }
     }
 
@@ -126,6 +142,9 @@ class MainActivity : AppCompatActivity(), MainHost {
         setContentView(binding.root)
 
         setupMiniPlayer()
+        // 页头必须先于抽屉建好：抽屉里恢复出来的目的地会立刻走 showDestination()，
+        // 那里要 header.bind(...)，晚一步就会出现「冷启动后页头空白」。
+        setupPageHeader()
         setupDrawer(savedInstanceState)
         applyAppTheme()
 
@@ -157,9 +176,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_DESTINATION, currentDestination.name)
-        // 「主题页是从哪来的」也要一起存：主题页里换配色会 `recreate()`，
-        // 不存的话重建后 themeOrigin 丢了，「设置 → 外观 → 返回」会错误地落到播放页。
-        outState.putString(KEY_THEME_ORIGIN, themeOrigin?.name)
+        // 返回栈也要一起存：主题页里换配色会 recreate()，不存的话「设置 → 外观 → 返回」
+        // 会退到错误的地方（重建后栈是空的，返回键直接退出应用）。
+        outState.putStringArrayList(KEY_DEST_STACK, ArrayList(destStack.map { it.name }))
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -169,10 +188,20 @@ class MainActivity : AppCompatActivity(), MainHost {
 
     // ---------------------------------------------------------------- 抽屉
 
+    /** 建全局页头：返回 → 退一层，汉堡 → 开抽屉。 */
+    private fun setupPageHeader() {
+        header = PageHeaderController(
+            activity = this,
+            root = binding.pageHeader,
+            onBack = { goBack() },
+            onMenu = { openDrawer() },
+        )
+    }
+
     private fun setupDrawer(savedInstanceState: Bundle?) {
         binding.drawerLayout.setScrimColor(DRAWER_SCRIM_COLOR)
         // 只认按钮、不做边缘滑动（03 §6.1 的裁定）。LOCK_MODE_LOCKED_CLOSED 只拦手势，
-        // openDrawer() 仍然有效，所以播放页的 ☰ 与代码调用不受影响。
+        // openDrawer() 仍然有效，所以页头的 ☰ 与代码调用不受影响。
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         applyDrawerWidth()
         drawer = DrawerPanelController(
@@ -190,27 +219,46 @@ class MainActivity : AppCompatActivity(), MainHost {
         )
         drawer.bind()
 
-        // 冷启动落播放页；进程被杀后重建沿用上次的目的地。未落地的条目一律回落播放页。
-        // 只改 null 时的兜底 —— 存档里有值（哪怕就是 HOME）必须以存档为准。
-        currentDestination = Destination.fromName(savedInstanceState?.getString(KEY_DESTINATION))
-            ?.takeIf { it.available }
-            ?: Destination.PLAYER
-        // 只有「重建时正停在主题页」才需要恢复来源页；其余情况来源上下文已作废
-        themeOrigin = if (currentDestination == Destination.THEME) {
-            Destination.fromName(savedInstanceState?.getString(KEY_THEME_ORIGIN))
-                ?.takeIf { it.available && it != Destination.THEME }
-        } else {
-            null
-        }
+        currentDestination = restoreDestination(savedInstanceState)
+        restoreDestinationStack(savedInstanceState)
         if (savedInstanceState == null) {
             showDestination(currentDestination)
         } else {
-            // FragmentManager 已经恢复了上次的页面，这里只把引用抓回来。
+            // FragmentManager 已经恢复了上次的页面，这里只把引用抓回来、并把页头对齐。
             currentFragment = supportFragmentManager.findFragmentById(R.id.contentHost)
+            header?.bind(currentDestination, canGoBack = destStack.isNotEmpty())
         }
         drawer.select(currentDestination)
 
         onBackPressedDispatcher.addCallback(this, backCallback)
+    }
+
+    /**
+     * 恢复当前目的地。
+     *
+     * **老版本存档里存的是 "HOME"，而这个枚举值已经删掉了** —— `Destination.fromName`
+     * 会返回 null，如果直接把结果塞进非空字段，升级后第一次冷启动就 NPE。
+     * 所以这里三档兜底：拿不到名字（含 "HOME"）→ 歌曲页；拿到了但页面未落地 → 播放页；
+     * 冷启动（没有存档）→ 播放页。
+     */
+    private fun restoreDestination(savedInstanceState: Bundle?): Destination {
+        val restored = Destination.fromName(savedInstanceState?.getString(KEY_DESTINATION))
+        return when {
+            restored == null ->
+                if (savedInstanceState == null) Destination.PLAYER else Destination.SONGS
+
+            !restored.available -> Destination.PLAYER
+            else -> restored
+        }
+    }
+
+    /** 恢复返回栈：只保留仍然存在的目的地（旧存档里可能残留已删除的名字）。 */
+    private fun restoreDestinationStack(savedInstanceState: Bundle?) {
+        destStack.clear()
+        savedInstanceState?.getStringArrayList(KEY_DEST_STACK)
+            ?.mapNotNull { Destination.fromName(it) }
+            ?.filter { it.available }
+            ?.forEach { destStack.addLast(it) }
     }
 
     /** 迷你条：点整条回播放页，点播放键就地播放/暂停。 */
@@ -252,34 +300,59 @@ class MainActivity : AppCompatActivity(), MainHost {
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         if (destination == currentDestination) return
-        // 主动从抽屉切页 → 主题页的来源上下文作废（返回键按「二级页回播放页」走）
-        themeOrigin = null
+        pushDestination(currentDestination)
         currentDestination = destination
         showDestination(destination)
         drawer.select(destination)
         applyAppTheme()
     }
 
+    /**
+     * 入栈并去重。
+     *
+     * 去重只比**栈顶**：相邻重复项没有任何信息量（返回时会立刻被 [goBack] 跳过一个），
+     * 而隔开的重复项（`A → B → A`）是有意义的，必须保留。
+     */
+    private fun pushDestination(destination: Destination) {
+        if (destStack.lastOrNull() == destination) return
+        destStack.addLast(destination)
+    }
+
     override fun openTheme() {
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         if (currentDestination == Destination.THEME) return
-        // 从播放页进来时不需要记来源：返回键本来就是「非播放页回播放页」
-        themeOrigin = if (currentDestination == Destination.PLAYER) null else currentDestination
-        currentDestination = Destination.THEME
-        showDestination(Destination.THEME)
-        drawer.select(Destination.THEME)
+        // 走 selectDestination 而不是自己改 currentDestination：主题页也要入栈，
+        // 这样「设置 → 外观 → 返回」能回到设置，而不是一律回播放页。
+        selectDestination(Destination.THEME)
+    }
+
+    /**
+     * 退一层。
+     *
+     * 先问当前页面要不要自己消费（歌手详情 / 歌单详情 / 文件夹下钻），
+     * 再弹目的地栈。栈空就直接退出应用 —— 播放页栈空时同样退，与改造前一致。
+     */
+    private fun goBack() {
+        val inner = currentFragment as? PageBackHandler
+        if (inner != null && inner.handlePageBack()) {
+            header?.setCanGoBack(destStack.isNotEmpty() || inner.hasInnerLevel())
+            return
+        }
+        while (destStack.isNotEmpty()) {
+            val previous = destStack.removeLast()
+            if (previous == currentDestination) continue
+            currentDestination = previous
+            showDestination(previous)
+            drawer.select(previous)
+            applyAppTheme()
+            return
+        }
+        finish()
     }
 
     override fun navigateUp() {
-        val origin = themeOrigin
-        themeOrigin = null
-        if (currentDestination == Destination.THEME && origin != null && origin.available) {
-            currentDestination = origin
-            showDestination(origin)
-            drawer.select(origin)
-            return
-        }
-        selectDestination(Destination.PLAYER)
+        // 主题页 / 设置页等还在用这个入口，语义与页头的返回箭头保持完全一致。
+        goBack()
     }
 
     /**
@@ -297,19 +370,43 @@ class MainActivity : AppCompatActivity(), MainHost {
         currentFragment = fragment
         // 播放页自己不挂迷你条：那一页已经有整套控件，再挂一条是重复
         miniPlayer.setHiddenForDestination(destination == Destination.PLAYER)
+        header?.bind(destination, canGoBack = destStack.isNotEmpty())
     }
 
     private fun createFragment(destination: Destination): Fragment = when (destination) {
-        Destination.HOME -> PlaylistFragment()
         Destination.SONGS -> LocalPlaylistFragment()
         Destination.ALBUMS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ALBUM)
         Destination.ARTISTS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ARTIST)
         Destination.FOLDERS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.FOLDER)
         Destination.ONLINE -> OnlineMusicFragment()
+        Destination.RADIO -> RadioFragment()
+        Destination.PODCAST -> PodcastFragment()
         Destination.SETTINGS -> SettingsFragment()
         Destination.ABOUT -> AboutFragment()
         Destination.PLAYER -> PlayerFragment()
         Destination.THEME -> ThemeFragment()
+    }
+
+    // ---------------------------------------------------------------- 页头回写
+
+    /**
+     * 供页面把子层级的说明交给页头副标题（歌手名 / 歌单名 / 「共 N 张专辑」）。
+     *
+     * 页面通过 `Fragment.setPageSubtitle` 这个扩展调用，不需要 import 具体 Activity 类型。
+     */
+    fun setPageSubtitle(text: CharSequence?) {
+        header?.setSubtitle(text)
+    }
+
+    /**
+     * 页面内部层级变化后重算左上角按钮。
+     *
+     * 有内层（歌单详情 / 歌手详情 / 文件夹子目录）时也要显示返回箭头，
+     * 否则用户在这一层只看到一个汉堡键，「退一层」无处可点。
+     */
+    fun refreshPageHeaderBack() {
+        val inner = (currentFragment as? PageBackHandler)?.hasInnerLevel() == true
+        header?.setCanGoBack(destStack.isNotEmpty() || inner)
     }
 
     // ------------------------------------------------------------ 播放/扫描
@@ -344,7 +441,7 @@ class MainActivity : AppCompatActivity(), MainHost {
         musicSongs = LibraryGrouper.visibleSongs(loaded, hiddenFolders.hiddenDirs())
         drawer.updateLibrary(musicSongs)
         binding.root.post {
-            refreshPlaylistFragment()
+            refreshCurrentLibraryPage()
             if (!resumePlayback || PlaybackStateHolder.isPlaying) return@post
             val library = settings.lastActiveLibrary
             val resumeList = resolveResumeList(library)
@@ -419,7 +516,7 @@ class MainActivity : AppCompatActivity(), MainHost {
                 if (PlaybackStateHolder.activeLibrary == LibraryKind.MUSIC && musicSongs.isNotEmpty()) {
                     PlaybackStateHolder.setPlaylist(musicSongs, library = LibraryKind.MUSIC)
                 }
-                refreshPlaylistFragment()
+                refreshCurrentLibraryPage()
                 if (!PlaybackStateHolder.isPlaying) {
                     val library = settings.lastActiveLibrary
                     val resumeList = resolveResumeList(library)
@@ -451,7 +548,7 @@ class MainActivity : AppCompatActivity(), MainHost {
     private fun applyHiddenFilter() {
         musicSongs = LibraryGrouper.visibleSongs(rawMusicSongs, hiddenFolders.hiddenDirs())
         drawer.updateLibrary(musicSongs)
-        refreshPlaylistFragment()
+        refreshCurrentLibraryPage()
     }
 
     override fun refreshHiddenFilter() {
@@ -462,10 +559,26 @@ class MainActivity : AppCompatActivity(), MainHost {
         applyAppTheme()
     }
 
-    private fun refreshPlaylistFragment() {
-        val fragment = currentFragment as? PlaylistFragment ?: return
+    /**
+     * 曲库变化后刷新「正在看的那一页」。
+     *
+     * 首页那个壳（过去承载 4 个分区标签的 Fragment）删掉之后，「歌曲列表」直接挂在
+     * SONGS 目的地上，而曲库变化（扫描完成 / 隐藏文件夹）要影响的不止一页：
+     * 歌曲列表、三个分组页的计数、在线页「我的」里的本地收藏。所以这里按当前 Fragment
+     * 的类型分发，而不是像原来那样只认「首页壳」一个类。
+     *
+     * `view == null` 的页面（已切走但事务还没走完）直接跳过：它下次 `onViewCreated`
+     * 会自己读一遍最新的 `allSongs()`，不需要外部推动。
+     */
+    private fun refreshCurrentLibraryPage() {
+        val fragment = currentFragment ?: return
         if (fragment.view == null) return
-        fragment.refreshFromHost()
+        when (fragment) {
+            is LocalPlaylistFragment -> fragment.refreshFromHost()
+            is GroupedLibraryFragment -> fragment.refreshFromHost()
+            is OnlineMusicFragment -> fragment.refreshLibrary()
+            else -> Unit
+        }
     }
 
     private fun applyAppTheme() {
@@ -514,8 +627,8 @@ class MainActivity : AppCompatActivity(), MainHost {
         /** 保存当前目的地的键，值取 [Destination.name]。 */
         const val KEY_DESTINATION = "main_destination"
 
-        /** 保存主题页来源页的键，值取 [Destination.name]；null 表示从播放页进来的。 */
-        const val KEY_THEME_ORIGIN = "theme_origin"
+        /** 保存返回栈的键，值取 [Destination.name] 的列表（栈底在前）。 */
+        const val KEY_DEST_STACK = "dest_stack"
 
         /** 竖屏抽屉宽与屏宽的比例上限（屏宽 < 360dp 时生效）。 */
         const val PORTRAIT_DRAWER_RATIO = 0.84f

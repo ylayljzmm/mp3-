@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  抽屉「电台」。24dp、纯黑填充，实际颜色由使用处 tint 决定。
+
+  造型与 ic_drawer_online / ic_drawer_album 同源（Material 单色面型图标）：
+  圆角机身（evenOdd 挖出 2dp 环）+ 左侧旋钮 + 两根刻度。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 机身：外框 1..23 × 6..18 圆角 3，内框内缩 2dp，evenOdd 得到 2dp 描边环 -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M4,6h16a3,3 0 0 1 3,3v6a3,3 0 0 1 -3,3H4a3,3 0 0 1 -3,-3V9a3,3 0 0 1 3,-3zM4,8a1,1 0 0 0 -1,1v6a1,1 0 0 0 1,1h16a1,1 0 0 0 1,-1V9a1,1 0 0 0 -1,-1z" />
+
+    <!-- 左侧旋钮 -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M7.5,10m-2,0a2,2 0 1 0 4,0a2,2 0 1 0 -4,0" />
+
+    <!-- 两根刻度 -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12.5,10h1.5v4h-1.5z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M16.5,10h1.5v4h-1.5z" />
+</vector>

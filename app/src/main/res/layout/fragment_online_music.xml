@@ -12,20 +12,13 @@
         android:background="@android:color/transparent"
         app:elevation="0dp">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            app:layout_scrollFlags="scroll|enterAlways"
-            app:navigationIconTint="?attr/colorOnSurface"
-            app:title="@string/section_online"
-            app:titleTextColor="?attr/colorOnSurface" />
-
+        <!-- 标题条已移除：页头由 activity_main 的全局页头统一提供，
+             这里只留搜索框与模式 chips。 -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
             app:boxCornerRadiusBottomEnd="16dp"

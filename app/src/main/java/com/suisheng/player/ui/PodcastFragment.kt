@@ -46,7 +46,6 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.feedList.adapter = FeedAdapter()
         binding.episodeList.layoutManager = LinearLayoutManager(requireContext())
         binding.episodeList.adapter = EpisodeAdapter()
-        binding.toolbar.setNavigationOnClickListener { showFeedList() }
         reloadFeeds()
     }
 
@@ -72,18 +71,13 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
             if (episodes.isEmpty()) {
                 Toast.makeText(requireContext(), R.string.podcast_load_failed, Toast.LENGTH_SHORT).show()
             }
-            binding.toolbar.subtitle = feed.title
-            binding.toolbar.navigationIcon = null
+            // 当前展开的是哪个播客：原来挂在 `MaterialToolbar.subtitle` 上，
+            // 标题条删掉后改挂全局页头的副标题，信息一点没少。
+            setPageSubtitle(feed.title)
             (binding.episodeList.adapter as EpisodeAdapter).submit(episodes)
             binding.episodeList.visibility = View.VISIBLE
             binding.emptyText.visibility = if (episodes.isEmpty()) View.VISIBLE else View.GONE
         }
-    }
-
-    private fun showFeedList() {
-        binding.toolbar.navigationIcon = null
-        binding.toolbar.subtitle = null
-        binding.feedList.visibility = View.VISIBLE
     }
 
     private fun playEpisode(episode: PodcastEpisode, index: Int) {

@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  「播客」页。原来是首页里的第 4 个分区标签，现在是抽屉里的独立条目；
+  标题与左上角返回由 activity_main 的全局页头统一提供。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
     android:orientation="vertical">
-
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:navigationIconTint="?attr/colorOnSurface"
-        app:title="@string/section_podcast"
-        app:titleTextColor="?attr/colorOnSurface" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/feedList"

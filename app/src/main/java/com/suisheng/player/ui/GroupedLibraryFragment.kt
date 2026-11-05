@@ -36,8 +36,13 @@ import kotlin.math.max
  *
  * 文件夹模式额外有：面包屑、下钻、「播放本文件夹」，以及**记忆上次层级**
  * （存绝对路径，下次从抽屉进来还在原处）。
+ *
+ * 页面本身没有标题条了：标题由全局页头按目的地给出（专辑 / 艺术家 / 文件夹），
+ * 分组数改成页头的副标题（`setPageSubtitle`）。文件夹下钻属于「页面内部的层级」，
+ * 所以本页实现 [PageBackHandler]：页头的返回键在子目录里先退一层目录，
+ * 退到扫描根之后再走目的地栈。
  */
-class GroupedLibraryFragment : Fragment() {
+class GroupedLibraryFragment : Fragment(), PageBackHandler {
 
     /** 三种分组方式，与抽屉的 3 条条目一一对应。 */
     enum class Grouping(
@@ -77,7 +82,6 @@ class GroupedLibraryFragment : Fragment() {
             Grouping.valueOf(requireArguments().getString(ARG_GROUPING) ?: Grouping.ALBUM.name)
         }.getOrDefault(Grouping.ALBUM)
 
-        binding.groupTitle.setText(grouping.titleRes)
         binding.folderBar.visibility =
             if (grouping == Grouping.FOLDER) View.VISIBLE else View.GONE
 
@@ -124,6 +128,17 @@ class GroupedLibraryFragment : Fragment() {
         renderHeader(songs, groups)
     }
 
+    /**
+     * 宿主（`MainActivity`）在曲库变化后调用：扫描完成、隐藏了某个文件夹。
+     *
+     * 公共转发 [refresh] 而不是把 `refresh` 本身改成 public：重画只应在「数据真的变了」
+     * 的时候由宿主推动，页面外部不该随手调。
+     */
+    fun refreshFromHost() {
+        if (_binding == null) return
+        refresh()
+    }
+
     private fun folderGroups(songs: List<Song>): List<LibraryGroup> {
         val root = LibraryGrouper.commonRoot(songs)
         rootDir = root
@@ -144,19 +159,21 @@ class GroupedLibraryFragment : Fragment() {
     }
 
     private fun renderHeader(songs: List<Song>, groups: List<LibraryGroup>) {
-        when (grouping) {
-            Grouping.ALBUM -> binding.groupCount.text =
-                getString(R.string.library_album_count, groups.size)
+        // 分组数从页面里那条 56dp 计数条搬到了页头副标题：页面只剩一处标题（页头的），
+        // 数字却一个都没少。
+        val countText = when (grouping) {
+            Grouping.ALBUM -> getString(R.string.library_album_count, groups.size)
 
-            Grouping.ARTIST -> binding.groupCount.text =
-                getString(R.string.library_artist_count, groups.size)
+            Grouping.ARTIST -> getString(R.string.library_artist_count, groups.size)
 
             Grouping.FOLDER -> {
                 val dir = currentDir
                 val visible = if (dir == null) 0 else LibraryGrouper.songsUnder(songs, dir).size
-                binding.groupCount.text = getString(R.string.library_song_count, visible)
+                getString(R.string.library_song_count, visible)
             }
         }
+        setPageSubtitle(countText)
+        syncPageHeaderBack()
 
         val empty = groups.isEmpty()
         binding.groupList.visibility = if (empty) View.GONE else View.VISIBLE
@@ -336,6 +353,31 @@ class GroupedLibraryFragment : Fragment() {
     }
 
     private fun allSongs(): List<Song> = (activity as? MainHost)?.allSongs().orEmpty()
+
+    // ------------------------------------------------------- 页面内层级（返回键）
+
+    /** 只有文件夹模式会下钻，下钻之后才算「还有一层」。 */
+    override fun hasInnerLevel(): Boolean {
+        if (grouping != Grouping.FOLDER) return false
+        val root = rootDir ?: return false
+        val current = currentDir ?: return false
+        return current != root
+    }
+
+    /**
+     * 返回键：先在文件夹树里上一级，退到扫描根之后才交还给目的地栈。
+     *
+     * 上跳时用 `isAncestorOrSelf` 夹一下：父目录有可能已经在扫描根之外
+     * （扫描根是「所有歌曲的公共根」，不一定是 `/`），那就直接回根，不能跳出曲库。
+     */
+    override fun handlePageBack(): Boolean {
+        if (!hasInnerLevel()) return false
+        val root = rootDir ?: return false
+        val current = currentDir ?: return false
+        val parent = current.parentFile ?: root
+        jumpToDirectory(if (LibraryGrouper.isAncestorOrSelf(root, parent)) parent else root)
+        return true
+    }
 
     // ---------------------------------------------------------------- 工具
 

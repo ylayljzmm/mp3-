@@ -1,27 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 关于页（design/04 §3.5 第 8 条）：版本 / 下载地址 / U 盘安装说明 / 开源许可。 -->
+<!--
+  关于页（design/04 §3.5）：版本 / 下载地址 / U 盘安装说明 / 开源许可。
+  标题条已移除，标题由 activity_main 的全局页头统一提供。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
     android:orientation="vertical">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/library_top_bar_height"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/library_page_margin_horizontal"
-        android:paddingEnd="24dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/about_title"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="27sp"
-            android:textStyle="bold" />
-    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"
