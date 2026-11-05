@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.car.mp3player"
+    namespace = "com.suisheng.player"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.car.mp3player"
+        applicationId = "com.suisheng.player"
         minSdk = 24
         targetSdk = 34
-        versionCode = 48
-        versionName = "4.4.3"
+        versionCode = 49
+        versionName = "5.0.0-alpha1"
     }
 
     buildTypes {

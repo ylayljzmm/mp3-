@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MP3播放器</string>
+    <string name="app_name">随声</string>
     <string name="nav_playlist">曲库</string>
     <string name="nav_player">正在播放</string>
     <string name="nav_settings">设置</string>
@@ -39,7 +39,7 @@
     <string name="now_playing">正在播放</string>
     <string name="playback_start_failed">无法启动播放，请重试</string>
     <string name="unknown_artist">未知歌手</string>
-    <string name="channel_playback">音乐播放</string>
+    <string name="channel_playback">播放控制</string>
     <string name="settings_scan">扫描音乐</string>
     <string name="settings_scan_paths">点选要扫描的文件夹，无需手输路径</string>
     <string name="pick_folder">选择文件夹</string>
@@ -81,8 +81,8 @@
     <string name="boot_return_home">续播后自动返回桌面</string>
     <string name="cluster_lyrics">仪表屏滚动歌词</string>
     <string name="cluster_lyrics_hint">若仪表仅显示音乐图标，请确认车机已授予媒体信息权限；部分比亚迪车型通过系统媒体栏显示歌名/歌词</string>
-    <string name="channel_boot">开机启动</string>
-    <string name="boot_starting">正在恢复音乐播放…</string>
+    <string name="channel_boot">开机续播</string>
+    <string name="boot_starting">随声正在恢复播放…</string>
     <string name="lyric_search_title">重新搜索歌词</string>
     <string name="song_title_hint">歌曲名</string>
     <string name="song_artist_hint">歌手名</string>

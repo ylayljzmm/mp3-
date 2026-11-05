@@ -30,7 +30,7 @@
         android:textColor="#AAFFFFFF"
         android:textSize="14sp" />
 
-    <com.car.mp3player.ui.ScrollLyricView
+    <com.suisheng.player.ui.ScrollLyricView
         android:id="@+id/clusterLyricView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
