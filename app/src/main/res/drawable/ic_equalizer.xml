@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 音效（design/05 §3.4 第 4 格，推子）。本期只有视觉，点击提示「即将上线」。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M4,20h3V4H4v16zM10.5,20h3V9h-3v11zM17,20h3V6h-3v14z" />
+</vector>

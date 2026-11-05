@@ -89,6 +89,18 @@
     <!-- 播放页无歌时的静默态（冷启动默认就落播放页，这两条是第一眼看到的文案） -->
     <string name="player_idle_title">未在播放</string>
     <string name="player_idle_hint">从左侧抽屉选一首歌，或先扫描曲库</string>
+
+    <!-- 播放页重排（design/05 §3.3 / §3.4 / §7） -->
+    <string name="speed_panel_title">播放速度</string>
+    <string name="speed_x">%sx</string>
+    <string name="speed_current">当前 %sx</string>
+    <string name="player_action_lyrics">歌词</string>
+    <string name="player_action_favorite">收藏</string>
+    <string name="player_action_sound">音效</string>
+    <string name="player_queue">播放队列</string>
+    <string name="player_more">更多</string>
+    <string name="player_lyrics_back">返回播放页</string>
+    <string name="player_cover_action">封面：单击看全屏歌词，长按只看封面</string>
     <string name="no_lyrics">暂无歌词</string>
     <string name="now_playing">正在播放</string>
     <string name="playback_start_failed">无法启动播放，请重试</string>

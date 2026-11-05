@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  黑胶唱片（design/05 §4.1）。
+
+  层级顺序（FrameLayout 的子 View 按书写顺序叠放）：
+    vinylDisc       L1 盘体 + L2 40 圈纹路 + L3 高光（VinylDiscView 自绘）
+    vinylCover      L4 封面 194dp（尺寸由 VinylRecordView 在 onSizeChanged 里按 0.664 算）
+    vinylHole       L5 中心孔 12dp，**不跟着转**
+  vinylDisc 与 vinylCover 都在 vinylRotateGroup 里，各自用 rotation 反向等速自转。
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,29 +16,35 @@
 
     <FrameLayout
         android:id="@+id/vinylRotateGroup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_gravity="center"
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <ImageView
+        <com.suisheng.player.ui.VinylDiscView
             android:id="@+id/vinylDisc"
-            android:layout_width="280dp"
-            android:layout_height="280dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:layout_gravity="center"
-            android:contentDescription="@string/album_cover"
-            android:src="@drawable/bg_vinyl_disc" />
+            android:background="@drawable/bg_vinyl_disc" />
 
         <ImageView
             android:id="@+id/vinylCover"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
+            android:layout_width="@dimen/vinyl_art"
+            android:layout_height="@dimen/vinyl_art"
             android:layout_gravity="center"
-            android:contentDescription="@string/album_cover"
+            android:contentDescription="@null"
+            android:elevation="2dp"
             android:scaleType="centerCrop"
             android:src="@drawable/bg_album_placeholder" />
-
     </FrameLayout>
+
+    <View
+        android:id="@+id/vinylHole"
+        android:layout_width="@dimen/player_vinyl_hole"
+        android:layout_height="@dimen/player_vinyl_hole"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_vinyl_hole" />
 
 </FrameLayout>

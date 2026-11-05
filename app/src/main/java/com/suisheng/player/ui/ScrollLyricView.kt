@@ -2,13 +2,17 @@ package com.suisheng.player.ui
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Shader
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Choreographer
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import androidx.annotation.ColorInt
 import androidx.core.view.GestureDetectorCompat
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.model.LrcLine
@@ -35,6 +39,13 @@ class ScrollLyricView @JvmOverloads constructor(
     private var layoutWidth = -1
     private var layoutIndex = -2
     private var layoutKey = -1f
+
+    /** 全屏歌词态的字号放大系数（§7 第三行：24→33sp / 27sp 一档）。 */
+    private var sizeScale = 1f
+
+    /** 上下渐隐遮罩的颜色（透传 surface 色），TRANSPARENT 表示不画。 */
+    private var fadeColor: Int = Color.TRANSPARENT
+    private val fadePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var targetPositionMs = 0L
     private var displayPositionMs = 0f
@@ -162,8 +173,33 @@ class ScrollLyricView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun currentStyle(): LyricRenderer.Style =
-        LyricRenderer.styleFrom(context, settings, resources.displayMetrics.scaledDensity, forPlayer = true)
+    private fun currentStyle(): LyricRenderer.Style {
+        val base = LyricRenderer.styleFrom(
+            context, settings, resources.displayMetrics.scaledDensity, forPlayer = true
+        )
+        if (sizeScale == 1f) return base
+        return base.copy(
+            currentSizePx = base.currentSizePx * sizeScale,
+            nextSizePx = base.nextSizePx * sizeScale,
+            otherSizePx = base.otherSizePx * sizeScale,
+        )
+    }
+
+    /** 全屏歌词态：字号整体放大（`design/05 §7` 第三行）。 */
+    fun setFullscreen(enabled: Boolean) {
+        val next = if (enabled) FULLSCREEN_SIZE_SCALE else 1f
+        if (next == sizeScale) return
+        sizeScale = next
+        invalidateLayout()
+        invalidate()
+    }
+
+    /** 上下 96dp 渐隐遮罩的颜色；传 `Color.TRANSPARENT` 关闭（`05 §6`）。 */
+    fun setFadeColor(@ColorInt color: Int) {
+        if (fadeColor == color) return
+        fadeColor = color
+        invalidate()
+    }
 
     private fun textPaddingPx(): Float = paddingLeft.toFloat() + paddingRight.toFloat()
 
@@ -257,9 +293,28 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
+        drawLyrics(canvas)
+        drawFadeMasks(canvas)
+    }
+
+    /** 上下 96dp 渐隐：中间清晰、两端融进底色，滚动时不会「硬切」出半行字。 */
+    private fun drawFadeMasks(canvas: Canvas) {
+        if (fadeColor == Color.TRANSPARENT || height <= 0) return
+        val band = dp(FADE_HEIGHT_DP).coerceAtMost(height / 2f)
+        fadePaint.shader = LinearGradient(
+            0f, 0f, 0f, band, fadeColor, Color.TRANSPARENT, Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, width.toFloat(), band, fadePaint)
+        fadePaint.shader = LinearGradient(
+            0f, height - band, 0f, height.toFloat(), Color.TRANSPARENT, fadeColor, Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, height - band, width.toFloat(), height.toFloat(), fadePaint)
+        fadePaint.shader = null
+    }
+
+    private fun drawLyrics(canvas: Canvas) {
         super.onDraw(canvas)
-        val density = resources.displayMetrics.scaledDensity
-        val style = LyricRenderer.styleFrom(context, settings, density, forPlayer = true)
+        val style = currentStyle()
 
         if (lines.isEmpty()) {
             LyricRenderer.drawWrappedStaticLine(
@@ -307,5 +362,11 @@ class ScrollLyricView @JvmOverloads constructor(
 
     private companion object {
         const val ROW_RATIO = 1.35f
+
+        /** 全屏歌词字号放大：33 / 27 ≈ 1.22（`design/05 §7` 第三行）。 */
+        const val FULLSCREEN_SIZE_SCALE = 1.22f
+
+        /** 上下渐隐遮罩高度（`design/05 §6`）。 */
+        const val FADE_HEIGHT_DP = 96f
     }
 }

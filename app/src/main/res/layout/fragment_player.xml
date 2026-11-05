@@ -1,216 +1,479 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  播放页（design/05 方案 D，§2 版式总览 + §3 尺寸表）。
+
+  结构（从下往上，同层级按书写顺序叠放）：
+    L0 themeBackground  ?attr/colorSurface 纯色
+    L1 backdropLayer    两个径向色块（BackdropView 自绘，色相往 colorPrimary 旋转 ≤12°）
+    L2 scrim1 / scrim2  双层压暗（纯色 + 竖向渐变），保证任何底色上文字对比 ≥ 4.5:1
+    L3 stageRow         左右两栏：46% 中轴 / flex 歌词
+    L4 topBar           64dp，横跨整页，叠在最上层
+
+  两个刻意的取舍：
+  ① topBar 叠在 stageRow 之上、stageRow 自己吃 paddingTop=64dp ——
+     这样隐藏顶栏不会让下方内容上移，满足 §7「零位移要求」。
+  ② 两排控件（传输 / 功能）用 ConstraintLayout 水平链 spread_inside 实现 §3.1 的
+     space-between：52+52+78+52+52=286 在 300 里两侧到底、中间均分，比手算 margin 稳。
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:layout_height="match_parent">
 
+    <!-- L0 底色：浅色/深色 × 10 套主题色都由 attr 解析 -->
     <View
         android:id="@+id/themeBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FF141B24" />
+        android:background="?attr/colorSurface" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/rootConstraint"
+    <!-- L1 两个径向色块，自绘 -->
+    <com.suisheng.player.ui.BackdropView
+        android:id="@+id/backdropLayer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent" />
 
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/stageCenterGuide"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.46" />
+    <!--
+      L2 压暗：先一层「surface 半透」（浅色 40% / 深色 52%，由 values-night 的
+      Player.ScrimSolid 样式切换 —— alpha 不能用 attr，只能进样式），再一层竖向渐变。
+    -->
+    <View
+        android:id="@+id/scrim1"
+        style="@style/Player.ScrimSolid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorSurface" />
 
-        <!-- 左栏：封面 / 歌名 / 进度 / 控件 -->
-        <LinearLayout
-            android:id="@+id/leftPanel"
+    <View
+        android:id="@+id/scrim2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_player_scrim_vertical" />
+
+    <!-- L3 两栏 -->
+    <LinearLayout
+        android:id="@+id/stageRow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:paddingTop="@dimen/player_topbar">
+
+        <!-- 左栏 46%：一条 300dp 中轴，垂直居中后再整体下移 8dp（§3.1 末段） -->
+        <FrameLayout
+            android:id="@+id/axisColumn"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:gravity="center_horizontal"
-            android:orientation="vertical"
-            android:paddingStart="26dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="22dp"
-            android:paddingBottom="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/stageCenterGuide"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <com.suisheng.player.ui.VinylRecordView
-                android:id="@+id/vinylRecord"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:contentDescription="@string/album_cover" />
+            android:layout_height="match_parent"
+            android:layout_weight="0.46">
 
             <LinearLayout
-                android:id="@+id/header"
-                android:layout_width="match_parent"
+                android:id="@+id/playerAxis"
+                android:layout_width="@dimen/player_axis_width"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingTop="4dp">
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:layout_marginTop="@dimen/player_axis_offset"
+                android:orientation="vertical">
 
+                <!-- 1 黑胶唱片 292 / 232 -->
+                <com.suisheng.player.ui.VinylRecordView
+                    android:id="@+id/vinylRecord"
+                    android:layout_width="@dimen/vinyl_size"
+                    android:layout_height="@dimen/vinyl_size"
+                    android:layout_gravity="center_horizontal"
+                    android:contentDescription="@string/player_cover_action" />
+
+                <!-- 2 歌名 35sp / 700 / 字距 −0.025em -->
                 <TextView
                     android:id="@+id/songTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="marquee"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/player_gap_vinyl_title"
+                    android:ellipsize="end"
                     android:gravity="start"
-                    android:marqueeRepeatLimit="marquee_forever"
-                    android:scrollHorizontally="true"
+                    android:letterSpacing="-0.025"
+                    android:maxLines="1"
                     android:singleLine="true"
-                    android:textColor="#F5FFFFFF"
-                    android:textSize="23sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="35sp"
                     android:textStyle="bold" />
 
+                <!-- 3 歌手 · 专辑 16sp -->
                 <TextView
                     android:id="@+id/songArtist"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/player_gap_title_artist"
+                    android:ellipsize="end"
                     android:gravity="start"
                     android:singleLine="true"
-                    android:textColor="#B3FFFFFF"
-                    android:textSize="14sp" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="16sp" />
+
+                <!-- 4 进度区：38 + 4 + 220 + 4 + 38 = 300，布局带高 10dp -->
+                <LinearLayout
+                    android:id="@+id/progressRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/player_progress_height"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/player_gap_artist_progress"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/timeCurrent"
+                        android:layout_width="@dimen/player_time_width"
+                        android:layout_height="wrap_content"
+                        android:fontFeatureSettings="tnum"
+                        android:gravity="start|center_vertical"
+                        android:singleLine="true"
+                        android:text="0:00"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp" />
+
+                    <!--
+                      轨道视觉 4dp，但可点区做成 48dp：Slider 自己撑高 48dp、外层 10dp 的
+                      FrameLayout clipChildren=false，于是「布局占 10dp、手指可点 48dp」同时成立
+                      （§3.2 要求热区 ≥ 48dp）。这比给 10dp 高的 Slider 套 TouchDelegate 更直接：
+                      TouchDelegate 只是转发事件，滑块本身仍会被裁掉一半。
+                    -->
+                    <FrameLayout
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/player_progress_height"
+                        android:layout_weight="1"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/progressSlider"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_gravity="center_vertical"
+                            android:stepSize="1"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            app:haloRadius="20dp"
+                            app:thumbColor="?attr/colorPrimary"
+                            app:thumbRadius="6.5dp"
+                            app:tickVisible="false"
+                            app:trackColorActive="?attr/colorPrimary"
+                            app:trackColorInactive="?attr/colorSurfaceContainerHighest"
+                            app:trackHeight="4dp" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/timeTotal"
+                        android:layout_width="@dimen/player_time_width"
+                        android:layout_height="wrap_content"
+                        android:fontFeatureSettings="tnum"
+                        android:gravity="end|center_vertical"
+                        android:singleLine="true"
+                        android:text="0:00"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- 5 传输控件 78 高：52 / 52 / 78 / 52 / 52，space-between -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/transportRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/player_transport_size"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/player_gap_progress_transport">
+
+                    <ImageButton
+                        android:id="@+id/btnMode"
+                        android:layout_width="@dimen/player_transport_btn"
+                        android:layout_height="@dimen/player_transport_btn"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/mode_order"
+                        android:padding="12dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_mode_order"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintHorizontal_chainStyle="spread_inside"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <ImageButton
+                        android:id="@+id/btnPrev"
+                        android:layout_width="@dimen/player_transport_btn"
+                        android:layout_height="@dimen/player_transport_btn"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/prev"
+                        android:padding="12dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_skip_previous"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnMode"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <ImageButton
+                        android:id="@+id/btnPlayPause"
+                        android:layout_width="@dimen/player_transport_size"
+                        android:layout_height="@dimen/player_transport_size"
+                        android:background="@drawable/bg_player_primary_button"
+                        android:contentDescription="@string/play"
+                        android:padding="22dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_play"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnPrev"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="?attr/colorOnPrimary" />
+
+                    <ImageButton
+                        android:id="@+id/btnNext"
+                        android:layout_width="@dimen/player_transport_btn"
+                        android:layout_height="@dimen/player_transport_btn"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/next"
+                        android:padding="12dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_skip_next"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnPlayPause"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <!-- 第 5 位：播放队列（本期置灰 + Toast，队列面板留期 4） -->
+                    <ImageButton
+                        android:id="@+id/btnQueue"
+                        android:layout_width="@dimen/player_transport_btn"
+                        android:layout_height="@dimen/player_transport_btn"
+                        android:alpha="0.5"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/player_queue"
+                        android:padding="12dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_queue_music"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnNext"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="?attr/colorOnSurface" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <!-- 6 功能行 68 高：4 × 64，space-between（图标 22 + 5 + 文字 14sp） -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/actionRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/player_action_row_height"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/player_gap_transport_actions">
+
+                    <LinearLayout
+                        android:id="@+id/btnActionLyrics"
+                        android:layout_width="@dimen/player_action_cell_width"
+                        android:layout_height="match_parent"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintHorizontal_chainStyle="spread_inside"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <ImageView
+                            android:id="@+id/iconActionLyrics"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_lyrics"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:singleLine="true"
+                            android:text="@string/player_action_lyrics"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- 第 2 格：收藏（本期置灰 + Toast） -->
+                    <LinearLayout
+                        android:id="@+id/btnActionFavorite"
+                        android:layout_width="@dimen/player_action_cell_width"
+                        android:layout_height="match_parent"
+                        android:alpha="0.5"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnActionLyrics"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_favorite_border"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:singleLine="true"
+                            android:text="@string/player_action_favorite"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- 第 3 格：倍速，文字位显示当前值 -->
+                    <LinearLayout
+                        android:id="@+id/btnActionSpeed"
+                        android:layout_width="@dimen/player_action_cell_width"
+                        android:layout_height="match_parent"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnActionFavorite"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_speed"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <TextView
+                            android:id="@+id/labelSpeed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:singleLine="true"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
+                            tools:text="1.0x" />
+                    </LinearLayout>
+
+                    <!-- 第 4 格：音效（本期置灰 + Toast） -->
+                    <LinearLayout
+                        android:id="@+id/btnActionSound"
+                        android:layout_width="@dimen/player_action_cell_width"
+                        android:layout_height="match_parent"
+                        android:alpha="0.5"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/btnActionSpeed"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_equalizer"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:singleLine="true"
+                            android:text="@string/player_action_sound"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
             </LinearLayout>
+        </FrameLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/timeCurrent"
-                    android:layout_width="44dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="start|center_vertical"
-                    android:text="0:00"
-                    android:textColor="#AAFFFFFF"
-                    android:textSize="13sp" />
-
-                <com.google.android.material.slider.Slider
-                    android:id="@+id/progressSlider"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:valueFrom="0"
-                    android:valueTo="100"
-                    app:thumbColor="?attr/colorPrimary"
-                    app:tickVisible="false"
-                    app:trackColorActive="?attr/colorPrimary"
-                    app:trackColorInactive="#3DFFFFFF" />
-
-                <TextView
-                    android:id="@+id/timeTotal"
-                    android:layout_width="44dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="end|center_vertical"
-                    android:text="0:00"
-                    android:textColor="#AAFFFFFF"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnMode"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/mode_order"
-                    android:src="@drawable/ic_mode_order"
-                    app:tint="#F0FFFFFF" />
-
-                <ImageButton
-                    android:id="@+id/btnPrev"
-                    android:layout_width="58dp"
-                    android:layout_height="58dp"
-                    android:layout_marginStart="10dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/prev"
-                    android:src="@drawable/ic_skip_previous"
-                    app:tint="#F0FFFFFF" />
-
-                <ImageButton
-                    android:id="@+id/btnPlayPause"
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
-                    android:layout_marginStart="16dp"
-                    android:background="@drawable/bg_play_button"
-                    android:contentDescription="@string/play"
-                    android:padding="19dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_play"
-                    app:tint="?attr/colorOnPrimaryContainer" />
-
-                <ImageButton
-                    android:id="@+id/btnNext"
-                    android:layout_width="58dp"
-                    android:layout_height="58dp"
-                    android:layout_marginStart="16dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/next"
-                    android:src="@drawable/ic_skip_next"
-                    app:tint="#F0FFFFFF" />
-
-                <ImageButton
-                    android:id="@+id/btnLyrics"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:layout_marginStart="10dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/tap_toggle_lyrics"
-                    android:src="@drawable/ic_lyrics"
-                    app:tint="#F0FFFFFF" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 右栏：歌词（常显，占满整高） -->
+        <!-- 右栏 flex：歌词左对齐，左右内边距 16 / 64（§6） -->
         <com.suisheng.player.ui.ScrollLyricView
             android:id="@+id/scrollLyricView"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:paddingStart="18dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="18dp"
-            android:paddingBottom="6dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/stageCenterGuide"
-            app:layout_constraintTop_toTopOf="parent" />
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:paddingStart="@dimen/player_lyrics_padding_start"
+            android:paddingTop="8dp"
+            android:paddingEnd="@dimen/player_lyrics_padding_end"
+            android:paddingBottom="8dp" />
+    </LinearLayout>
 
-        <!--
-          抽屉菜单键（`design/04 §3.3` 第 1 项）：本期唯一允许动播放页的地方。
-          用约束叠在左上角、不参与左栏的垂直排布，所以下方骨架的尺寸一个都没变。
-          40dp 按钮 / 24dp 图标，距屏左与屏顶各 16dp。
-          颜色取 #F0FFFFFF 而不是 ?attr/colorOnSurface：播放页底色恒为深色
-          （封面取色，取不到时是 #FF141B24），浅色主题下 colorOnSurface 是近黑色，
-          画上去等于隐形；这里跟随本页其余 5 个控件的白色取值。
-        -->
+    <!-- L4 顶栏 64dp：左 ☰ / 全屏歌词返回箭头，右 播放队列 + 更多 -->
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/player_topbar"
+        android:layout_gravity="top"
+        android:paddingStart="@dimen/player_topbar_padding"
+        android:paddingEnd="@dimen/player_topbar_padding">
+
         <ImageButton
             android:id="@+id/btnDrawerMenu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="@dimen/player_topbar_button"
+            android:layout_height="@dimen/player_topbar_button"
+            android:layout_gravity="start|center_vertical"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/menu"
-            android:padding="8dp"
+            android:padding="18dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_menu_drawer"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="#F0FFFFFF" />
+            app:tint="?attr/colorOnSurface" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <ImageButton
+            android:id="@+id/btnLyricsBack"
+            android:layout_width="@dimen/player_topbar_button"
+            android:layout_height="@dimen/player_topbar_button"
+            android:layout_gravity="start|center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_lyrics_back"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_arrow_back"
+            android:visibility="gone"
+            app:tint="?attr/colorOnSurface" />
+
+        <LinearLayout
+            android:id="@+id/topBarActions"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="end|center_vertical"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnTopQueue"
+                android:layout_width="@dimen/player_topbar_button"
+                android:layout_height="@dimen/player_topbar_button"
+                android:alpha="0.5"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/player_queue"
+                android:padding="18dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_queue_music"
+                app:tint="?attr/colorOnSurface" />
+
+            <ImageButton
+                android:id="@+id/btnMore"
+                android:layout_width="@dimen/player_topbar_button"
+                android:layout_height="@dimen/player_topbar_button"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/player_more"
+                android:padding="18dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_more_vert"
+                app:tint="?attr/colorOnSurface" />
+        </LinearLayout>
+    </FrameLayout>
+
 </FrameLayout>

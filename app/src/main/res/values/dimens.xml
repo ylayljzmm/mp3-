@@ -66,4 +66,38 @@
     <dimen name="settings_group_spacing">24dp</dimen>
     <dimen name="settings_group_title_height">32dp</dimen>
     <dimen name="settings_group_corner_radius">16dp</dimen>
+
+    <!-- =========================================================
+         播放页中轴（design/05 §3.1，方案 D）
+
+         这里的值是**紧凑档**：供屏高 < 720dp 的车机使用（例如 1024×600 密度 1.0
+         时可用高度只有 536dp，装不下 §3.1 的 583dp 中轴）。
+         `values-h720dp/dimens.xml` 用文档原值覆盖同一批名字，720dp 及以上
+         （1280×720 / 1920×1080）拿到的就是 05 文档的 292dp 一档。
+
+         为什么必须分两档：§10 验收第 2 条要求 1024×600 下"根布局 canScrollVertically
+         恒为 false"，而 §3.1 的固定 292dp 中轴 + 64dp 顶栏在 600dp 高的屏上物理溢出 47dp。
+         两条自相矛盾，只能按屏高分档，不能靠滚动或百分比缩放解决。
+         ========================================================= -->
+    <dimen name="player_axis_width">300dp</dimen>
+    <dimen name="player_axis_offset">8dp</dimen>
+    <dimen name="player_topbar">64dp</dimen>
+    <dimen name="vinyl_size">232dp</dimen>
+    <dimen name="vinyl_art">154dp</dimen>
+    <dimen name="player_gap_vinyl_title">18dp</dimen>
+    <dimen name="player_gap_title_artist">4dp</dimen>
+    <dimen name="player_gap_artist_progress">12dp</dimen>
+    <dimen name="player_gap_progress_transport">10dp</dimen>
+    <dimen name="player_gap_transport_actions">6dp</dimen>
+    <dimen name="player_transport_size">66dp</dimen>
+    <dimen name="player_transport_btn">52dp</dimen>
+    <dimen name="player_action_row_height">58dp</dimen>
+    <dimen name="player_action_cell_width">64dp</dimen>
+    <dimen name="player_time_width">38dp</dimen>
+    <dimen name="player_progress_height">10dp</dimen>
+    <dimen name="player_vinyl_hole">12dp</dimen>
+    <dimen name="player_topbar_button">60dp</dimen>
+    <dimen name="player_topbar_padding">12dp</dimen>
+    <dimen name="player_lyrics_padding_start">16dp</dimen>
+    <dimen name="player_lyrics_padding_end">64dp</dimen>
 </resources>

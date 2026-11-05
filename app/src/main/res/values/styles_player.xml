@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  播放页 L2 压暗层的 alpha（design/05 §5.1：浅色 40% / 深色 52%）。
+
+  `android:alpha` 是浮点字面量，不能引用 attr 或 dimen，所以只能做成样式，
+  再靠 values-night 覆盖。主题色（surface）仍然走 ?attr/，这里只管透明度。
+-->
+<resources>
+    <style name="Player.ScrimSolid" parent="">
+        <item name="android:alpha">0.40</item>
+    </style>
+</resources>

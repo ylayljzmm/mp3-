@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  播放页中轴：720dp 及以上屏高用 design/05 §3.1 的文档原值。
+
+  中轴六段总高 = 292 + 26 + 42（歌名行高）+ 5 + 20（歌手行高）+ 20 + 10 + 14 + 78 + 8 + 68
+              = 583dp
+  720dp 画布减顶栏 64、上下各 24 安全边距 → 可用 608dp，余量 25dp，不滚动。
+
+  只覆盖受屏高约束的那几个尺寸；其余（轴宽 300、时间 38、进度高 10 …）由
+  `values/dimens.xml` 提供，两档一致。
+-->
+<resources>
+    <dimen name="vinyl_size">292dp</dimen>
+    <!-- 封面直径 = 唱片 × 0.664（05 §4.1 L4），292 × 0.664 ≈ 194 -->
+    <dimen name="vinyl_art">194dp</dimen>
+    <dimen name="player_gap_vinyl_title">26dp</dimen>
+    <dimen name="player_gap_title_artist">5dp</dimen>
+    <dimen name="player_gap_artist_progress">20dp</dimen>
+    <dimen name="player_gap_progress_transport">14dp</dimen>
+    <dimen name="player_gap_transport_actions">8dp</dimen>
+    <dimen name="player_transport_size">78dp</dimen>
+    <dimen name="player_action_row_height">68dp</dimen>
+</resources>

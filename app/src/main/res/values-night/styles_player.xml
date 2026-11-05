@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色模式：压暗层加到 52%（design/05 §5.1「浅色 40% / 深色 52%」）。 -->
+<resources>
+    <style name="Player.ScrimSolid" parent="">
+        <item name="android:alpha">0.52</item>
+    </style>
+</resources>

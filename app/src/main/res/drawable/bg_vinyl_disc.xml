@@ -1,33 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="oval">
-            <solid android:color="#1A1A1A" />
-            <size android:width="280dp" android:height="280dp" />
-        </shape>
-    </item>
-    <item
-        android:bottom="8dp"
-        android:left="8dp"
-        android:right="8dp"
-        android:top="8dp">
-        <shape android:shape="oval">
-            <stroke
-                android:width="2dp"
-                android:color="#33FFFFFF" />
-            <solid android:color="#00000000" />
-        </shape>
-    </item>
-    <item
-        android:bottom="24dp"
-        android:left="24dp"
-        android:right="24dp"
-        android:top="24dp">
-        <shape android:shape="oval">
-            <stroke
-                android:width="1dp"
-                android:color="#22FFFFFF" />
-            <solid android:color="#00000000" />
-        </shape>
-    </item>
-</layer-list>
+<!--
+  盘体兜底底色（design/05 §9.3：`shape oval` + 纯色）。
+
+  原来的 layer-list 里那两圈描边已经移到 VinylDiscView.onDraw 里画（40 圈纹路 +
+  外沿），所以这里只留一个纯色底：保证「onDraw 还没跑第一帧」和「系统移除动画」
+  时也不是透明白圈。layer-list 叠 40 层会让每帧多 40 次 drawable 合成。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#FF0D0D0D" />
+</shape>

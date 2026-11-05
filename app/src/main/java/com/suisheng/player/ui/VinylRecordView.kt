@@ -1,13 +1,16 @@
 package com.suisheng.player.ui
 
-import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Outline
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.provider.Settings
 import android.util.AttributeSet
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.animation.LinearInterpolator
@@ -16,80 +19,68 @@ import android.widget.ImageView
 import com.suisheng.player.R
 import kotlin.math.min
 
+/**
+ * 黑胶唱片（`design/05 §4`）。
+ *
+ * 五层结构在 `view_vinyl_record.xml` 里：盘体 + 纹路 + 高光由一个自绘子 View 画，
+ * 封面是 ImageView，中心孔是静态 View。
+ *
+ * 旋转的三个硬约束：
+ *  ① **48 秒 / 圈**，30fps 上限 —— 60fps 让盘面纹路出现摩尔纹，且静止时白烧 GPU；
+ *  ② 暂停**不重置角度**（`pause()` / `resume()`，不是 cancel + restart）；
+ *  ③ 封面**反向等速**：同一个 animator 的值取负写给封面 `rotation`。
+ *     用两个 ObjectAnimator 一定会对不齐（各自有独立的帧时钟）。
+ *
+ * 交互：单击 → [onTap]；长按 800ms → [onLongPress]。**不做双击**（车机上易误触）。
+ * 长按用 [Handler] 自己计时而不是 `GestureDetector.onLongPress` —— 后者固定 500ms。
+ */
 class VinylRecordView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private val rotateGroup: FrameLayout
-    private val discView: ImageView
     private val coverView: ImageView
-    private var rotationAnimator: ObjectAnimator? = null
     private var currentBitmap: Bitmap? = null
-    private var discPx = 0
+
+    private var spinner: ValueAnimator? = null
+    private var lastFrameAt = 0L
+    private var angle = 0f
+
+    private val longPressHandler = Handler(Looper.getMainLooper())
+    private var longPressFired = false
+
+    /** 单击（进全屏歌词）。 */
+    var onTap: (() -> Unit)? = null
+
+    /** 长按 800ms（切「仅封面」态）。 */
+    var onLongPress: (() -> Unit)? = null
+
+    private val longPressRunnable = Runnable {
+        longPressFired = true
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        onLongPress?.invoke()
+    }
 
     init {
         clipChildren = false
         clipToPadding = false
         LayoutInflater.from(context).inflate(R.layout.view_vinyl_record, this, true)
         rotateGroup = findViewById(R.id.vinylRotateGroup)
-        discView = findViewById(R.id.vinylDisc)
         coverView = findViewById(R.id.vinylCover)
+        // 封面是圆的：用 outline 裁，而不是给 ImageView 套一个圆形 drawable
         coverView.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
                 outline.setOval(0, 0, view.width, view.height)
             }
         }
         coverView.clipToOutline = true
+        isClickable = true
+        isFocusable = true
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        if (w <= 0 || h <= 0) return
-        val available = min(w, h).toFloat()
-        // 圆形唱片绕圆心旋转是对称的，不需要为旋转预留 sqrt(2) 空间，直接吃满可用区域
-        val discPx = (available * 0.94f).toInt().coerceIn(dp(160), dp(760))
-        this.discPx = discPx
-        val coverPx = (discPx * 0.50f).toInt()
-        layoutDiscAndCover(discPx, coverPx)
-    }
-
-    private fun layoutDiscAndCover(discPx: Int, coverPx: Int) {
-        (rotateGroup.layoutParams as FrameLayout.LayoutParams).apply {
-            width = discPx
-            height = discPx
-            gravity = Gravity.CENTER
-            rotateGroup.layoutParams = this
-        }
-        (discView.layoutParams as FrameLayout.LayoutParams).apply {
-            width = discPx
-            height = discPx
-            gravity = Gravity.CENTER
-            discView.layoutParams = this
-        }
-        (coverView.layoutParams as FrameLayout.LayoutParams).apply {
-            width = coverPx
-            height = coverPx
-            gravity = Gravity.CENTER
-            coverView.layoutParams = this
-        }
-        rotateGroup.requestLayout()
-    }
-
-    private fun dp(value: Int): Int =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
-
-    /** Whether a touch point (view-local coords) hits the visible disc circle. */
-    fun isDiscTap(localX: Float, localY: Float): Boolean {
-        if (discPx <= 0) return false
-        val cx = width / 2f
-        val cy = height / 2f
-        val r = discPx / 2f
-        val dx = localX - cx
-        val dy = localY - cy
-        return dx * dx + dy * dy <= r * r
-    }
+    // ------------------------------------------------------------------ 封面
 
     fun setCoverBitmap(bitmap: Bitmap?) {
         val previous = currentBitmap
@@ -99,38 +90,134 @@ class VinylRecordView @JvmOverloads constructor(
         } else {
             coverView.setImageBitmap(bitmap)
         }
-        // Release the old art only after the new one is attached, so the view never
-        // draws from a recycled bitmap. Without this, skipping through songs leaks one
-        // full cover bitmap per track.
+        // 先挂上新图再回收旧图，避免 View 从已回收的 Bitmap 上绘制。
+        // 不回收的话，连续切歌每首泄漏一张整封面。
         if (previous != null && previous !== bitmap && !previous.isRecycled) {
             previous.recycle()
         }
     }
 
-    fun setPlaying(playing: Boolean) {
-        if (playing) {
-            if (rotationAnimator?.isRunning == true) return
-            rotationAnimator?.cancel()
-            rotationAnimator = ObjectAnimator.ofFloat(
-                rotateGroup,
-                View.ROTATION,
-                rotateGroup.rotation,
-                rotateGroup.rotation + 360f
-            ).apply {
-                duration = 18_000L
-                interpolator = LinearInterpolator()
-                repeatCount = ObjectAnimator.INFINITE
-                start()
-            }
-        } else {
-            rotationAnimator?.cancel()
-            rotationAnimator = null
+    // ------------------------------------------------------------------ 旋转
+
+    /** 开始转（无歌 / 暂停态调它也不会出现「转半圈」的跳变）。 */
+    fun startSpin() {
+        if (animationsDisabled()) {
+            // 系统「移除动画」：完全静态展示（`05 §4.2` 降级档）
+            applyAngle(angle)
+            return
         }
+        val existing = spinner
+        if (existing != null) {
+            if (existing.isPaused) existing.resume() else if (!existing.isStarted) existing.start()
+            return
+        }
+        val animator = ValueAnimator.ofFloat(0f, 360f).apply {
+            duration = ROTATION_DURATION_MS
+            interpolator = LinearInterpolator()
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.RESTART
+            addUpdateListener { animation ->
+                // 30fps 上限：跳过的帧直接不改 rotation
+                val now = SystemClock.uptimeMillis()
+                if (now - lastFrameAt < FRAME_INTERVAL_MS) return@addUpdateListener
+                lastFrameAt = now
+                applyAngle(animation.animatedValue as Float)
+            }
+        }
+        spinner = animator
+        animator.start()
+    }
+
+    /** 暂停：**不清零角度**（`05 §4.2` 暂停档）。 */
+    fun pauseSpin() {
+        val animator = spinner ?: return
+        if (animator.isStarted && !animator.isPaused) animator.pause()
+    }
+
+    fun resumeSpin() {
+        val animator = spinner ?: run {
+            startSpin()
+            return
+        }
+        if (animator.isPaused) animator.resume() else if (!animator.isStarted) animator.start()
+    }
+
+    /** 兼容旧调用点；等价于 [startSpin] / [pauseSpin]。 */
+    fun setPlaying(playing: Boolean) {
+        if (playing) startSpin() else pauseSpin()
+    }
+
+    /** 同一个值写给盘（+angle）和封面（−angle），保证两者严格等速反向。 */
+    private fun applyAngle(value: Float) {
+        angle = value
+        rotateGroup.rotation = value
+        coverView.rotation = -value
+    }
+
+    private fun animationsDisabled(): Boolean = runCatching {
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) == 0f
+    }.getOrDefault(false)
+
+    // ------------------------------------------------------------------ 触摸
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                longPressFired = false
+                longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_MS)
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                longPressHandler.removeCallbacks(longPressRunnable)
+                if (!longPressFired && isInsideDisc(event.x, event.y)) {
+                    performClick()
+                    onTap?.invoke()
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                longPressHandler.removeCallbacks(longPressRunnable)
+                return true
+            }
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
+
+    /** 只有点在圆盘内才算单击/长按的目标，四角留白不响应（视觉上是透明区）。 */
+    private fun isInsideDisc(x: Float, y: Float): Boolean {
+        val radius = min(width, height) / 2f
+        if (radius <= 0f) return false
+        val dx = x - width / 2f
+        val dy = y - height / 2f
+        return dx * dx + dy * dy <= radius * radius
     }
 
     override fun onDetachedFromWindow() {
-        rotationAnimator?.cancel()
-        rotationAnimator = null
+        longPressHandler.removeCallbacks(longPressRunnable)
+        spinner?.cancel()
+        spinner = null
         super.onDetachedFromWindow()
+    }
+
+    private companion object {
+        /** 48 秒一圈（`05 §4.2`）。 */
+        const val ROTATION_DURATION_MS = 48_000L
+
+        /** 30fps 上限 ≈ 33ms 一帧。 */
+        const val FRAME_INTERVAL_MS = 33L
+
+        /** 长按判定 800ms（`05 §4.3`，比系统默认的 500ms 长，避免误触）。 */
+        const val LONG_PRESS_MS = 800L
     }
 }

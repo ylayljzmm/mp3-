@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  78dp 主键底色（design/05 §3.3 第 3 位）。
+
+  这里只是布局阶段的初始底色；运行时会由 PlayerFragment 换成
+  「浅色模式混入 20% 白」的 GradientDrawable（§5.3），所以本文件只保证
+  tools/预览与首帧不出现透明块。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="?attr/colorPrimary" />
+</shape>
