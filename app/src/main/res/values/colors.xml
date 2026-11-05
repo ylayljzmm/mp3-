@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+
     <color name="netease_red">#FFB15A</color>
     <color name="netease_red_dark">#DB8434</color>
     <color name="background">#0F141B</color>
@@ -34,4 +36,220 @@
     <color name="mario_text_primary">#F4F5F7</color>
     <color name="mario_text_secondary">#AEB6C2</color>
     <color name="mario_bottom_nav">#111317</color>
+
+    <!-- =========================================================
+         随声主题令牌（浅色）— 由 tools/gen_theme_resources.py 生成
+         数据源：design/04-方案C §2.3，请勿手工编辑
+         命名：tu_<accent>_<token>；深浅两版同名同序，靠限定符切换
+         ========================================================= -->
+
+    <!-- 暖琥珀 · amber -->
+
+    <!-- 青瓷 · celadon -->
+
+    <!-- 深海蓝 · ocean -->
+
+    <!-- 朱砂 · vermilion -->
+
+    <!-- 苔绿 · moss -->
+
+    <!-- 雾紫 · violet -->
+
+    <!-- 山茶粉 · camellia -->
+
+    <!-- 青铜 · bronze -->
+
+    <!-- 极光青 · aurora -->
+
+    <!-- 石墨灰 · graphite -->
+
+    <!-- ========================================================= 随声主题令牌（结束） -->
+
+    <!-- =========================================================
+         随声主题令牌（浅色）— 由 tools/gen_theme_resources.py 生成
+         数据源：design/04-方案C §2.3，请勿手工编辑
+         命名：tu_<accent>_<token>；深浅两版同名同序，靠限定符切换
+         ========================================================= -->
+
+    <!-- 暖琥珀 · amber -->
+    <color name="tu_amber_primary">#8A5200</color>
+    <color name="tu_amber_on_primary">#FFFFFF</color>
+    <color name="tu_amber_primary_container">#FFDDB0</color>
+    <color name="tu_amber_on_primary_container">#2B1700</color>
+    <color name="tu_amber_secondary">#6E5B33</color>
+    <color name="tu_amber_surface">#FBF7EF</color>
+    <color name="tu_amber_surface_container">#E0DCD5</color>
+    <color name="tu_amber_on_surface">#1E1A13</color>
+    <color name="tu_amber_on_surface_variant">#4E4639</color>
+    <color name="tu_amber_outline">#7F7462</color>
+    <color name="tu_amber_outline_variant">#D3C7B3</color>
+    <color name="tu_amber_error">#B3261E</color>
+    <color name="tu_amber_surface_container_lowest">#FBF7EF</color>
+    <color name="tu_amber_surface_container_low">#EEEAE2</color>
+    <color name="tu_amber_surface_container_high">#D3CFC7</color>
+    <color name="tu_amber_surface_container_highest">#C6C2BA</color>
+
+    <!-- 青瓷 · celadon -->
+    <color name="tu_celadon_primary">#006B54</color>
+    <color name="tu_celadon_on_primary">#FFFFFF</color>
+    <color name="tu_celadon_primary_container">#9CF2D1</color>
+    <color name="tu_celadon_on_primary_container">#002018</color>
+    <color name="tu_celadon_secondary">#4A6358</color>
+    <color name="tu_celadon_surface">#F5FAF6</color>
+    <color name="tu_celadon_surface_container">#DADFDC</color>
+    <color name="tu_celadon_on_surface">#171D1A</color>
+    <color name="tu_celadon_on_surface_variant">#404944</color>
+    <color name="tu_celadon_outline">#707974</color>
+    <color name="tu_celadon_outline_variant">#C0C9C3</color>
+    <color name="tu_celadon_error">#B3261E</color>
+    <color name="tu_celadon_surface_container_lowest">#F5FAF6</color>
+    <color name="tu_celadon_surface_container_low">#E8EDE9</color>
+    <color name="tu_celadon_surface_container_high">#CDD2CE</color>
+    <color name="tu_celadon_surface_container_highest">#C0C5C1</color>
+
+    <!-- 深海蓝 · ocean -->
+    <color name="tu_ocean_primary">#0A5FA8</color>
+    <color name="tu_ocean_on_primary">#FFFFFF</color>
+    <color name="tu_ocean_primary_container">#D1E4FF</color>
+    <color name="tu_ocean_on_primary_container">#001C38</color>
+    <color name="tu_ocean_secondary">#4A6076</color>
+    <color name="tu_ocean_surface">#F6F9FD</color>
+    <color name="tu_ocean_surface_container">#DBDEE2</color>
+    <color name="tu_ocean_on_surface">#191C20</color>
+    <color name="tu_ocean_on_surface_variant">#414751</color>
+    <color name="tu_ocean_outline">#71787F</color>
+    <color name="tu_ocean_outline_variant">#C1C7CF</color>
+    <color name="tu_ocean_error">#B3261E</color>
+    <color name="tu_ocean_surface_container_lowest">#F6F9FD</color>
+    <color name="tu_ocean_surface_container_low">#E9ECF0</color>
+    <color name="tu_ocean_surface_container_high">#CED1D5</color>
+    <color name="tu_ocean_surface_container_highest">#C1C4C8</color>
+
+    <!-- 朱砂 · vermilion -->
+    <color name="tu_vermilion_primary">#A8351F</color>
+    <color name="tu_vermilion_on_primary">#FFFFFF</color>
+    <color name="tu_vermilion_primary_container">#FFDAD3</color>
+    <color name="tu_vermilion_on_primary_container">#3D0700</color>
+    <color name="tu_vermilion_secondary">#77574E</color>
+    <color name="tu_vermilion_surface">#FDF7F5</color>
+    <color name="tu_vermilion_surface_container">#E2DCDB</color>
+    <color name="tu_vermilion_on_surface">#201A19</color>
+    <color name="tu_vermilion_on_surface_variant">#53433F</color>
+    <color name="tu_vermilion_outline">#86736E</color>
+    <color name="tu_vermilion_outline_variant">#D8C2BC</color>
+    <color name="tu_vermilion_error">#B3261E</color>
+    <color name="tu_vermilion_surface_container_lowest">#FDF7F5</color>
+    <color name="tu_vermilion_surface_container_low">#F0EAE8</color>
+    <color name="tu_vermilion_surface_container_high">#D5CFCD</color>
+    <color name="tu_vermilion_surface_container_highest">#C8C2C0</color>
+
+    <!-- 苔绿 · moss -->
+    <color name="tu_moss_primary">#4C6B00</color>
+    <color name="tu_moss_on_primary">#FFFFFF</color>
+    <color name="tu_moss_primary_container">#CFEE9A</color>
+    <color name="tu_moss_on_primary_container">#152000</color>
+    <color name="tu_moss_secondary">#5A6141</color>
+    <color name="tu_moss_surface">#F8FAF0</color>
+    <color name="tu_moss_surface_container">#DDDFD6</color>
+    <color name="tu_moss_on_surface">#1B1D14</color>
+    <color name="tu_moss_on_surface_variant">#454836</color>
+    <color name="tu_moss_outline">#767966</color>
+    <color name="tu_moss_outline_variant">#C5C9B3</color>
+    <color name="tu_moss_error">#B3261E</color>
+    <color name="tu_moss_surface_container_lowest">#F8FAF0</color>
+    <color name="tu_moss_surface_container_low">#EBEDE3</color>
+    <color name="tu_moss_surface_container_high">#D0D2C8</color>
+    <color name="tu_moss_surface_container_highest">#C3C5BB</color>
+
+    <!-- 雾紫 · violet -->
+    <color name="tu_violet_primary">#5B3FA8</color>
+    <color name="tu_violet_on_primary">#FFFFFF</color>
+    <color name="tu_violet_primary_container">#E7DEFF</color>
+    <color name="tu_violet_on_primary_container">#1C0A4E</color>
+    <color name="tu_violet_secondary">#605A70</color>
+    <color name="tu_violet_surface">#FAF8FE</color>
+    <color name="tu_violet_surface_container">#DFDDE3</color>
+    <color name="tu_violet_on_surface">#1C1B20</color>
+    <color name="tu_violet_on_surface_variant">#48454F</color>
+    <color name="tu_violet_outline">#79757F</color>
+    <color name="tu_violet_outline_variant">#C9C4CF</color>
+    <color name="tu_violet_error">#B3261E</color>
+    <color name="tu_violet_surface_container_lowest">#FAF8FE</color>
+    <color name="tu_violet_surface_container_low">#EDEBF1</color>
+    <color name="tu_violet_surface_container_high">#D2D0D6</color>
+    <color name="tu_violet_surface_container_highest">#C5C3C9</color>
+
+    <!-- 山茶粉 · camellia -->
+    <color name="tu_camellia_primary">#A8335C</color>
+    <color name="tu_camellia_on_primary">#FFFFFF</color>
+    <color name="tu_camellia_primary_container">#FFD9E2</color>
+    <color name="tu_camellia_on_primary_container">#3E001C</color>
+    <color name="tu_camellia_secondary">#75565E</color>
+    <color name="tu_camellia_surface">#FDF7F8</color>
+    <color name="tu_camellia_surface_container">#E2DCDD</color>
+    <color name="tu_camellia_on_surface">#201A1B</color>
+    <color name="tu_camellia_on_surface_variant">#534246</color>
+    <color name="tu_camellia_outline">#867277</color>
+    <color name="tu_camellia_outline_variant">#D8C1C6</color>
+    <color name="tu_camellia_error">#B3261E</color>
+    <color name="tu_camellia_surface_container_lowest">#FDF7F8</color>
+    <color name="tu_camellia_surface_container_low">#F0EAEB</color>
+    <color name="tu_camellia_surface_container_high">#D5CFD0</color>
+    <color name="tu_camellia_surface_container_highest">#C8C2C3</color>
+
+    <!-- 青铜 · bronze -->
+    <color name="tu_bronze_primary">#6F5C00</color>
+    <color name="tu_bronze_on_primary">#FFFFFF</color>
+    <color name="tu_bronze_primary_container">#FBE0A0</color>
+    <color name="tu_bronze_on_primary_container">#211B00</color>
+    <color name="tu_bronze_secondary">#655E40</color>
+    <color name="tu_bronze_surface">#FBF9F0</color>
+    <color name="tu_bronze_surface_container">#E0DED5</color>
+    <color name="tu_bronze_on_surface">#1D1B13</color>
+    <color name="tu_bronze_on_surface_variant">#4B4636</color>
+    <color name="tu_bronze_outline">#7C7663</color>
+    <color name="tu_bronze_outline_variant">#D0C8B4</color>
+    <color name="tu_bronze_error">#B3261E</color>
+    <color name="tu_bronze_surface_container_lowest">#FBF9F0</color>
+    <color name="tu_bronze_surface_container_low">#EEECE3</color>
+    <color name="tu_bronze_surface_container_high">#D3D1C8</color>
+    <color name="tu_bronze_surface_container_highest">#C6C4BB</color>
+
+    <!-- 极光青 · aurora -->
+    <color name="tu_aurora_primary">#00626F</color>
+    <color name="tu_aurora_on_primary">#FFFFFF</color>
+    <color name="tu_aurora_primary_container">#A8EFFA</color>
+    <color name="tu_aurora_on_primary_container">#001F25</color>
+    <color name="tu_aurora_secondary">#496369</color>
+    <color name="tu_aurora_surface">#F4FAFB</color>
+    <color name="tu_aurora_surface_container">#D9DFE0</color>
+    <color name="tu_aurora_on_surface">#171D1E</color>
+    <color name="tu_aurora_on_surface_variant">#40484A</color>
+    <color name="tu_aurora_outline">#70787B</color>
+    <color name="tu_aurora_outline_variant">#BFC8CA</color>
+    <color name="tu_aurora_error">#B3261E</color>
+    <color name="tu_aurora_surface_container_lowest">#F4FAFB</color>
+    <color name="tu_aurora_surface_container_low">#E7EDEE</color>
+    <color name="tu_aurora_surface_container_high">#CCD2D3</color>
+    <color name="tu_aurora_surface_container_highest">#BFC5C6</color>
+
+    <!-- 石墨灰 · graphite -->
+    <color name="tu_graphite_primary">#5C554C</color>
+    <color name="tu_graphite_on_primary">#FFFFFF</color>
+    <color name="tu_graphite_primary_container">#F2E7DC</color>
+    <color name="tu_graphite_on_primary_container">#1E1A15</color>
+    <color name="tu_graphite_secondary">#5E5A55</color>
+    <color name="tu_graphite_surface">#FAF8F6</color>
+    <color name="tu_graphite_surface_container">#DFDDDB</color>
+    <color name="tu_graphite_on_surface">#1B1B19</color>
+    <color name="tu_graphite_on_surface_variant">#48453F</color>
+    <color name="tu_graphite_outline">#79756F</color>
+    <color name="tu_graphite_outline_variant">#CAC5BF</color>
+    <color name="tu_graphite_error">#B3261E</color>
+    <color name="tu_graphite_surface_container_lowest">#FAF8F6</color>
+    <color name="tu_graphite_surface_container_low">#EDEBE9</color>
+    <color name="tu_graphite_surface_container_high">#D2D0CE</color>
+    <color name="tu_graphite_surface_container_highest">#C4C3C1</color>
+
+    <!-- ========================================================= 随声主题令牌（结束） -->
 </resources>

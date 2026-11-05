@@ -2,6 +2,9 @@
 
 <resources>
 
+
+
+
     <style name="Theme.MP3Player" parent="Theme.MaterialComponents.DayNight.NoActionBar">
 
         <item name="colorPrimary">@color/netease_red</item>
@@ -101,5 +104,472 @@
 
     </style>
 
-</resources>
+<!-- ===== 随声主题（自动生成段开始）  浅色 · 请勿手工编辑 ===== -->
 
+    <!-- 底座：Theme.Material3.Light.NoActionBar -->
+    <style name="Theme.Suisheng.Base" parent="Theme.Material3.Light.NoActionBar">
+
+        <!-- 8 个组件默认 style（切换主题后全局生效，无需手写 tint） -->
+        <item name="materialButtonStyle">@style/Widget.Suisheng.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.Suisheng.CardView</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Suisheng.BottomSheet</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Suisheng.AlertDialog</item>
+        <item name="sliderStyle">@style/Widget.Suisheng.Slider</item>
+        <item name="chipStyle">@style/Widget.Suisheng.Chip</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Suisheng.ButtonToggleGroup</item>
+        <item name="materialSwitchStyle">@style/Widget.Suisheng.Switch</item>
+
+        <!-- 系统栏与窗口底色：全部走 attr，切主题自动跟随 -->
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:fontFamily">sans</item>
+
+    </style>
+
+    <style name="Widget.Suisheng.Button" parent="Widget.Material3.Button">
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">18dp</item>
+    </style>
+
+    <style name="Widget.Suisheng.CardView" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+
+    <style name="Widget.Suisheng.Slider" parent="Widget.Material3.Slider">
+        <item name="trackHeight">4dp</item>
+        <item name="thumbRadius">13dp</item>
+    </style>
+
+    <style name="Widget.Suisheng.Chip" parent="Widget.Material3.Chip.Filter">
+        <item name="android:textSize">15sp</item>
+        <item name="chipCornerRadius">18dp</item>
+    </style>
+
+    <style name="Widget.Suisheng.ButtonToggleGroup" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:textSize">17sp</item>
+    </style>
+
+    <style name="Widget.Suisheng.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Suisheng.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.Material3.BottomSheet.Modal</item>
+    </style>
+
+    <style name="ThemeOverlay.Suisheng.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.Material3</item>
+    </style>
+
+    <!-- ===== 10 套主题色 ===== -->
+    <!-- 暖琥珀 · amber -->
+    <style name="Theme.Suisheng.Amber" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_amber_primary</item>
+        <item name="colorOnPrimary">@color/tu_amber_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_amber_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_amber_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_amber_secondary</item>
+        <item name="colorSurface">@color/tu_amber_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_amber_surface_container</item>
+        <item name="colorOnSurface">@color/tu_amber_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_amber_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_amber_outline</item>
+        <item name="colorOutlineVariant">@color/tu_amber_outline_variant</item>
+        <item name="colorError">@color/tu_amber_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_amber_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_amber_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_amber_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_amber_surface_container_highest</item>
+    </style>
+
+    <!-- 青瓷 · celadon -->
+    <style name="Theme.Suisheng.Celadon" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_celadon_primary</item>
+        <item name="colorOnPrimary">@color/tu_celadon_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_celadon_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_celadon_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_celadon_secondary</item>
+        <item name="colorSurface">@color/tu_celadon_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_celadon_surface_container</item>
+        <item name="colorOnSurface">@color/tu_celadon_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_celadon_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_celadon_outline</item>
+        <item name="colorOutlineVariant">@color/tu_celadon_outline_variant</item>
+        <item name="colorError">@color/tu_celadon_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_celadon_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_celadon_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_celadon_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_celadon_surface_container_highest</item>
+    </style>
+
+    <!-- 深海蓝 · ocean -->
+    <style name="Theme.Suisheng.Ocean" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_ocean_primary</item>
+        <item name="colorOnPrimary">@color/tu_ocean_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_ocean_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_ocean_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_ocean_secondary</item>
+        <item name="colorSurface">@color/tu_ocean_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_ocean_surface_container</item>
+        <item name="colorOnSurface">@color/tu_ocean_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_ocean_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_ocean_outline</item>
+        <item name="colorOutlineVariant">@color/tu_ocean_outline_variant</item>
+        <item name="colorError">@color/tu_ocean_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_ocean_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_ocean_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_ocean_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_ocean_surface_container_highest</item>
+    </style>
+
+    <!-- 朱砂 · vermilion -->
+    <style name="Theme.Suisheng.Vermilion" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_vermilion_primary</item>
+        <item name="colorOnPrimary">@color/tu_vermilion_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_vermilion_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_vermilion_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_vermilion_secondary</item>
+        <item name="colorSurface">@color/tu_vermilion_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_vermilion_surface_container</item>
+        <item name="colorOnSurface">@color/tu_vermilion_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_vermilion_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_vermilion_outline</item>
+        <item name="colorOutlineVariant">@color/tu_vermilion_outline_variant</item>
+        <item name="colorError">@color/tu_vermilion_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_vermilion_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_vermilion_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_vermilion_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_vermilion_surface_container_highest</item>
+    </style>
+
+    <!-- 苔绿 · moss -->
+    <style name="Theme.Suisheng.Moss" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_moss_primary</item>
+        <item name="colorOnPrimary">@color/tu_moss_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_moss_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_moss_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_moss_secondary</item>
+        <item name="colorSurface">@color/tu_moss_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_moss_surface_container</item>
+        <item name="colorOnSurface">@color/tu_moss_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_moss_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_moss_outline</item>
+        <item name="colorOutlineVariant">@color/tu_moss_outline_variant</item>
+        <item name="colorError">@color/tu_moss_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_moss_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_moss_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_moss_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_moss_surface_container_highest</item>
+    </style>
+
+    <!-- 雾紫 · violet -->
+    <style name="Theme.Suisheng.Violet" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_violet_primary</item>
+        <item name="colorOnPrimary">@color/tu_violet_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_violet_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_violet_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_violet_secondary</item>
+        <item name="colorSurface">@color/tu_violet_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_violet_surface_container</item>
+        <item name="colorOnSurface">@color/tu_violet_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_violet_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_violet_outline</item>
+        <item name="colorOutlineVariant">@color/tu_violet_outline_variant</item>
+        <item name="colorError">@color/tu_violet_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_violet_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_violet_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_violet_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_violet_surface_container_highest</item>
+    </style>
+
+    <!-- 山茶粉 · camellia -->
+    <style name="Theme.Suisheng.Camellia" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_camellia_primary</item>
+        <item name="colorOnPrimary">@color/tu_camellia_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_camellia_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_camellia_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_camellia_secondary</item>
+        <item name="colorSurface">@color/tu_camellia_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_camellia_surface_container</item>
+        <item name="colorOnSurface">@color/tu_camellia_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_camellia_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_camellia_outline</item>
+        <item name="colorOutlineVariant">@color/tu_camellia_outline_variant</item>
+        <item name="colorError">@color/tu_camellia_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_camellia_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_camellia_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_camellia_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_camellia_surface_container_highest</item>
+    </style>
+
+    <!-- 青铜 · bronze -->
+    <style name="Theme.Suisheng.Bronze" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_bronze_primary</item>
+        <item name="colorOnPrimary">@color/tu_bronze_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_bronze_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_bronze_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_bronze_secondary</item>
+        <item name="colorSurface">@color/tu_bronze_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_bronze_surface_container</item>
+        <item name="colorOnSurface">@color/tu_bronze_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_bronze_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_bronze_outline</item>
+        <item name="colorOutlineVariant">@color/tu_bronze_outline_variant</item>
+        <item name="colorError">@color/tu_bronze_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_bronze_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_bronze_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_bronze_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_bronze_surface_container_highest</item>
+    </style>
+
+    <!-- 极光青 · aurora -->
+    <style name="Theme.Suisheng.Aurora" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_aurora_primary</item>
+        <item name="colorOnPrimary">@color/tu_aurora_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_aurora_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_aurora_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_aurora_secondary</item>
+        <item name="colorSurface">@color/tu_aurora_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_aurora_surface_container</item>
+        <item name="colorOnSurface">@color/tu_aurora_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_aurora_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_aurora_outline</item>
+        <item name="colorOutlineVariant">@color/tu_aurora_outline_variant</item>
+        <item name="colorError">@color/tu_aurora_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_aurora_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_aurora_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_aurora_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_aurora_surface_container_highest</item>
+    </style>
+
+    <!-- 石墨灰 · graphite -->
+    <style name="Theme.Suisheng.Graphite" parent="Theme.Suisheng.Base">
+        <item name="colorPrimary">@color/tu_graphite_primary</item>
+        <item name="colorOnPrimary">@color/tu_graphite_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_graphite_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_graphite_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_graphite_secondary</item>
+        <item name="colorSurface">@color/tu_graphite_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_graphite_surface_container</item>
+        <item name="colorOnSurface">@color/tu_graphite_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_graphite_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_graphite_outline</item>
+        <item name="colorOutlineVariant">@color/tu_graphite_outline_variant</item>
+        <item name="colorError">@color/tu_graphite_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_graphite_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_graphite_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_graphite_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_graphite_surface_container_highest</item>
+    </style>
+
+    <!-- ===== 10 个播放页分控 ThemeOverlay（无 parent，只覆盖 token）===== -->
+    <!-- 暖琥珀 · amber -->
+    <style name="ThemeOverlay.Suisheng.Player.Amber">
+        <item name="colorPrimary">@color/tu_amber_primary</item>
+        <item name="colorOnPrimary">@color/tu_amber_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_amber_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_amber_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_amber_secondary</item>
+        <item name="colorSurface">@color/tu_amber_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_amber_surface_container</item>
+        <item name="colorOnSurface">@color/tu_amber_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_amber_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_amber_outline</item>
+        <item name="colorOutlineVariant">@color/tu_amber_outline_variant</item>
+        <item name="colorError">@color/tu_amber_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_amber_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_amber_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_amber_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_amber_surface_container_highest</item>
+    </style>
+
+    <!-- 青瓷 · celadon -->
+    <style name="ThemeOverlay.Suisheng.Player.Celadon">
+        <item name="colorPrimary">@color/tu_celadon_primary</item>
+        <item name="colorOnPrimary">@color/tu_celadon_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_celadon_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_celadon_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_celadon_secondary</item>
+        <item name="colorSurface">@color/tu_celadon_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_celadon_surface_container</item>
+        <item name="colorOnSurface">@color/tu_celadon_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_celadon_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_celadon_outline</item>
+        <item name="colorOutlineVariant">@color/tu_celadon_outline_variant</item>
+        <item name="colorError">@color/tu_celadon_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_celadon_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_celadon_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_celadon_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_celadon_surface_container_highest</item>
+    </style>
+
+    <!-- 深海蓝 · ocean -->
+    <style name="ThemeOverlay.Suisheng.Player.Ocean">
+        <item name="colorPrimary">@color/tu_ocean_primary</item>
+        <item name="colorOnPrimary">@color/tu_ocean_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_ocean_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_ocean_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_ocean_secondary</item>
+        <item name="colorSurface">@color/tu_ocean_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_ocean_surface_container</item>
+        <item name="colorOnSurface">@color/tu_ocean_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_ocean_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_ocean_outline</item>
+        <item name="colorOutlineVariant">@color/tu_ocean_outline_variant</item>
+        <item name="colorError">@color/tu_ocean_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_ocean_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_ocean_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_ocean_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_ocean_surface_container_highest</item>
+    </style>
+
+    <!-- 朱砂 · vermilion -->
+    <style name="ThemeOverlay.Suisheng.Player.Vermilion">
+        <item name="colorPrimary">@color/tu_vermilion_primary</item>
+        <item name="colorOnPrimary">@color/tu_vermilion_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_vermilion_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_vermilion_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_vermilion_secondary</item>
+        <item name="colorSurface">@color/tu_vermilion_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_vermilion_surface_container</item>
+        <item name="colorOnSurface">@color/tu_vermilion_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_vermilion_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_vermilion_outline</item>
+        <item name="colorOutlineVariant">@color/tu_vermilion_outline_variant</item>
+        <item name="colorError">@color/tu_vermilion_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_vermilion_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_vermilion_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_vermilion_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_vermilion_surface_container_highest</item>
+    </style>
+
+    <!-- 苔绿 · moss -->
+    <style name="ThemeOverlay.Suisheng.Player.Moss">
+        <item name="colorPrimary">@color/tu_moss_primary</item>
+        <item name="colorOnPrimary">@color/tu_moss_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_moss_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_moss_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_moss_secondary</item>
+        <item name="colorSurface">@color/tu_moss_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_moss_surface_container</item>
+        <item name="colorOnSurface">@color/tu_moss_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_moss_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_moss_outline</item>
+        <item name="colorOutlineVariant">@color/tu_moss_outline_variant</item>
+        <item name="colorError">@color/tu_moss_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_moss_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_moss_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_moss_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_moss_surface_container_highest</item>
+    </style>
+
+    <!-- 雾紫 · violet -->
+    <style name="ThemeOverlay.Suisheng.Player.Violet">
+        <item name="colorPrimary">@color/tu_violet_primary</item>
+        <item name="colorOnPrimary">@color/tu_violet_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_violet_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_violet_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_violet_secondary</item>
+        <item name="colorSurface">@color/tu_violet_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_violet_surface_container</item>
+        <item name="colorOnSurface">@color/tu_violet_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_violet_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_violet_outline</item>
+        <item name="colorOutlineVariant">@color/tu_violet_outline_variant</item>
+        <item name="colorError">@color/tu_violet_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_violet_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_violet_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_violet_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_violet_surface_container_highest</item>
+    </style>
+
+    <!-- 山茶粉 · camellia -->
+    <style name="ThemeOverlay.Suisheng.Player.Camellia">
+        <item name="colorPrimary">@color/tu_camellia_primary</item>
+        <item name="colorOnPrimary">@color/tu_camellia_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_camellia_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_camellia_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_camellia_secondary</item>
+        <item name="colorSurface">@color/tu_camellia_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_camellia_surface_container</item>
+        <item name="colorOnSurface">@color/tu_camellia_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_camellia_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_camellia_outline</item>
+        <item name="colorOutlineVariant">@color/tu_camellia_outline_variant</item>
+        <item name="colorError">@color/tu_camellia_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_camellia_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_camellia_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_camellia_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_camellia_surface_container_highest</item>
+    </style>
+
+    <!-- 青铜 · bronze -->
+    <style name="ThemeOverlay.Suisheng.Player.Bronze">
+        <item name="colorPrimary">@color/tu_bronze_primary</item>
+        <item name="colorOnPrimary">@color/tu_bronze_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_bronze_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_bronze_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_bronze_secondary</item>
+        <item name="colorSurface">@color/tu_bronze_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_bronze_surface_container</item>
+        <item name="colorOnSurface">@color/tu_bronze_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_bronze_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_bronze_outline</item>
+        <item name="colorOutlineVariant">@color/tu_bronze_outline_variant</item>
+        <item name="colorError">@color/tu_bronze_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_bronze_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_bronze_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_bronze_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_bronze_surface_container_highest</item>
+    </style>
+
+    <!-- 极光青 · aurora -->
+    <style name="ThemeOverlay.Suisheng.Player.Aurora">
+        <item name="colorPrimary">@color/tu_aurora_primary</item>
+        <item name="colorOnPrimary">@color/tu_aurora_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_aurora_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_aurora_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_aurora_secondary</item>
+        <item name="colorSurface">@color/tu_aurora_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_aurora_surface_container</item>
+        <item name="colorOnSurface">@color/tu_aurora_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_aurora_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_aurora_outline</item>
+        <item name="colorOutlineVariant">@color/tu_aurora_outline_variant</item>
+        <item name="colorError">@color/tu_aurora_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_aurora_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_aurora_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_aurora_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_aurora_surface_container_highest</item>
+    </style>
+
+    <!-- 石墨灰 · graphite -->
+    <style name="ThemeOverlay.Suisheng.Player.Graphite">
+        <item name="colorPrimary">@color/tu_graphite_primary</item>
+        <item name="colorOnPrimary">@color/tu_graphite_on_primary</item>
+        <item name="colorPrimaryContainer">@color/tu_graphite_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/tu_graphite_on_primary_container</item>
+        <item name="colorSecondary">@color/tu_graphite_secondary</item>
+        <item name="colorSurface">@color/tu_graphite_surface</item>
+        <item name="colorSurfaceContainer">@color/tu_graphite_surface_container</item>
+        <item name="colorOnSurface">@color/tu_graphite_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/tu_graphite_on_surface_variant</item>
+        <item name="colorOutline">@color/tu_graphite_outline</item>
+        <item name="colorOutlineVariant">@color/tu_graphite_outline_variant</item>
+        <item name="colorError">@color/tu_graphite_error</item>
+        <item name="colorSurfaceContainerLowest">@color/tu_graphite_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/tu_graphite_surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/tu_graphite_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/tu_graphite_surface_container_highest</item>
+    </style>
+
+<!-- ===== 随声主题（自动生成段结束）===== -->
+
+</resources>

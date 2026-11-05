@@ -3,4 +3,51 @@
     <!-- 车机系统 Dock 安全区：把 App 底部导航 / 设置页末项抬到系统 Dock 之上，
          适配 2021 款宋 PLUS DM-i（DiLink 3.0）默认横屏。改这一处即可全局微调。 -->
     <dimen name="car_dock_safe_area">60dp</dimen>
+
+    <!-- =========================================================
+         主题系统 token（design/04 §2.8、§3.7）
+         ========================================================= -->
+    <!-- 圆形色卡直径 -->
+    <dimen name="theme_swatch_size">64dp</dimen>
+    <!-- 选中环宽与环-卡之间的空隙 -->
+    <dimen name="theme_swatch_ring_width">2dp</dimen>
+    <dimen name="theme_swatch_ring_gap">4dp</dimen>
+    <!-- 色卡网格单元（横屏 5 列 × 2 行） -->
+    <dimen name="theme_swatch_cell_size">112dp</dimen>
+    <!-- 明暗 4 档分段控件高度 -->
+    <dimen name="theme_mode_toggle_height">56dp</dimen>
+
+    <!-- =========================================================
+         抽屉 token（design/04 §3.5，期 2c 使用）
+         ========================================================= -->
+    <!-- 横屏面板宽 400dp；竖屏 300dp -->
+    <dimen name="drawer_width_land">400dp</dimen>
+    <dimen name="drawer_width_port">300dp</dimen>
+    <!-- 面板右上/右下圆角；左侧贴边直角 -->
+    <dimen name="drawer_corner_radius">28dp</dimen>
+    <!-- 头部 80dp：应用图标 40dp + 两行文字 -->
+    <dimen name="drawer_header_height">80dp</dimen>
+    <dimen name="drawer_header_icon_size">40dp</dimen>
+    <dimen name="drawer_header_icon_corner">12dp</dimen>
+    <!-- 分组标题 28dp；条目 60dp（≥ 60dp 触控下限） -->
+    <dimen name="drawer_group_title_height">28dp</dimen>
+    <dimen name="drawer_item_height">60dp</dimen>
+    <!-- 面板左右内边距；文字区起点距面板左 56dp = 16 + 24 + 16 -->
+    <dimen name="drawer_item_padding_horizontal">16dp</dimen>
+    <dimen name="drawer_item_text_start">56dp</dimen>
+    <dimen name="drawer_item_icon_size">24dp</dimen>
+    <!-- 选中态四周内缩 8dp（→ 352×44dp） -->
+    <dimen name="drawer_item_inset">8dp</dimen>
+    <!-- 底部固定三格 80dp -->
+    <dimen name="drawer_bottom_bar_height">80dp</dimen>
+    <dimen name="drawer_bottom_pill_width">60dp</dimen>
+    <dimen name="drawer_bottom_pill_height">44dp</dimen>
+
+    <!-- =========================================================
+         设置页 token（design/04 §3.6）
+         ========================================================= -->
+    <dimen name="settings_page_margin_horizontal">32dp</dimen>
+    <dimen name="settings_group_spacing">24dp</dimen>
+    <dimen name="settings_group_title_height">32dp</dimen>
+    <dimen name="settings_group_corner_radius">16dp</dimen>
 </resources>

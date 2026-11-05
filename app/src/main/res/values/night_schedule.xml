@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+         夜间自动切换的日出/日落表（design/04 §2.2）。
+         每月 1 日一个采样点，运行期在相邻两个月之间线性插值，
+         最大误差 < 15 分钟 —— 对「天黑了切深色」完全够用。
+
+         取值：北纬 30° / 东经 114° / UTC+8，
+         覆盖中国主要城市带；不含定位、不含任何权限。
+         由 tools/gen_night_schedule.py 生成，请勿手工编辑。
+
+         单位：当地时间的「当日第几分钟」。
+    -->
+
+    <integer-array name="night_schedule_sunrise">
+        <!-- 1月 -->
+        <item>440</item>
+        <!-- 2月 -->
+        <item>436</item>
+        <!-- 3月 -->
+        <item>412</item>
+        <!-- 4月 -->
+        <item>375</item>
+        <!-- 5月 -->
+        <item>342</item>
+        <!-- 6月 -->
+        <item>323</item>
+        <!-- 7月 -->
+        <item>326</item>
+        <!-- 8月 -->
+        <item>343</item>
+        <!-- 9月 -->
+        <item>362</item>
+        <!-- 10月 -->
+        <item>379</item>
+        <!-- 11月 -->
+        <item>400</item>
+        <!-- 12月 -->
+        <item>424</item>
+    </integer-array>
+
+    <integer-array name="night_schedule_sunset">
+        <!-- 1月 -->
+        <item>1055</item>
+        <!-- 2月 -->
+        <item>1080</item>
+        <!-- 3月 -->
+        <item>1102</item>
+        <!-- 4月 -->
+        <item>1121</item>
+        <!-- 5月 -->
+        <item>1140</item>
+        <!-- 6月 -->
+        <item>1160</item>
+        <!-- 7月 -->
+        <item>1169</item>
+        <!-- 8月 -->
+        <item>1157</item>
+        <!-- 9月 -->
+        <item>1125</item>
+        <!-- 10月 -->
+        <item>1087</item>
+        <!-- 11月 -->
+        <item>1055</item>
+        <!-- 12月 -->
+        <item>1044</item>
+    </integer-array>
+
+</resources>
