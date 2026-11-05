@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「收藏」页的文案。
+
+  刻意单独开一个文件而不是往 strings.xml 里加：strings.xml 有人并行在改，
+  分文件可以避免同一时刻的合并冲突（Android 允许多个 values 文件并存）。
+-->
+<resources>
+    <!-- 抽屉条目：位置在「文件夹」之后，属于「媒体库」分组 -->
+    <string name="drawer_favorites">收藏</string>
+
+    <!-- 页头副标题：条数与其它列表页同口径（「共 N 首」） -->
+    <string name="favorites_count">共 %1$d 首</string>
+
+    <!-- 空态 -->
+    <string name="favorites_empty_title">还没有收藏</string>
+    <string name="favorites_empty_hint">在播放页点心形按钮即可收藏当前歌曲</string>
+
+    <!-- 长按取消收藏 -->
+    <string name="favorites_remove_confirm">取消收藏「%1$s」？</string>
+    <string name="favorites_remove_action">取消收藏</string>
+    <string name="favorites_remove_cancel">保留</string>
+    <string name="favorites_removed">已取消收藏</string>
+</resources>

@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  音效 / 均衡器面板（功能行第 4 格）。
+
+  固定 5 段：60 / 230 / 910 / 3600 / 14000 Hz。设备真实段数由 AudioEffectController
+  按中心频率插值映射，所以这里的 5 行与设备无关，UI 不会随机器变形。
+
+  标签列固定 56dp、数值列固定 44dp（`tnum` 等宽数字），滑轨用 weight 吃满中间，
+  保证 5 行的滑轨左右端点严格对齐 —— 错一个 dp 看起来就像滑块没对齐。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="20dp">
+
+    <!-- 标题行：左侧标题，右侧总开关 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="12dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/eqTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:text="@string/eq_title"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/eqSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:showText="false" />
+    </LinearLayout>
+
+    <!-- 预设行：6 个 chip 单行横向滚动（中文 2 字 × 6 在竖屏一定超宽） -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/eqPresets"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="8dp"
+                app:singleLine="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetFlat"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_flat" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetPop"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_pop" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetRock"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_rock" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetClassical"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_classical" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetVocal"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_vocal" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/presetBass"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="@string/eq_preset_bass" />
+            </com.google.android.material.chip.ChipGroup>
+
+            <!-- 手动拖过滑块之后才出现：6 个 chip 全清空，这里表明「现在是自定义曲线」 -->
+            <TextView
+                android:id="@+id/eqCustomLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:singleLine="true"
+                android:text="@string/eq_custom"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- 60Hz -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/eq_band_60"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/band0"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:stepSize="1"
+            android:value="0"
+            android:valueFrom="-12"
+            android:valueTo="12" />
+
+        <TextView
+            android:id="@+id/band0Value"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="+3dB" />
+    </LinearLayout>
+
+    <!-- 230Hz -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/eq_band_230"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/band1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:stepSize="1"
+            android:value="0"
+            android:valueFrom="-12"
+            android:valueTo="12" />
+
+        <TextView
+            android:id="@+id/band1Value"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="+3dB" />
+    </LinearLayout>
+
+    <!-- 910Hz -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/eq_band_910"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/band2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:stepSize="1"
+            android:value="0"
+            android:valueFrom="-12"
+            android:valueTo="12" />
+
+        <TextView
+            android:id="@+id/band2Value"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="+3dB" />
+    </LinearLayout>
+
+    <!-- 3.6kHz -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/eq_band_3600"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/band3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:stepSize="1"
+            android:value="0"
+            android:valueFrom="-12"
+            android:valueTo="12" />
+
+        <TextView
+            android:id="@+id/band3Value"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="+3dB" />
+    </LinearLayout>
+
+    <!-- 14kHz -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/eq_band_14000"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/band4"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:stepSize="1"
+            android:value="0"
+            android:valueFrom="-12"
+            android:valueTo="12" />
+
+        <TextView
+            android:id="@+id/band4Value"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="+3dB" />
+    </LinearLayout>
+
+    <!-- 设备不支持时的提示，默认隐藏 -->
+    <TextView
+        android:id="@+id/eqHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/eq_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</LinearLayout>

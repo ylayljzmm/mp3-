@@ -16,7 +16,7 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
 }
 
 /**
- * 抽屉里的 9 个目的地（外加 2 个不在抽屉里出现的：[PLAYER]、[THEME]）。
+ * 抽屉里的 10 个目的地（外加 2 个不在抽屉里出现的：[PLAYER]、[THEME]）。
  *
  * **首页（HOME）已经不存在了。** 它原来是个壳：自己没有任何内容，只用一个 ViewPager2
  * 挂「本地 / 在线 / 电台 / 播客」4 个分区标签页，标题还要靠分区栏去标识。
@@ -26,7 +26,9 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
  * ① [HOME] 从枚举里删除。老版本存档里存着 "HOME" 时由 `MainActivity` 回落到 [SONGS]，
  *    保证升级不会崩；
  * ② 原分区的 4 个分区各自成为一等目的地：[SONGS]（本地）、[ONLINE]、[RADIO]、[PODCAST]；
- * ③ 枚举顺序 = 抽屉渲染顺序，`design/04 §3.5` 的清单同步变成 9 条。
+ * ③ 枚举顺序 = 抽屉渲染顺序，`design/04 §3.5` 的清单同步变成 10 条；
+ * ④ 抽屉改版后新增的 [FAVORITES]（收藏）插在 [FOLDERS] 之后，属于「媒体库」组 ——
+ *    它和「歌曲」是同一份曲库的两个切面（全部 / 收藏），放在一起才符合用户的心理模型。
  *
  * 刻意用 enum 而不是 String / Int 序号：
  * ① 编译期可穷举，新增页面时 `when` 会提醒；
@@ -79,6 +81,25 @@ enum class Destination(
         showsCount = true,
     ),
 
+    /**
+     * 收藏。
+     *
+     * 播放页那颗心形按钮原来只解决了「收」，没有地方「看」——这一页就是那份清单。
+     * 图标直接用 [R.drawable.ic_favorite]（播放页已收藏态的实心爱心，24dp），
+     * 抽屉里由 `DrawerPanelController` 统一 tint，不需要另做一套抽屉专用图标。
+     *
+     * [showsCount] = false：抽屉条目的计数目前只由 `DrawerPanelController.updateLibrary`
+     * 按曲库四项（歌曲 / 专辑 / 艺术家 / 文件夹）填，收藏数不在那条链路上；
+     * 打开计数只会露出一个永远空着的格子。收藏数改由本页的页头副标题给出。
+     */
+    FAVORITES(
+        labelRes = R.string.drawer_favorites,
+        iconRes = R.drawable.ic_favorite,
+        group = DrawerGroup.LIBRARY,
+        available = true,
+        showsCount = false,
+    ),
+
     // ---------------------------------------------------------------- 在线
     ONLINE(
         labelRes = R.string.drawer_online,
@@ -126,9 +147,9 @@ enum class Destination(
     ),
 
     /**
-     * 播放页。故意放在 9 条之后并且 [shownInDrawer] = false：
+     * 播放页。故意放在 10 条之后并且 [shownInDrawer] = false：
      * 它不是抽屉条目，而是「点了歌之后去哪儿」的目的地。
-     * 放在最后也保证前面 9 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
+     * 放在最后也保证前面 10 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
      */
     PLAYER(
         labelRes = R.string.playing_now,

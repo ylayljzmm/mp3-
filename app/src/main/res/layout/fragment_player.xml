@@ -367,12 +367,11 @@
                             tools:text="1.0x" />
                     </LinearLayout>
 
-                    <!-- 第 4 格：音效（本期置灰 + Toast） -->
+                    <!-- 第 4 格：音效（均衡器面板） -->
                     <LinearLayout
                         android:id="@+id/btnActionSound"
                         android:layout_width="@dimen/player_action_cell_width"
                         android:layout_height="match_parent"
-                        android:alpha="0.5"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"

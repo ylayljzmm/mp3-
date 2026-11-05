@@ -29,6 +29,7 @@ import com.suisheng.player.ui.AboutFragment
 import com.suisheng.player.ui.AppThemeManager
 import com.suisheng.player.ui.Destination
 import com.suisheng.player.ui.DrawerPanelController
+import com.suisheng.player.ui.FavoriteFragment
 import com.suisheng.player.ui.GroupedLibraryFragment
 import com.suisheng.player.ui.ImmersiveHelper
 import com.suisheng.player.ui.LocalPlaylistFragment
@@ -49,7 +50,7 @@ import kotlinx.coroutines.withContext
 /**
  * 主界面。导航是「左侧抽屉 + Fragment 事务 + 一条全局页头」：
  *
- * - 抽屉里是 9 条真正的目的地（歌曲 / 专辑 / 艺术家 / 文件夹 / 在线 / 电台 / 播客 /
+ * - 抽屉里是 10 条真正的目的地（歌曲 / 专辑 / 艺术家 / 文件夹 / 收藏 / 在线 / 电台 / 播客 /
  *   设置 / 关于）。原来的「首页」已经拆掉，它内部的 4 个分区标签各自变成了条目；
  * - 页面之间用 Fragment 事务（`replace`）切换，不再保留常驻 Fragment；
  * - 页面切换走**显式目的地栈** [destStack]：从抽屉跳页也会入栈，所以「连跳三页」
@@ -378,6 +379,7 @@ class MainActivity : AppCompatActivity(), MainHost {
         Destination.ALBUMS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ALBUM)
         Destination.ARTISTS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.ARTIST)
         Destination.FOLDERS -> GroupedLibraryFragment.newInstance(GroupedLibraryFragment.Grouping.FOLDER)
+        Destination.FAVORITES -> FavoriteFragment()
         Destination.ONLINE -> OnlineMusicFragment()
         Destination.RADIO -> RadioFragment()
         Destination.PODCAST -> PodcastFragment()
@@ -576,6 +578,9 @@ class MainActivity : AppCompatActivity(), MainHost {
         when (fragment) {
             is LocalPlaylistFragment -> fragment.refreshFromHost()
             is GroupedLibraryFragment -> fragment.refreshFromHost()
+            // 收藏页的列表是「曲库 ∩ 收藏」，曲库变了（扫描完成 / 隐藏文件夹）它也得重算；
+            // 同理它自己长按取消收藏之后也调这个方法刷新自己。
+            is FavoriteFragment -> fragment.refreshFromHost()
             is OnlineMusicFragment -> fragment.refreshLibrary()
             else -> Unit
         }

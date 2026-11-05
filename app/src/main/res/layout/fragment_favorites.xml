@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  收藏页（抽屉「媒体库」组第 5 条，排在「文件夹」之后）。
+
+  页头（标题「收藏」+ 左上角返回/菜单）由 activity_main 的全局页头统一提供，
+  这一页只有两样东西：歌曲列表 + 空态。刻意不放搜索框、不放排序：
+  收藏通常是个几十首的小集合，加筛选器反而把唯一的内容挤下去了。
+
+  高度用「0dp + weight = 1」让列表与空态**互斥地**占满剩余空间：两者都设 weight，
+  但只有一个可见（GONE 的 View 不参与权重分配），所以永远是整屏高度，不会出现
+  「空态挤在列表下面」。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/favoriteList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:scrollbars="vertical" />
+
+    <LinearLayout
+        android:id="@+id/emptyState"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/emptyTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/favorites_empty_title"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/emptyHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/favorites_empty_hint"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

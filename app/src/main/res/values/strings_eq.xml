@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  音效 / 均衡器文案（功能行第 4 格）。
+
+  刻意单独成文件：res/values/strings.xml 里已有 200 多条文案，改它容易和并行改动冲突。
+  重名会直接编译失败，所以下面每个 name 都先 grep 过 res/values/strings*.xml（无 eq_ 前缀重名）。
+-->
+<resources>
+
+    <!-- 面板标题与提示 -->
+    <string name="eq_title">音效</string>
+    <string name="eq_hint">均衡器在部分设备上不可用</string>
+    <string name="eq_unsupported">当前设备不支持音效</string>
+
+    <!-- 预设 -->
+    <string name="eq_preset_flat">平直</string>
+    <string name="eq_preset_pop">流行</string>
+    <string name="eq_preset_rock">摇滚</string>
+    <string name="eq_preset_classical">古典</string>
+    <string name="eq_preset_vocal">人声</string>
+    <string name="eq_preset_bass">低音</string>
+    <string name="eq_custom">自定义</string>
+
+    <!-- 5 个 UI 频段的中心频率标签 -->
+    <string name="eq_band_60">60Hz</string>
+    <string name="eq_band_230">230Hz</string>
+    <string name="eq_band_910">910Hz</string>
+    <string name="eq_band_3600">3.6kHz</string>
+    <string name="eq_band_14000">14kHz</string>
+
+</resources>

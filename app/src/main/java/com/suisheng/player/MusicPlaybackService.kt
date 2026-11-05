@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.MediaStyleNotificationHelper
+import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.OnlineMusicApi
 import com.suisheng.player.data.PlaylistCache
 import com.suisheng.player.data.RssFeedRepository
@@ -35,6 +36,7 @@ import com.suisheng.player.lrc.LrcParser
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
+import com.suisheng.player.playback.AudioEffectController
 import com.suisheng.player.playback.CarPlaylistPlayer
 import com.suisheng.player.playback.MediaControlRecoveryPolicy
 import com.suisheng.player.playback.PlaybackStateHolder
@@ -51,6 +53,16 @@ import kotlinx.coroutines.withContext
 
 class MusicPlaybackService : MediaSessionService() {
     private var exoPlayer: ExoPlayer? = null
+
+    /**
+     * 生效中的 audio session id（`AudioManager.generateAudioSessionId()` 分配，并已
+     * `ExoPlayer.setAudioSessionId()` 设给播放器）。0 = 没拿到，此时放弃音效。
+     */
+    private var audioSessionId: Int = 0
+
+    /** 均衡器 / 低音增强控制器；只在第一次收到 [ACTION_APPLY_EQ] 时按需构造。 */
+    private var audioEffects: AudioEffectController? = null
+
     private var sessionPlayer: CarPlaylistPlayer? = null
     private var mediaSession: MediaSession? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -161,6 +173,19 @@ class MusicPlaybackService : MediaSessionService() {
                     }
                 })
             }
+            // 音效（均衡器）要挂到 ExoPlayer 的实际输出上，就必须共用同一个 audio session id：
+            // 先让系统分配一个，再交给播放器。拿不到（0）就放弃音效 —— 播放本身不受影响。
+            audioSessionId = runCatching {
+                getSystemService(AudioManager::class.java)?.generateAudioSessionId() ?: 0
+            }.getOrDefault(0)
+            if (audioSessionId != 0) {
+                // media3 1.2.1 的 ExoPlayer 接口有 setAudioSessionId(int)
+                //（与已有的 ExoPlayer.Builder / DefaultRenderersFactory 同级，都是 @UnstableApi 用法）
+                runCatching { exoPlayer?.setAudioSessionId(audioSessionId) }
+            }
+            // 播放器一就绪就把落盘的音效套用一次：否则「上次设好的 EQ」要等用户再点开面板
+            // 才会生效，杀进程重进后第一首歌就没有音效。
+            applyEqualizer()
             // Establish the media-session and hardware-button route before the
             // first foreground notification is built. This prevents a head unit
             // from seeing an ordinary notification first and assigning the
@@ -289,6 +314,7 @@ class MusicPlaybackService : MediaSessionService() {
                 removeFromQueue(cmd.getIntExtra(EXTRA_INDEX, -1))
             }
             ACTION_QUEUE_CLEAR -> clearQueue()
+            ACTION_APPLY_EQ -> applyEqualizer()
         }
         return if (playlist.isNotEmpty()) START_STICKY else START_NOT_STICKY
     }
@@ -296,6 +322,7 @@ class MusicPlaybackService : MediaSessionService() {
     private fun requiresForeground(action: String?): Boolean {
         return when (action) {
             ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP,
+            ACTION_APPLY_EQ,
             ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR -> false
             else -> true
         }
@@ -852,6 +879,23 @@ class MusicPlaybackService : MediaSessionService() {
         updateNotification(null)
     }
 
+    // ------------------------------------------------------------ 音效（期 5）
+
+    /**
+     * 把 [EqSettings] 的当前值施加到系统音效上。
+     *
+     * 三点约定：
+     * - `audioSessionId == 0`（这台设备分配不出会话）→ 直接返回，什么都不做；
+     * - 控制器**懒创建**：第一次收到 [ACTION_APPLY_EQ] 才 `new AudioEffectController(...)`，
+     *   之后复用同一个（每次都重建 `Equalizer` 会闪断声音）；
+     * - 控制器内部所有系统调用都已经 `runCatching` 兜住，设备不支持只是降级，不会崩。
+     */
+    private fun applyEqualizer() {
+        if (audioSessionId == 0) return
+        val controller = audioEffects ?: AudioEffectController(audioSessionId).also { audioEffects = it }
+        controller.apply(EqSettings(this))
+    }
+
     /** 队列变动后落盘（与 `persistSongLrcPath` 同一条链路，只是多带了当前媒体库）。 */
     private fun persistQueue() {
         val snapshot = playlist
@@ -942,6 +986,9 @@ class MusicPlaybackService : MediaSessionService() {
         releaseAudioFocus()
         unregisterMediaButtonReceiver()
         releaseMediaSession()
+        // 音效句柄必须比播放器先放：Equalizer 挂在 session 上，播放器先死会让它变成僵尸句柄
+        audioEffects?.release()
+        audioEffects = null
         runCatching { exoPlayer?.release() }
         exoPlayer = null
         foregroundStarted = false
@@ -1010,6 +1057,8 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_QUEUE_REMOVE = "queue_remove"
         /** 队列清空：无参数，清空列表 + 停播 + 删除落盘队列。 */
         const val ACTION_QUEUE_CLEAR = "queue_clear"
+        /** 音效（均衡器）设置变更：无参数，服务读 `EqSettings` 后重新施加到系统音效。不拉前台。 */
+        const val ACTION_APPLY_EQ = "apply_eq"
         const val ACTION_STOP = "stop"
         const val EXTRA_INDEX = "index"
         const val EXTRA_SEEK = "seek"

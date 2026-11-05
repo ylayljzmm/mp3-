@@ -21,6 +21,7 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
 import com.suisheng.player.MusicPlaybackService
 import com.suisheng.player.R
+import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.FavoriteStore
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.DialogLyricSearchBinding
@@ -28,6 +29,7 @@ import com.suisheng.player.databinding.FragmentPlayerBinding
 import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
+import com.suisheng.player.playback.AudioEffectController
 import com.suisheng.player.playback.PlaybackStateHolder
 import kotlin.math.max
 
@@ -53,6 +55,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /** 本地收藏（`filesDir/favorites.json`）；首次用到时才创建，避免 onCreateView 里多一次 IO。 */
     private val favorites by lazy { FavoriteStore(requireContext()) }
+
+    /** 音效（均衡器）设置（独立 prefs 文件 `eq_settings`），同样懒创建。 */
+    private val eqSettings by lazy { EqSettings(requireContext()) }
 
     private var userSeeking = false
 
@@ -155,7 +160,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             chrome.toggleFullLyrics()
         }
         binding.btnActionFavorite.setOnClickListener { toggleFavorite() }
-        binding.btnActionSound.setOnClickListener { toastComingSoon() }
+        // 第 4 格：音效（均衡器面板）
+        binding.btnActionSound.setOnClickListener { openEqPanel() }
         binding.btnActionSpeed.setOnClickListener { openSpeedPanel() }
     }
 
@@ -566,6 +572,44 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
+    // ---------------------------------------------------------------- 音效
+
+    /**
+     * 功能行第 4 格：弹出音效（均衡器）面板。
+     *
+     * 面板就地改 [eqSettings] 这份实例（setter 同时落盘），回调里只需要**通知服务**重新施加。
+     *
+     * `supported` 取 [AudioEffectController.lastKnownSupported]：服务里第一次施加过之后就有结论，
+     * 设备不支持时面板把滑块 / chip / 开关全置灰并提示；还没探测过（`null`）按「支持」处理，
+     * 面板照常可用，服务端静默降级。
+     */
+    private fun openEqPanel() {
+        chrome.onUserInteraction()
+        val supported = AudioEffectController.lastKnownSupported != false
+        EqPanel.show(requireContext(), eqSettings, supported = supported) { updated ->
+            // 面板已经改完内存值（同一份实例），这里只补一次落盘 + 通知服务
+            eqSettings.applyFrom(updated)
+            sendEqCommand()
+        }
+    }
+
+    /**
+     * 音效指令单独发，**不走 [sendAction]**：后者在 `PlaybackStateHolder.songs` 为空时直接
+     * Toast「没有歌曲」并 return，而音效在没歌时也应该能设（下次播放生效）。
+     *
+     * 用 `startService` 而不是 `startForegroundService`：`ACTION_APPLY_EQ` 在服务端
+     * `requiresForeground()` 返回 false、不会 `startForeground()`，而 `startForegroundService`
+     * 要求 5 秒内必须起通知，否则 ANR/异常。
+     */
+    private fun sendEqCommand() {
+        runCatching {
+            requireContext().startService(
+                Intent(requireContext(), MusicPlaybackService::class.java)
+                    .setAction(MusicPlaybackService.ACTION_APPLY_EQ)
+            )
+        }
+    }
+
     // ---------------------------------------------------------------- 播放控制
 
     private fun toggleMode() {
@@ -604,11 +648,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }.onFailure {
             Toast.makeText(requireContext(), R.string.playback_start_failed, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun toastComingSoon() {
-        chrome.onUserInteraction()
-        Toast.makeText(requireContext(), R.string.drawer_coming_soon, Toast.LENGTH_SHORT).show()
     }
 
     /** 由 `MainActivity.notifyLyricStyleChanged()` 调用（歌词字号/配色变了要重排）。 */
