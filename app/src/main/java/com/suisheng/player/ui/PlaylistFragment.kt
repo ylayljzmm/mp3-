@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.suisheng.player.R
-import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentPlaylistBinding
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -23,8 +22,6 @@ class PlaylistFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val settings = SettingsRepository(requireContext())
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
         binding.sectionPager.adapter = PlaylistSectionAdapter(this)
         binding.sectionPager.offscreenPageLimit = 4
         tabMediator = TabLayoutMediator(binding.sectionTabs, binding.sectionPager) { tab, position ->

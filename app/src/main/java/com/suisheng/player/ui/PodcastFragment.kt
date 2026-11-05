@@ -22,6 +22,7 @@ import com.suisheng.player.playback.PlaybackStateHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.material.color.MaterialColors
 
 class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
     private var _binding: FragmentPodcastBinding? = null
@@ -41,7 +42,6 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
         super.onViewCreated(view, savedInstanceState)
         val settings = SettingsRepository(requireContext())
         repo = RssFeedRepository(requireContext(), settings)
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
         binding.feedList.layoutManager = LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL, false)
         binding.feedList.adapter = FeedAdapter()
         binding.episodeList.layoutManager = LinearLayoutManager(requireContext())
@@ -175,7 +175,8 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
             val path = repo.songFromEpisode(episode).path
             val playing = path == playingPath
             holder.itemView.setBackgroundColor(
-                if (playing) requireContext().getColor(R.color.playing_highlight) else android.graphics.Color.TRANSPARENT
+                if (playing) MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh)
+                else android.graphics.Color.TRANSPARENT
             )
             holder.itemView.setOnClickListener { playEpisode(episode, position) }
         }

@@ -214,15 +214,15 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     private fun applyAppTheme() {
+        // 颜色已由 theme 在 inflate 阶段解析，这里只剩「窗口级」的两条栏色需要同步：
+        // 它们不属于任何 View，布局里的 ?attr/ 管不到。
         val palette = AppThemeManager.palette(this, settings)
-        binding.root.setBackgroundColor(palette.background)
-        AppThemeManager.applyBottomNav(binding.bottomNav, palette, dock = binding.bottomDock)
-        // API 29+ 系统会在浅色底上给导航栏加一条深色对比带，页面底部因此出现黑缝
-        // （`design/04 §3.2` 第③条）。关掉它，导航栏颜色完全由我们决定。
+        // API 29+ 系统会在浅色底上给导航栏强加一条深色对比带，页面底部出现黑缝
+        // （`design/04 §2.9` 第③条）。关掉它，导航栏颜色完全由我们决定。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-        window.navigationBarColor = palette.bottomNavBg
+        window.navigationBarColor = palette.background
         window.statusBarColor = android.graphics.Color.TRANSPARENT
     }
 

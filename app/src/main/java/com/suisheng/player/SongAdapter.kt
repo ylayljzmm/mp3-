@@ -2,13 +2,13 @@ package com.suisheng.player
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.suisheng.player.databinding.ItemSongBinding
 import com.suisheng.player.model.Song
 import com.suisheng.player.util.TimeFormat
+import com.google.android.material.color.MaterialColors
 
 class SongAdapter(
     private val onClick: (Song, Int) -> Unit,
@@ -68,7 +68,7 @@ class SongAdapter(
             val isPlaying = song.path == playingPath
             binding.playingBadge.visibility = if (isPlaying) android.view.View.VISIBLE else android.view.View.GONE
             binding.root.setBackgroundColor(
-                if (isPlaying) ContextCompat.getColor(binding.root.context, R.color.playing_highlight)
+                if (isPlaying) MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceContainerHigh)
                 else android.graphics.Color.TRANSPARENT
             )
         }

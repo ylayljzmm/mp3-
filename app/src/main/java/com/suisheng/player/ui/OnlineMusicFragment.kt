@@ -64,7 +64,6 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
         settings = SettingsRepository(requireContext())
         api = OnlineMusicApi(settings)
         library = OnlineLibraryStore(requireContext())
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
 
         songAdapter = SongAdapter(
             onClick = { song, index ->

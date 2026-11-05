@@ -22,6 +22,7 @@ import com.suisheng.player.playback.PlaybackStateHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.material.color.MaterialColors
 
 class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
     private var _binding: FragmentRadioBinding? = null
@@ -40,7 +41,6 @@ class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
         super.onViewCreated(view, savedInstanceState)
         val settings = SettingsRepository(requireContext())
         api = RadioBrowserApi(settings)
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
         binding.stationList.layoutManager = LinearLayoutManager(requireContext())
         binding.stationList.adapter = StationAdapter()
         binding.chipChinese.setOnClickListener { loadChinese() }
@@ -162,7 +162,8 @@ class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
             holder.itemView.setOnClickListener { playStation(station) }
             val playing = station.uuid == playingUuid
             holder.itemView.setBackgroundColor(
-                if (playing) requireContext().getColor(R.color.playing_highlight) else android.graphics.Color.TRANSPARENT
+                if (playing) MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh)
+                else android.graphics.Color.TRANSPARENT
             )
         }
 

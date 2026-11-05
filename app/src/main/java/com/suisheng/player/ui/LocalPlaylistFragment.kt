@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.suisheng.player.ArtistAdapter
 import com.suisheng.player.R
 import com.suisheng.player.SongAdapter
-import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentLocalPlaylistBinding
 import com.suisheng.player.model.ArtistGroup
 import com.suisheng.player.model.LibraryKind
@@ -38,8 +37,6 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val settings = SettingsRepository(requireContext())
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
         songAdapter = SongAdapter(
             onClick = { song, indexInList ->
                 val now = System.currentTimeMillis()

@@ -11,7 +11,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -24,13 +23,10 @@ import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentSettingsBinding
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
-import com.suisheng.player.model.ThemeAccent
-import com.suisheng.player.theme.NightMode
 import com.suisheng.player.update.AppUpdateInfo
 import com.suisheng.player.update.AppUpdateManager
 import com.suisheng.player.update.InstallRequest
 import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipGroup
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.android.material.slider.Slider
@@ -38,12 +34,12 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.google.android.material.color.MaterialColors
 
 class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private lateinit var settings: SettingsRepository
-    private var appThemeChipGroup: ChipGroup? = null
     private var switchBootOpenApp: SwitchMaterial? = null
     private var switchBootReturnHome: SwitchMaterial? = null
     private var switchOverlayBold: SwitchMaterial? = null
@@ -116,20 +112,12 @@ class SettingsFragment : Fragment() {
         binding.nextLineScaleSlider.value = settings.nextLineScale
         binding.maxLyricLinesSlider.value = settings.maxLyricVisualLines.toFloat()
 
-        when (settings.nightMode) {
-            NightMode.LIGHT -> binding.themeLight.isChecked = true
-            NightMode.DARK -> binding.themeDark.isChecked = true
-            // TIME_AUTO 没有独立 RadioButton（该控件当前是 gone，第 4 档的 UI 入口
-            // 留给 2c 重排设置页时统一提供），这里落到「跟随系统」以免出现三个都不选。
-            NightMode.FOLLOW_SYSTEM, NightMode.TIME_AUTO -> binding.themeSystem.isChecked = true
-        }
         when (settings.overlayPosition) {
             SettingsRepository.POSITION_TOP -> binding.posTop.isChecked = true
             SettingsRepository.POSITION_BOTTOM -> binding.posBottom.isChecked = true
             else -> binding.posCenter.isChecked = true
         }
 
-        setupAppThemeChips()
         setupLyricThemeChips()
         setupLyricFontChips()
         refreshScanPathsUi()
@@ -173,14 +161,8 @@ class SettingsFragment : Fragment() {
             settings.smoothLyrics = checked
         }
 
-        binding.themeGroup.setOnCheckedChangeListener { _, checkedId ->
-            settings.nightMode = when (checkedId) {
-                R.id.themeLight -> NightMode.LIGHT
-                R.id.themeDark -> NightMode.DARK
-                else -> NightMode.FOLLOW_SYSTEM
-            }
-            settings.applyTheme()
-            activity?.recreate()
+        binding.rowThemeEntry.setOnClickListener {
+            ThemeFragment().show(parentFragmentManager, ThemeFragment.TAG)
         }
 
         binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
@@ -234,7 +216,6 @@ class SettingsFragment : Fragment() {
             LyricsOverlayService.refresh(requireContext())
         }
 
-        AppThemeManager.applyFragmentRoot(binding.root, AppThemeManager.palette(requireContext(), settings))
     }
 
     private fun checkForUpdate() {
@@ -374,7 +355,7 @@ class SettingsFragment : Fragment() {
         val strokeWidthLabel = TextView(requireContext()).apply {
             tag = "overlay_stroke_width_label"
             text = getString(R.string.overlay_stroke_width)
-            setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+            setTextColor(MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
             textSize = 14f
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -399,55 +380,6 @@ class SettingsFragment : Fragment() {
         }
         parent.addView(strokeWidthSlider, insertAt + 3)
         overlayStrokeWidthSlider = strokeWidthSlider
-    }
-
-    private fun setupAppThemeChips() {
-        val parent = binding.themeGroup.parent as? LinearLayout ?: return
-        appThemeChipGroup?.let { parent.removeView(it) }
-        parent.children.toList().filter { it.tag == "app_theme_label" }.forEach { parent.removeView(it) }
-
-        val label = TextView(requireContext()).apply {
-            tag = "app_theme_label"
-            text = getString(R.string.app_theme)
-            setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
-            textSize = 14f
-            val top = (12 * resources.displayMetrics.density).toInt()
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = top }
-        }
-        val chipGroup = ChipGroup(requireContext()).apply {
-            isSingleSelection = true
-            chipSpacingHorizontal = (6 * resources.displayMetrics.density).toInt()
-            chipSpacingVertical = (4 * resources.displayMetrics.density).toInt()
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = (8 * resources.displayMetrics.density).toInt() }
-        }
-        val insertIndex = parent.indexOfChild(binding.themeGroup) + 1
-        parent.addView(label, insertIndex)
-        parent.addView(chipGroup, insertIndex + 1)
-        appThemeChipGroup = chipGroup
-
-        val current = settings.themeAccent
-        ThemeAccent.entries.forEach { accent ->
-            val chip = Chip(requireContext()).apply {
-                text = accent.displayName
-                isCheckable = true
-                isChecked = accent == current
-                setOnClickListener {
-                    if (accent != settings.themeAccent) {
-                        settings.themeAccent = accent
-                        // 主题在 onCreate 的 setTheme 里一次性套用，改完必须重建 Activity
-                        // 才能让已 inflate 的视图树按新 theme 重新取色（`04 §2.5`）。
-                        activity?.recreate()
-                    }
-                }
-            }
-            chipGroup.addView(chip)
-        }
     }
 
     private fun setupLyricThemeChips() {
@@ -526,7 +458,7 @@ class SettingsFragment : Fragment() {
         container.removeAllViews()
         val title = TextView(requireContext()).apply {
             text = getString(R.string.settings_online)
-            setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+            setTextColor(MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
             textSize = 18f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
@@ -543,7 +475,7 @@ class SettingsFragment : Fragment() {
             }
             val edit = TextInputEditText(requireContext()).apply {
                 setText(value)
-                setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                setTextColor(MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
                 setOnFocusChangeListener { _, hasFocus ->
                     if (!hasFocus) onSave(text?.toString().orEmpty())
                 }
