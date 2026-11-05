@@ -42,7 +42,7 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener {
                 val now = System.currentTimeMillis()
                 if (now - lastClickMs < 280) return@SongAdapter
                 lastClickMs = now
-                (activity as? MainHost)?.switchToTab(1)
+                (activity as? MainHost)?.selectDestination(Destination.PLAYER)
                 val visibleSongs = currentVisibleSongs()
                 val playIndex = visibleSongs.indexOfFirst { it.path == song.path }.takeIf { it >= 0 } ?: indexInList
                 (activity as? MainHost)?.playSongSubset(visibleSongs, playIndex, LibraryKind.MUSIC)

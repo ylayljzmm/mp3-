@@ -102,7 +102,7 @@ class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
         lastClickMs = now
         val songs = stations.map { api.songFromStation(it) }
         val index = stations.indexOfFirst { it.uuid == station.uuid }.coerceAtLeast(0)
-        (activity as? MainHost)?.switchToTab(1)
+        (activity as? MainHost)?.selectDestination(Destination.PLAYER)
         (activity as? MainHost)?.playSongSubset(songs, index, LibraryKind.RADIO)
     }
 

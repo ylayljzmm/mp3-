@@ -1,45 +1,190 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  主界面外壳（design/04 §3.5）：左侧抽屉 + 右侧内容区。
+  底部 3 tab 已移除，导航完全交给抽屉（2c-1）。
+
+  注意两点：
+  ① DrawerLayout 的 `fitsSystemWindows` 必须是 false —— 沉浸模式由 ImmersiveHelper 打开，
+     由我们自己在底部留出车机系统 Dock 的安全区（`car_dock_safe_area`），
+     不让系统再插一层 inset padding。
+  ② 抽屉面板不用 NavigationView，是「FrameLayout 包一层 LinearLayout」的纯手写结构：
+     分组标题、条目、底部三格都由代码填（`DrawerPanelController`）。
+-->
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="false">
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/bottomDock"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <!-- 内容区：首页 / 歌曲 / 在线 / 设置 全部挂在这里，由 Fragment 事务切换 -->
+    <FrameLayout
+        android:id="@+id/contentHost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="@dimen/car_dock_safe_area" />
 
-    <!-- 底部停靠区：导航栏 + 车机系统 Dock 安全区，整块同色，避免出现黑缝 -->
-    <LinearLayout
-        android:id="@+id/bottomDock"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainer"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+    <!-- 抽屉面板：左侧贴边直角、右侧 28dp 圆角（背景在 DrawerPanelController 里用
+         GradientDrawable 的 cornerRadii 画，才能做到「只有右边两角是圆的」） -->
+    <FrameLayout
+        android:id="@+id/drawerPanel"
+        android:layout_width="@dimen/drawer_width_land"
+        android:layout_height="match_parent"
+        android:layout_gravity="start">
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/bottomNav"
+        <LinearLayout
+            android:id="@+id/drawerPanelBody"
             android:layout_width="match_parent"
-            android:layout_height="72dp"
-            android:background="@drawable/bg_bottom_dock"
-            android:paddingHorizontal="24dp"
-            app:itemIconSize="28dp"
-            app:labelVisibilityMode="labeled"
-            app:menu="@menu/bottom_nav" />
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
+            <!-- ① 头部 80dp：应用图标 40dp（圆角 12dp）+ 两行文字 -->
+            <LinearLayout
+                android:id="@+id/drawerHeader"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/drawer_header_height"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:id="@+id/drawerHeaderIcon"
+                    android:layout_width="@dimen/drawer_header_icon_size"
+                    android:layout_height="@dimen/drawer_header_icon_size"
+                    android:background="@drawable/bg_drawer_header_icon"
+                    android:contentDescription="@string/app_name"
+                    android:scaleType="fitCenter"
+                    android:src="@mipmap/ic_launcher" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/drawerHeaderTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
+                        android:singleLine="true"
+                        android:text="@string/app_name"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="27sp" />
+
+                    <TextView
+                        android:id="@+id/drawerHeaderSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="17sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ② 可滚动的条目区：3 组标题 + 8 条条目由代码填 -->
+            <ScrollView
+                android:id="@+id/drawerScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:fadeScrollbars="false"
+                android:scrollbarSize="4dp"
+                android:scrollbarStyle="insideInset"
+                android:scrollbarThumbVertical="@drawable/scrollbar_drawer"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/drawerMenuContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="8dp" />
+            </ScrollView>
+
+            <!-- ③ 底部固定三格 80dp：扫描音乐 / 共 N 首 / 主题 -->
+            <LinearLayout
+                android:id="@+id/drawerBottomBar"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/drawer_bottom_bar_height"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/drawer_item_padding_horizontal"
+                android:paddingEnd="@dimen/drawer_item_padding_horizontal">
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1">
+
+                    <ImageView
+                        android:id="@+id/btnDrawerScan"
+                        android:layout_width="@dimen/drawer_bottom_pill_width"
+                        android:layout_height="@dimen/drawer_bottom_pill_height"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_drawer_pill"
+                        android:clickable="true"
+                        android:contentDescription="@string/drawer_scan"
+                        android:focusable="true"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_drawer_scan"
+                        app:tint="?attr/colorOnPrimaryContainer" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/drawerCount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:singleLine="true"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="17sp" />
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1">
+
+                    <ImageView
+                        android:id="@+id/btnDrawerTheme"
+                        android:layout_width="@dimen/drawer_bottom_pill_width"
+                        android:layout_height="@dimen/drawer_bottom_pill_height"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_drawer_pill"
+                        android:clickable="true"
+                        android:contentDescription="@string/drawer_theme"
+                        android:focusable="true"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_drawer_theme"
+                        app:tint="?attr/colorOnPrimaryContainer" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- 车机系统 Dock 安全区：面板内容不受遮挡 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/car_dock_safe_area" />
+        </LinearLayout>
+
+        <!-- 右侧 1dp 描边；上下各让出圆角半径，避免直线戳出圆角 -->
         <View
-            android:id="@+id/dockSafeArea"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/car_dock_safe_area" />
-    </LinearLayout>
+            android:id="@+id/drawerEdgeLine"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginTop="@dimen/drawer_corner_radius"
+            android:layout_marginBottom="@dimen/drawer_corner_radius"
+            android:background="?attr/colorOutlineVariant" />
+    </FrameLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

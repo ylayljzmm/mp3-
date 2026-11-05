@@ -52,6 +52,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnPrev.setOnClickListener { sendAction(MusicPlaybackService.ACTION_PREV) }
         binding.btnMode.setOnClickListener { toggleMode() }
         binding.btnLyrics.setOnClickListener { toggleLyrics() }
+        binding.btnDrawerMenu.setOnClickListener { (activity as? MainHost)?.openDrawer() }
 
         binding.progressSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {

@@ -3,13 +3,19 @@ package com.suisheng.player
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.suisheng.player.data.PlaybackBootstrap
 import com.suisheng.player.data.PlaylistCache
@@ -19,23 +25,48 @@ import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.ui.AppThemeManager
+import com.suisheng.player.ui.Destination
+import com.suisheng.player.ui.DrawerPanelController
 import com.suisheng.player.ui.ImmersiveHelper
+import com.suisheng.player.ui.LocalPlaylistFragment
 import com.suisheng.player.ui.MainHost
-import com.suisheng.player.ui.MainPagerAdapter
+import com.suisheng.player.ui.OnlineMusicFragment
 import com.suisheng.player.ui.PlayerFragment
 import com.suisheng.player.ui.PlaylistFragment
+import com.suisheng.player.ui.SettingsFragment
+import com.suisheng.player.ui.ThemeFragment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * 主界面。期 2c-1 起导航从「底部 3 tab + ViewPager2」换成「左侧抽屉 + Fragment 事务」：
+ *
+ * - 抽屉条目只有 4 条在本期真正落地（首页 / 歌曲 / 在线 / 设置），其余 4 条置灰占位；
+ * - 页面之间用 [FragmentTransaction.replace] 切换，不再保留 3 个常驻 Fragment；
+ * - 播放状态不在 Fragment 里，而在 `PlaybackStateHolder` + `MusicPlaybackService`，
+ *   所以页面被销毁重建不会打断播放。
+ */
 class MainActivity : AppCompatActivity(), MainHost {
     private lateinit var binding: ActivityMainBinding
     private lateinit var settings: SettingsRepository
+    private lateinit var drawer: DrawerPanelController
     private var musicSongs: List<Song> = emptyList()
+
+    /** 当前挂在 `contentHost` 上的页面；Fragment 被销毁重建时由 FragmentManager 负责，这里只做引用。 */
+    private var currentFragment: Fragment? = null
+    private var currentDestination: Destination = Destination.HOME
 
     private val storagePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { scanMusic() }
+
+    /** 返回键：抽屉开着就先收抽屉，收起状态下不拦截（交给系统退出）。 */
+    private val drawerBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         settings = SettingsRepository(this)
@@ -48,26 +79,8 @@ class MainActivity : AppCompatActivity(), MainHost {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.viewPager.adapter = MainPagerAdapter(this)
-        binding.viewPager.isUserInputEnabled = false
-        binding.viewPager.offscreenPageLimit = 3
+        setupDrawer(savedInstanceState)
         applyAppTheme()
-
-        binding.bottomNav.selectedItemId = R.id.nav_player
-        binding.viewPager.setCurrentItem(1, false)
-
-        binding.bottomNav.setOnItemSelectedListener { item ->
-            val index = when (item.itemId) {
-                R.id.nav_playlist -> 0
-                R.id.nav_player -> 1
-                else -> 2
-            }
-            binding.viewPager.setCurrentItem(index, false)
-            if (item.itemId != R.id.nav_player) {
-                applyAppTheme()
-            }
-            true
-        }
 
         restoreCachedLibraries(resumePlayback = false)
         requestPermissionsAndScan()
@@ -76,8 +89,6 @@ class MainActivity : AppCompatActivity(), MainHost {
     override fun onResume() {
         super.onResume()
         ImmersiveHelper.apply(this)
-        // 旧实现在这里额外回刷播放页底栏的封面取色；该链路已随主题重构移除，
-        // 底栏颜色由 applyAppTheme() 统一按主题 token 处理。
         applyAppTheme()
     }
 
@@ -86,10 +97,130 @@ class MainActivity : AppCompatActivity(), MainHost {
         if (hasFocus) ImmersiveHelper.apply(this)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_DESTINATION, currentDestination.name)
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (handleSteeringWheelKey(event)) return true
         return super.dispatchKeyEvent(event)
     }
+
+    // ---------------------------------------------------------------- 抽屉
+
+    private fun setupDrawer(savedInstanceState: Bundle?) {
+        binding.drawerLayout.setScrimColor(DRAWER_SCRIM_COLOR)
+        applyDrawerWidth()
+        drawer = DrawerPanelController(
+            activity = this,
+            binding = binding,
+            onSelect = { selectDestination(it) },
+            onScan = {
+                scanMusic { count ->
+                    if (count > 0) {
+                        Toast.makeText(this, getString(R.string.scan_done, count), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onTheme = { openThemeSettings() },
+        )
+        drawer.bind()
+
+        // 冷启动默认首页；进程被杀后重建沿用上次的目的地。未落地的条目一律回落首页。
+        currentDestination = Destination.fromName(savedInstanceState?.getString(KEY_DESTINATION))
+            ?.takeIf { it.available }
+            ?: Destination.HOME
+        if (savedInstanceState == null) {
+            showDestination(currentDestination)
+        } else {
+            // FragmentManager 已经恢复了上次的页面，这里只把引用抓回来。
+            currentFragment = supportFragmentManager.findFragmentById(R.id.contentHost)
+        }
+        drawer.select(currentDestination)
+
+        onBackPressedDispatcher.addCallback(this, drawerBackCallback)
+        binding.drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            override fun onDrawerOpened(drawerView: View) {
+                drawerBackCallback.isEnabled = true
+            }
+
+            override fun onDrawerClosed(drawerView: View) {
+                drawerBackCallback.isEnabled = false
+            }
+        })
+    }
+
+    /** 横屏 400dp，竖屏 300dp；屏宽不足 360dp 时取 0.84 × 屏宽（`design/04 §3.5`）。 */
+    private fun applyDrawerWidth() {
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val width = if (landscape) {
+            resources.getDimensionPixelSize(R.dimen.drawer_width_land)
+        } else {
+            minOf(
+                resources.getDimensionPixelSize(R.dimen.drawer_width_port),
+                (resources.displayMetrics.widthPixels * PORTRAIT_DRAWER_RATIO).toInt(),
+            )
+        }
+        val params = binding.drawerPanel.layoutParams
+        if (params.width != width) {
+            params.width = width
+            binding.drawerPanel.layoutParams = params
+        }
+    }
+
+    override fun openDrawer() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) return
+        binding.drawerLayout.openDrawer(GravityCompat.START)
+    }
+
+    override fun selectDestination(destination: Destination) {
+        if (!destination.available) {
+            // 抽屉保持打开：让用户直接改选别的，而不是「点一下什么都没发生」。
+            Toast.makeText(this, R.string.drawer_coming_soon, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val alreadyHere = destination == currentDestination
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
+        if (alreadyHere) return
+        currentDestination = destination
+        showDestination(destination)
+        drawer.select(destination)
+        applyAppTheme()
+    }
+
+    /**
+     * 切页。
+     *
+     * 用 `commit()`（异步）而不是 `commitNow()`：歌曲列表的处理顺序是
+     * 「先切到播放页、再读自己的列表算播放队列」，同步销毁会立刻把它的 `_binding` 置空。
+     */
+    private fun showDestination(destination: Destination) {
+        val fragment = createFragment(destination)
+        supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.contentHost, fragment, destination.tag)
+            .commit()
+        currentFragment = fragment
+    }
+
+    private fun createFragment(destination: Destination): Fragment = when (destination) {
+        Destination.HOME -> PlaylistFragment()
+        Destination.SONGS -> LocalPlaylistFragment()
+        Destination.ONLINE -> OnlineMusicFragment()
+        Destination.SETTINGS -> SettingsFragment()
+        // 未落地的 4 条在 selectDestination() 已被拦下，这里只是为了让 when 穷举。
+        Destination.ALBUMS, Destination.ARTISTS, Destination.FOLDERS, Destination.ABOUT ->
+            PlaylistFragment()
+    }
+
+    private fun openThemeSettings() {
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
+        if (supportFragmentManager.findFragmentByTag(ThemeFragment.TAG) != null) return
+        ThemeFragment().show(supportFragmentManager, ThemeFragment.TAG)
+    }
+
+    // ------------------------------------------------------------ 播放/扫描
 
     private fun handleSteeringWheelKey(event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) return false
@@ -115,6 +246,7 @@ class MainActivity : AppCompatActivity(), MainHost {
 
     private fun restoreCachedLibraries(resumePlayback: Boolean = true) {
         musicSongs = PlaybackBootstrap.loadCachedMusic(this)
+        drawer.updateLibrary(musicSongs)
         binding.root.post {
             refreshPlaylistFragment()
             if (!resumePlayback || PlaybackStateHolder.isPlaying) return@post
@@ -160,12 +292,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     override fun notifyLyricStyleChanged() {
-        (supportFragmentManager.findFragmentByTag("f1") as? PlayerFragment)?.refreshLyricStyle()
-    }
-
-    override fun switchToTab(index: Int) {
-        binding.viewPager.setCurrentItem(index, false)
-        binding.bottomNav.menu.getItem(index).isChecked = true
+        val fragment = currentFragment as? PlayerFragment ?: return
+        if (fragment.view == null) return
+        fragment.refreshLyricStyle()
     }
 
     override fun scanMusic(onDone: ((Int) -> Unit)?) {
@@ -173,6 +302,7 @@ class MainActivity : AppCompatActivity(), MainHost {
         // activity, so a scan started before the head unit went to sleep could resume
         // against a destroyed FragmentManager. The whole body is also guarded — a scan
         // failure must degrade to "no songs", never to a crash on launch.
+        drawer.setScanning(true)
         lifecycleScope.launch {
             val musicCount = runCatching {
                 withContext(Dispatchers.IO) {
@@ -199,6 +329,8 @@ class MainActivity : AppCompatActivity(), MainHost {
             }.onFailure {
                 android.util.Log.e("MainActivity", "post-scan refresh failed", it)
             }
+            drawer.setScanning(false)
+            drawer.updateLibrary(musicSongs)
             onDone?.invoke(musicCount)
         }
     }
@@ -210,7 +342,9 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     private fun refreshPlaylistFragment() {
-        (supportFragmentManager.findFragmentByTag("f0") as? PlaylistFragment)?.refreshFromHost()
+        val fragment = currentFragment as? PlaylistFragment ?: return
+        if (fragment.view == null) return
+        fragment.refreshFromHost()
     }
 
     private fun applyAppTheme() {
@@ -250,5 +384,16 @@ class MainActivity : AppCompatActivity(), MainHost {
         } else {
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+    }
+
+    private companion object {
+        /** 抽屉遮罩：纯黑 alpha 0.62（`design/04 §3.5`）。0x9E = 158 ≈ 255 × 0.62。 */
+        private val DRAWER_SCRIM_COLOR: Int = 0x9E000000.toInt()
+
+        /** 保存当前目的地的键，值取 [Destination.name]。 */
+        const val KEY_DESTINATION = "main_destination"
+
+        /** 竖屏抽屉宽与屏宽的比例上限（屏宽 < 360dp 时生效）。 */
+        const val PORTRAIT_DRAWER_RATIO = 0.84f
     }
 }

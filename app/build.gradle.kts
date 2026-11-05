@@ -48,6 +48,9 @@ dependencies {
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
     implementation("androidx.transition:transition:1.4.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    // 抽屉导航（期 2c-1）。Material 只是把它当传递依赖带进来，这里显式声明，
+    // 免得将来升级/裁剪 Material 时编译突然中断。
+    implementation("androidx.drawerlayout:drawerlayout:1.2.0")
     implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     implementation("androidx.media3:media3-exoplayer:1.2.1")

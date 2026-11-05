@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 抽屉头部应用图标底衬（design/04 §3.5）：40dp 方块 + 12dp 圆角。
+     API 24/25 上 `@mipmap/ic_launcher` 是圆形矢量，底衬负责给方形留出圆角；
+     API 26+ 是自适应图标，底衬被图标自身遮住，无副作用。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/colorSurfaceContainerHighest" />
+    <corners android:radius="@dimen/drawer_header_icon_corner" />
+</shape>

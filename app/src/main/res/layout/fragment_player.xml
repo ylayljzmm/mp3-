@@ -189,5 +189,28 @@
             app:layout_constraintStart_toEndOf="@id/stageCenterGuide"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <!--
+          抽屉菜单键（`design/04 §3.3` 第 1 项）：本期唯一允许动播放页的地方。
+          用约束叠在左上角、不参与左栏的垂直排布，所以下方骨架的尺寸一个都没变。
+          40dp 按钮 / 24dp 图标，距屏左与屏顶各 16dp。
+          颜色取 #F0FFFFFF 而不是 ?attr/colorOnSurface：播放页底色恒为深色
+          （封面取色，取不到时是 #FF141B24），浅色主题下 colorOnSurface 是近黑色，
+          画上去等于隐形；这里跟随本页其余 5 个控件的白色取值。
+        -->
+        <ImageButton
+            android:id="@+id/btnDrawerMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/menu"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_menu_drawer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="#F0FFFFFF" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>

@@ -28,12 +28,11 @@ object AppThemeManager {
         @ColorInt val surface: Int,
         @ColorInt val textPrimary: Int,
         @ColorInt val textSecondary: Int,
-        @ColorInt val bottomNavBg: Int,
         @ColorInt val primary: Int,
     )
 
     /**
-     * 按当前强调色取 6 个语义槽位。
+     * 按当前强调色取 5 个语义槽位。
      *
      * | 槽位 | token |
      * |---|---|
@@ -41,8 +40,9 @@ object AppThemeManager {
      * | surface | `surface_container` |
      * | textPrimary | `on_surface` |
      * | textSecondary | `on_surface_variant` |
-     * | bottomNavBg | `surface_container` |
      * | primary | `primary` |
+     *
+     * 原来的「底栏底色」槽位已随底部 3 tab 一起下线（期 2c-1 改用抽屉导航）。
      */
     fun palette(context: Context, settings: SettingsRepository): Palette {
         val accent = settings.themeAccent
@@ -51,7 +51,6 @@ object AppThemeManager {
             surface = token(context, accent, "surface_container"),
             textPrimary = token(context, accent, "on_surface"),
             textSecondary = token(context, accent, "on_surface_variant"),
-            bottomNavBg = token(context, accent, "surface_container"),
             primary = token(context, accent, "primary"),
         )
     }

@@ -91,7 +91,7 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
         if (now - lastClickMs < 280) return
         lastClickMs = now
         val songs = episodes.map { repo.songFromEpisode(it) }
-        (activity as? MainHost)?.switchToTab(1)
+        (activity as? MainHost)?.selectDestination(Destination.PLAYER)
         (activity as? MainHost)?.playSongSubset(songs, index, LibraryKind.PODCAST)
     }
 

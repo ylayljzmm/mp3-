@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 抽屉分组标题（design/04 §3.5）：28dp 高、距面板左 24dp、labelLarge 17sp、不可点。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/drawer_group_title_height"
+    android:gravity="center_vertical"
+    android:letterSpacing="0.02"
+    android:paddingStart="24dp"
+    android:paddingEnd="16dp"
+    android:singleLine="true"
+    android:textColor="?attr/colorOnSurfaceVariant"
+    android:textSize="17sp" />

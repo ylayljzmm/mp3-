@@ -1,9 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">随声</string>
-    <string name="nav_playlist">曲库</string>
-    <string name="nav_player">正在播放</string>
-    <string name="nav_settings">设置</string>
+
+    <!-- 抽屉导航（design/04 §3.5）：8 条 / 3 组 + 底部三格 -->
+    <string name="menu">菜单</string>
+    <string name="drawer_home">首页</string>
+    <string name="drawer_songs">歌曲</string>
+    <string name="drawer_albums">专辑</string>
+    <string name="drawer_artists">艺术家</string>
+    <string name="drawer_folders">文件夹</string>
+    <string name="drawer_online">在线</string>
+    <string name="drawer_settings">设置</string>
+    <string name="drawer_about">关于</string>
+    <string name="drawer_group_library">媒体库</string>
+    <string name="drawer_group_online">在线</string>
+    <string name="drawer_group_system">系统</string>
+    <string name="drawer_subtitle">Suisheng · v%1$s</string>
+    <string name="drawer_scan">扫描音乐</string>
+    <string name="drawer_theme">主题</string>
+    <string name="drawer_scanning">扫描中…</string>
+    <string name="drawer_coming_soon">即将上线</string>
     <string name="settings_update_title">应用更新</string>
     <string name="settings_update_current">当前版本 %1$s · 可直接在车机上更新</string>
     <string name="settings_update_ready">发现新版本 %1$s</string>

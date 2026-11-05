@@ -87,7 +87,7 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
                         val now = System.currentTimeMillis()
                         if (now - lastClickMs < 280) return@SongAdapter
                         lastClickMs = now
-                        (activity as? MainHost)?.switchToTab(1)
+                        (activity as? MainHost)?.selectDestination(Destination.PLAYER)
                         (activity as? MainHost)?.playSongSubset(playable, playIndex, LibraryKind.ONLINE)
                     }
                 }
@@ -249,7 +249,7 @@ class OnlineMusicFragment : Fragment(), PlaybackStateHolder.Listener {
         if (songs.isEmpty()) return
         setPlayMode(if (shuffle) PlaybackMode.SHUFFLE else PlaybackMode.ORDER)
         val index = if (shuffle) songs.indices.random() else 0
-        (activity as? MainHost)?.switchToTab(1)
+        (activity as? MainHost)?.selectDestination(Destination.PLAYER)
         (activity as? MainHost)?.playSongSubset(songs, index, LibraryKind.ONLINE)
     }
 
