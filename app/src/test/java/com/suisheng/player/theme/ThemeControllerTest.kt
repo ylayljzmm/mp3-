@@ -176,6 +176,16 @@ class ThemeControllerTest {
     }
 
     @Test
+    fun themeAccent_styleResAreUnique() {
+        val styles = ThemeAccent.entries.map { it.styleRes }
+        assertEquals(styles.size, styles.toSet().size)
+        val playerStyles = ThemeAccent.entries.map { it.playerStyleRes }
+        assertEquals(playerStyles.size, playerStyles.toSet().size)
+        // 全局样式与播放页 overlay 不能混用
+        assertTrue(styles.intersect(playerStyles.toSet()).isEmpty())
+    }
+
+    @Test
     fun themeAccent_displayNamesAreNonEmpty() {
         ThemeAccent.entries.forEach { accent ->
             assertTrue(
