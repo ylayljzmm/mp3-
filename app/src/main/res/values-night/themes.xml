@@ -13,6 +13,8 @@
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Suisheng.AlertDialog</item>
         <item name="sliderStyle">@style/Widget.Suisheng.Slider</item>
         <item name="chipStyle">@style/Widget.Suisheng.Chip</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Suisheng.ButtonToggleGroup</item>
+        <item name="materialSwitchStyle">@style/Widget.Suisheng.Switch</item>
 
         <!-- 系统栏与窗口底色：全部走 attr，切主题自动跟随 -->
         <item name="android:windowBackground">?attr/colorSurface</item>
@@ -46,12 +48,12 @@
         <item name="chipCornerRadius">18dp</item>
     </style>
 
-    <style name="Widget.Suisheng.ButtonToggleGroup" parent="Widget.Material3.Button">
+    <style name="Widget.Suisheng.ButtonToggleGroup" parent="Widget.Material3.Button.TonalButton">
         <item name="android:minHeight">56dp</item>
         <item name="android:textSize">17sp</item>
     </style>
 
-    <style name="Widget.Suisheng.Switch">
+    <style name="Widget.Suisheng.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
         <item name="android:minHeight">48dp</item>
     </style>
 
@@ -266,7 +268,7 @@
 
     <!-- ===== 10 个播放页分控 ThemeOverlay（无 parent，只覆盖 token）===== -->
     <!-- 暖琥珀 · amber -->
-    <style name="ThemeOverlay.Suisheng.Player.Amber">
+    <style name="ThemeOverlay.Suisheng.Player.Amber" parent="">
         <item name="colorPrimary">@color/tu_amber_primary</item>
         <item name="colorOnPrimary">@color/tu_amber_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_amber_primary_container</item>
@@ -286,7 +288,7 @@
     </style>
 
     <!-- 青瓷 · celadon -->
-    <style name="ThemeOverlay.Suisheng.Player.Celadon">
+    <style name="ThemeOverlay.Suisheng.Player.Celadon" parent="">
         <item name="colorPrimary">@color/tu_celadon_primary</item>
         <item name="colorOnPrimary">@color/tu_celadon_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_celadon_primary_container</item>
@@ -306,7 +308,7 @@
     </style>
 
     <!-- 深海蓝 · ocean -->
-    <style name="ThemeOverlay.Suisheng.Player.Ocean">
+    <style name="ThemeOverlay.Suisheng.Player.Ocean" parent="">
         <item name="colorPrimary">@color/tu_ocean_primary</item>
         <item name="colorOnPrimary">@color/tu_ocean_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_ocean_primary_container</item>
@@ -326,7 +328,7 @@
     </style>
 
     <!-- 朱砂 · vermilion -->
-    <style name="ThemeOverlay.Suisheng.Player.Vermilion">
+    <style name="ThemeOverlay.Suisheng.Player.Vermilion" parent="">
         <item name="colorPrimary">@color/tu_vermilion_primary</item>
         <item name="colorOnPrimary">@color/tu_vermilion_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_vermilion_primary_container</item>
@@ -346,7 +348,7 @@
     </style>
 
     <!-- 苔绿 · moss -->
-    <style name="ThemeOverlay.Suisheng.Player.Moss">
+    <style name="ThemeOverlay.Suisheng.Player.Moss" parent="">
         <item name="colorPrimary">@color/tu_moss_primary</item>
         <item name="colorOnPrimary">@color/tu_moss_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_moss_primary_container</item>
@@ -366,7 +368,7 @@
     </style>
 
     <!-- 雾紫 · violet -->
-    <style name="ThemeOverlay.Suisheng.Player.Violet">
+    <style name="ThemeOverlay.Suisheng.Player.Violet" parent="">
         <item name="colorPrimary">@color/tu_violet_primary</item>
         <item name="colorOnPrimary">@color/tu_violet_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_violet_primary_container</item>
@@ -386,7 +388,7 @@
     </style>
 
     <!-- 山茶粉 · camellia -->
-    <style name="ThemeOverlay.Suisheng.Player.Camellia">
+    <style name="ThemeOverlay.Suisheng.Player.Camellia" parent="">
         <item name="colorPrimary">@color/tu_camellia_primary</item>
         <item name="colorOnPrimary">@color/tu_camellia_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_camellia_primary_container</item>
@@ -406,7 +408,7 @@
     </style>
 
     <!-- 青铜 · bronze -->
-    <style name="ThemeOverlay.Suisheng.Player.Bronze">
+    <style name="ThemeOverlay.Suisheng.Player.Bronze" parent="">
         <item name="colorPrimary">@color/tu_bronze_primary</item>
         <item name="colorOnPrimary">@color/tu_bronze_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_bronze_primary_container</item>
@@ -426,7 +428,7 @@
     </style>
 
     <!-- 极光青 · aurora -->
-    <style name="ThemeOverlay.Suisheng.Player.Aurora">
+    <style name="ThemeOverlay.Suisheng.Player.Aurora" parent="">
         <item name="colorPrimary">@color/tu_aurora_primary</item>
         <item name="colorOnPrimary">@color/tu_aurora_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_aurora_primary_container</item>
@@ -446,7 +448,7 @@
     </style>
 
     <!-- 石墨灰 · graphite -->
-    <style name="ThemeOverlay.Suisheng.Player.Graphite">
+    <style name="ThemeOverlay.Suisheng.Player.Graphite" parent="">
         <item name="colorPrimary">@color/tu_graphite_primary</item>
         <item name="colorOnPrimary">@color/tu_graphite_on_primary</item>
         <item name="colorPrimaryContainer">@color/tu_graphite_primary_container</item>
