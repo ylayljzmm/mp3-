@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  一行歌词（design/05 §9.1）。
+
+  **当前没有被 inflate**：播放页的歌词由 `ScrollLyricView` 用 Canvas 自绘
+  （为了 8Hz 进度回调下的零 GC 与逐字渐变），不存在逐行 View 结构。
+  这份布局是 §9.1 要求落地的「一行歌词」规格单一事实来源 ——
+  三种字号的相对关系（当前行 / 相邻行 / 其余行）与行距都写在下面，
+  改歌词排版时以这里为准，`LyricRenderer.Style` 的默认值同步维护。
+
+  三种字号由代码按状态设 `textSize`（当前行 27sp → 全屏 33sp、相邻 20sp、其余 20sp），
+  这里只给基准值与占位颜色，避免与 `LyricRenderer` 里的事实值分叉。
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/lyricLineText"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:ellipsize="end"
+    android:lineSpacingMultiplier="1.72"
+    android:maxLines="3"
+    android:textColor="?attr/colorOnSurfaceVariant"
+    android:textSize="20sp"
+    tools:text="一行歌词" />
