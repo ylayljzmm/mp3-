@@ -372,13 +372,30 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     // ---------------------------------------------------------------- 倍速
 
-    // commit1 阶段：倍速链路面板尚未接线，按钮先占位提示（commit2 接上）
     private fun updateSpeedLabel() {
-        binding.labelSpeed.text = getString(R.string.speed_x, DEFAULT_SPEED_LABEL)
+        binding.labelSpeed.text = getString(R.string.speed_x, SpeedPanel.label(settings.playbackSpeed))
     }
 
     private fun openSpeedPanel() {
-        toastComingSoon()
+        chrome.onUserInteraction()
+        SpeedPanel.show(requireContext(), settings.playbackSpeed) { speed ->
+            // §12 Q3：全局记住、不随切歌重置 —— 所以写设置而不是只改播放器
+            settings.playbackSpeed = speed
+            updateSpeedLabel()
+            sendSpeed(speed)
+        }
+    }
+
+    private fun sendSpeed(speed: Float) {
+        runCatching {
+            ContextCompat.startForegroundService(
+                requireContext(),
+                Intent(requireContext(), MusicPlaybackService::class.java).apply {
+                    action = MusicPlaybackService.ACTION_SET_SPEED
+                    putExtra(MusicPlaybackService.EXTRA_SPEED, speed)
+                },
+            )
+        }
     }
 
     // ---------------------------------------------------------------- 播放控制
@@ -465,8 +482,5 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
         /** 全屏歌词行宽上限（`design/05 §7` 第三行「行宽 clamp 900dp 居中」）。 */
         const val MAX_LYRICS_WIDTH_DP = 900f
-
-        /** commit1 阶段的占位倍速文案；commit2 起由 SettingsRepository.playbackSpeed 提供。 */
-        const val DEFAULT_SPEED_LABEL = "1.0"
     }
 }

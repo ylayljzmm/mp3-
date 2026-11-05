@@ -147,7 +147,10 @@ class MusicPlaybackService : MediaSessionService() {
                 )
                 .build()
                 .apply {
-                addListener(object : Player.Listener {
+                    // 倍速是「全局记住」的（05 §12 Q3）：播放器一建好就套用当前值，
+                    // 否则重启后界面显示 1.5x 而实际还是 1.0x。
+                    runCatching { setPlaybackSpeed(settings.playbackSpeed) }
+                    addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_ENDED) playNext()
                     }
@@ -263,6 +266,11 @@ class MusicPlaybackService : MediaSessionService() {
                 val mode = PlaybackMode.entries[cmd.getIntExtra(EXTRA_MODE, 0)]
                 setPlayMode(mode)
             }
+            ACTION_SET_SPEED -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                val speed = cmd.getFloatExtra(EXTRA_SPEED, 1.0f).coerceIn(0.5f, 2.5f)
+                runCatching { exoPlayer?.setPlaybackSpeed(speed) }
+            }
             ACTION_RESUME -> resumeLast()
             ACTION_SEEK -> {
                 val cmd = intent ?: return START_NOT_STICKY
@@ -276,7 +284,7 @@ class MusicPlaybackService : MediaSessionService() {
 
     private fun requiresForeground(action: String?): Boolean {
         return when (action) {
-            ACTION_SET_MODE, ACTION_STOP -> false
+            ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP -> false
             else -> true
         }
     }
@@ -892,6 +900,7 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_NEXT = "next"
         const val ACTION_PREV = "prev"
         const val ACTION_SET_MODE = "set_mode"
+        const val ACTION_SET_SPEED = "set_speed"
         const val ACTION_RESUME = "resume"
         const val ACTION_SEEK = "seek"
         const val ACTION_RELOAD_LYRICS = "reload_lyrics"
@@ -901,6 +910,7 @@ class MusicPlaybackService : MediaSessionService() {
         const val EXTRA_LIBRARY = "library"
         const val EXTRA_PLAYLIST = "playlist"
         const val EXTRA_MODE = "mode"
+        const val EXTRA_SPEED = "speed"
         const val EXTRA_SEARCH_TITLE = "search_title"
         const val EXTRA_SEARCH_ARTIST = "search_artist"
         private const val CHANNEL_ID = "playback"

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 倍速面板（design/05 §3.4 第 3 格「弹底部倍速面板，5 档」）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp"
+        android:text="@string/speed_panel_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/speedSlowest"
+        style="@style/Player.SpeedOption"
+        android:text="0.75x" />
+
+    <TextView
+        android:id="@+id/speedNormal"
+        style="@style/Player.SpeedOption"
+        android:text="1.0x" />
+
+    <TextView
+        android:id="@+id/speedFast"
+        style="@style/Player.SpeedOption"
+        android:text="1.25x" />
+
+    <TextView
+        android:id="@+id/speedFaster"
+        style="@style/Player.SpeedOption"
+        android:text="1.5x" />
+
+    <TextView
+        android:id="@+id/speedFastest"
+        style="@style/Player.SpeedOption"
+        android:text="2.0x" />
+
+</LinearLayout>

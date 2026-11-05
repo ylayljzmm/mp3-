@@ -268,6 +268,16 @@ class SettingsRepository(context: Context) {
         }
 
     /**
+     * 播放倍速（`design/05 §12 Q3`：全局记住、不随切歌重置）。
+     *
+     * 合法区间钉在 0.5x ~ 2.5x：ExoPlayer 允许更极端的值，但车机上超出这个范围
+     * 人耳已经无法接受，夹住可以挡住脏数据把播放拖成「尖叫声」。
+     */
+    var playbackSpeed: Float
+        get() = prefs.getFloat(KEY_SPEED, 1.0f).coerceIn(0.5f, 2.5f)
+        set(value) = prefs.edit { putFloat(KEY_SPEED, value.coerceIn(0.5f, 2.5f)) }
+
+    /**
      * 解析播放页实际生效的强调色（`04 §2.6` 三条降级规则见 [ThemeController.resolvePlayerAccent]）。
      */
     fun resolvePlayerAccent(): ThemeController.PlayerAccentResolution =
@@ -437,6 +447,9 @@ class SettingsRepository(context: Context) {
         const val KEY_THEME_NIGHT_END = "theme_night_end"
         /** 文件夹浏览上次所在的绝对路径（`design/04 §3.5` 的「记忆上次层级」）。 */
         const val KEY_FOLDER_BROWSE = "folder_browse_path"
+
+        /** 播放倍速（Float，默认 1.0；`design/05 §12 Q3`）。 */
+        const val KEY_SPEED = "playback_speed"
         /** [nightStartMinuteOverride] / [nightEndMinuteOverride] 的「未设置」哨兵值。 */
         const val NO_MINUTE_OVERRIDE = -1
         const val KEY_LYRIC_THEME = "lyric_theme"
