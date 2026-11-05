@@ -193,8 +193,17 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         val key = "${song?.path}|${PlaybackStateHolder.isPlaying}|${PlaybackStateHolder.playMode}|${song?.title}|${song?.artist}"
         if (key != renderedStateKey) {
             renderedStateKey = key
-            binding.songTitle.text = song?.title ?: getString(R.string.app_name)
-            binding.songArtist.text = song?.artist ?: getString(R.string.no_songs)
+            // 无歌时不能说「随声 / 暂无歌曲\n请在设置中扫描音乐」：
+            // 歌名位显示 App 名会像 bug，而 no_songs 里带 \n、songArtist 是 singleLine，
+            // 换行会被折叠成省略号。这里给一套专门的静默态文案（冷启动默认就落播放页，
+            // 没扫描过曲库时用户第一眼看到的就是这一屏）。
+            if (song == null) {
+                binding.songTitle.setText(R.string.player_idle_title)
+                binding.songArtist.setText(R.string.player_idle_hint)
+            } else {
+                binding.songTitle.text = song.title
+                binding.songArtist.text = song.artist
+            }
             binding.btnPlayPause.setImageResource(
                 if (PlaybackStateHolder.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
             )

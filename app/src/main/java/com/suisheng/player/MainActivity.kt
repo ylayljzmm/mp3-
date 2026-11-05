@@ -58,7 +58,13 @@ class MainActivity : AppCompatActivity(), MainHost {
 
     /** 当前挂在 `contentHost` 上的页面；Fragment 被销毁重建时由 FragmentManager 负责，这里只做引用。 */
     private var currentFragment: Fragment? = null
-    private var currentDestination: Destination = Destination.HOME
+    /**
+     * 当前目的地。冷启动兜底是**播放页**，不是首页（`design/04` 的「播放页为中心」模型，
+     * 用户在期 2 方案确认时明确选过「默认落播放页」）。
+     * 播放页本身不在抽屉里（[Destination.shownInDrawer] = false），所以它只作为
+     * 「什么时候都不在别的页」时的归宿存在。
+     */
+    private var currentDestination: Destination = Destination.PLAYER
 
     /** 主题页是从哪一页进来的；返回时回到那里，而不是一律回播放页。 */
     private var themeOrigin: Destination? = null
@@ -164,10 +170,11 @@ class MainActivity : AppCompatActivity(), MainHost {
         )
         drawer.bind()
 
-        // 冷启动默认首页；进程被杀后重建沿用上次的目的地。未落地的条目一律回落首页。
+        // 冷启动落播放页；进程被杀后重建沿用上次的目的地。未落地的条目一律回落播放页。
+        // 只改 null 时的兜底 —— 存档里有值（哪怕就是 HOME）必须以存档为准。
         currentDestination = Destination.fromName(savedInstanceState?.getString(KEY_DESTINATION))
             ?.takeIf { it.available }
-            ?: Destination.HOME
+            ?: Destination.PLAYER
         // 只有「重建时正停在主题页」才需要恢复来源页；其余情况来源上下文已作废
         themeOrigin = if (currentDestination == Destination.THEME) {
             Destination.fromName(savedInstanceState?.getString(KEY_THEME_ORIGIN))
