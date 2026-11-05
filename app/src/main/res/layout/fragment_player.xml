@@ -101,9 +101,9 @@
                     android:layout_weight="1"
                     android:valueFrom="0"
                     android:valueTo="100"
-                    app:thumbColor="@color/netease_red"
+                    app:thumbColor="?attr/colorPrimary"
                     app:tickVisible="false"
-                    app:trackColorActive="@color/netease_red"
+                    app:trackColorActive="?attr/colorPrimary"
                     app:trackColorInactive="#3DFFFFFF" />
 
                 <TextView
@@ -151,7 +151,7 @@
                     android:padding="19dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_play"
-                    app:tint="@color/player_button_icon" />
+                    app:tint="?attr/colorOnPrimaryContainer" />
 
                 <ImageButton
                     android:id="@+id/btnNext"

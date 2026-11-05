@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="?attr/colorSurface"
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -16,19 +16,19 @@
         app:subtitleCentered="true"
         app:title="@string/section_local"
         app:titleCentered="true"
-        app:titleTextColor="@color/text_primary" />
+        app:titleTextColor="?attr/colorOnSurface" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="2dp"
-        app:boxBackgroundColor="@color/surface"
+        app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
         app:boxCornerRadiusBottomEnd="20dp"
         app:boxCornerRadiusBottomStart="20dp"
         app:boxCornerRadiusTopEnd="20dp"
         app:boxCornerRadiusTopStart="20dp"
-        app:boxStrokeColor="@color/netease_red"
+        app:boxStrokeColor="?attr/colorPrimary"
         app:hintEnabled="false"
         app:startIconDrawable="@android:drawable/ic_menu_search">
 
@@ -39,8 +39,8 @@
             android:hint="@string/search_hint"
             android:imeOptions="actionSearch"
             android:inputType="text"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_hint" />
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurfaceVariant" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <LinearLayout
@@ -59,8 +59,7 @@
             android:checked="true"
             android:minHeight="48dp"
             android:text="@string/filter_all"
-            app:chipBackgroundColor="@color/chip_bg"
-            app:chipStrokeColor="@color/netease_red"
+            app:chipStrokeColor="?attr/colorPrimary"
             app:chipStrokeWidth="1dp" />
 
         <com.google.android.material.chip.Chip
@@ -71,8 +70,7 @@
             android:layout_marginStart="8dp"
             android:minHeight="48dp"
             android:text="@string/filter_artists"
-            app:chipBackgroundColor="@color/chip_bg"
-            app:chipStrokeColor="@color/netease_red"
+            app:chipStrokeColor="?attr/colorPrimary"
             app:chipStrokeWidth="1dp" />
     </LinearLayout>
 
@@ -92,7 +90,7 @@
             android:checked="true"
             android:minHeight="48dp"
             android:text="@string/sort_title"
-            android:textColor="@color/text_primary" />
+            android:textColor="?attr/colorOnSurface" />
 
         <RadioButton
             android:id="@+id/sortDurationAsc"
@@ -100,7 +98,7 @@
             android:layout_height="wrap_content"
             android:minHeight="48dp"
             android:text="@string/sort_duration_asc"
-            android:textColor="@color/text_primary" />
+            android:textColor="?attr/colorOnSurface" />
 
         <RadioButton
             android:id="@+id/sortDurationDesc"
@@ -108,7 +106,7 @@
             android:layout_height="wrap_content"
             android:minHeight="48dp"
             android:text="@string/sort_duration_desc"
-            android:textColor="@color/text_primary" />
+            android:textColor="?attr/colorOnSurface" />
     </RadioGroup>
 
     <TextView
@@ -118,7 +116,7 @@
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="2dp"
         android:gravity="center"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="14sp" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -138,7 +136,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="@string/no_songs"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="16sp"
         android:visibility="gone" />
 

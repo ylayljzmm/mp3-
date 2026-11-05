@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="18sp"
             android:textStyle="bold"
             tools:text="晴天" />
@@ -34,7 +34,7 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="14sp"
             tools:text="周杰伦" />
     </LinearLayout>
@@ -44,7 +44,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="14sp"
         tools:text="4:05" />
 
@@ -53,11 +53,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:background="@color/chip_bg"
+        android:background="?attr/colorSurfaceContainerHigh"
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp"
         android:text="@string/has_lrc"
-        android:textColor="@color/netease_red"
+        android:textColor="?attr/colorPrimary"
         android:textSize="12sp"
         android:visibility="gone" />
 
@@ -67,7 +67,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:text="@string/playing_now"
-        android:textColor="@color/netease_red"
+        android:textColor="?attr/colorPrimary"
         android:textSize="13sp"
         android:visibility="gone" />
 

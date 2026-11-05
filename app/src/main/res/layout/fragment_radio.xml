@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="?attr/colorSurface"
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -12,18 +12,18 @@
         android:layout_height="wrap_content"
         android:background="@android:color/transparent"
         app:title="@string/section_radio"
-        app:titleTextColor="@color/text_primary" />
+        app:titleTextColor="?attr/colorOnSurface" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        app:boxBackgroundColor="@color/surface"
+        app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
         app:boxCornerRadiusBottomEnd="16dp"
         app:boxCornerRadiusBottomStart="16dp"
         app:boxCornerRadiusTopEnd="16dp"
         app:boxCornerRadiusTopStart="16dp"
-        app:boxStrokeColor="@color/netease_red"
+        app:boxStrokeColor="?attr/colorPrimary"
         app:hintEnabled="false"
         app:startIconDrawable="@android:drawable/ic_menu_search">
 
@@ -34,8 +34,8 @@
             android:hint="@string/radio_search_hint"
             android:imeOptions="actionSearch"
             android:inputType="text"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_hint" />
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurfaceVariant" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.chip.ChipGroup
@@ -52,8 +52,7 @@
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/radio_chinese"
-            app:chipBackgroundColor="@color/chip_bg"
-            app:chipStrokeColor="@color/netease_red"
+            app:chipStrokeColor="?attr/colorPrimary"
             app:chipStrokeWidth="1dp" />
 
         <com.google.android.material.chip.Chip
@@ -62,8 +61,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/radio_music"
-            app:chipBackgroundColor="@color/chip_bg"
-            app:chipStrokeColor="@color/netease_red"
+            app:chipStrokeColor="?attr/colorPrimary"
             app:chipStrokeWidth="1dp" />
     </com.google.android.material.chip.ChipGroup>
 
@@ -91,7 +89,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="@string/radio_empty"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:visibility="gone" />
 
 </LinearLayout>

@@ -4,10 +4,9 @@
     android:layout_width="140dp"
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
-    app:cardBackgroundColor="@color/surface"
     app:cardCornerRadius="16dp"
     app:cardElevation="4dp"
-    app:strokeColor="@color/netease_red"
+    app:strokeColor="?attr/colorPrimary"
     app:strokeWidth="0dp">
 
     <LinearLayout
@@ -19,7 +18,7 @@
             android:id="@+id/cover"
             android:layout_width="match_parent"
             android:layout_height="140dp"
-            android:background="@color/chip_bg"
+            android:background="?attr/colorSurfaceContainerHigh"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_play" />
 
@@ -31,7 +30,7 @@
             android:maxLines="2"
             android:paddingHorizontal="10dp"
             android:paddingTop="8dp"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
             android:textStyle="bold" />
 
@@ -44,7 +43,7 @@
             android:paddingHorizontal="10dp"
             android:paddingBottom="10dp"
             android:paddingTop="2dp"
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

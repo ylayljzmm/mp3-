@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="?attr/colorSurface"
     android:fitsSystemWindows="true">
 
     <androidx.viewpager2.widget.ViewPager2
@@ -20,7 +20,7 @@
         android:id="@+id/bottomDock"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/bottom_nav_bg"
+        android:background="?attr/colorSurfaceContainer"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -33,7 +33,6 @@
             android:background="@drawable/bg_bottom_dock"
             android:paddingHorizontal="24dp"
             app:itemIconSize="28dp"
-            app:itemRippleColor="@color/chip_bg"
             app:labelVisibilityMode="labeled"
             app:menu="@menu/bottom_nav" />
 
