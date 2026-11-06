@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 方案 I 歌曲页工具条 / 排序面板文案。沿用项目约定：不往并行修改的 strings*.xml 里追加。 -->
+<resources>
+    <string name="random_play">随机播放</string>
+    <string name="random_playing">随机播放：%1$s</string>
+    <string name="select">选择</string>
+    <string name="search_clear">清空搜索</string>
+    <string name="sort_panel_title">排序方式</string>
+    <string name="sort_title_az">歌名 A-Z</string>
+    <string name="sort_title_za">歌名 Z-A</string>
+    <string name="sort_artist">艺术家</string>
+    <string name="sort_album">专辑</string>
+    <string name="sort_recent">最近添加</string>
+    <string name="sort_path">文件路径</string>
+</resources>

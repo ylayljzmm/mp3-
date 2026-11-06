@@ -28,7 +28,13 @@ enum class PlaylistViewMode {
 enum class PlaylistSortOrder {
     TITLE,
     DURATION_ASC,
-    DURATION_DESC
+    DURATION_DESC,
+    // 方案 I 排序面板 8 项：追加在末尾，旧值含义不变。
+    TITLE_DESC,
+    ARTIST,
+    ALBUM,
+    RECENT,
+    PATH
 }
 
 enum class OnlineApiType {

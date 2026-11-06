@@ -1,13 +1,15 @@
 package com.suisheng.player.ui
 
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.suisheng.player.ArtistAdapter
 import com.suisheng.player.R
 import com.suisheng.player.SongAdapter
@@ -18,13 +20,14 @@ import com.suisheng.player.model.PlaylistSortOrder
 import com.suisheng.player.model.PlaylistViewMode
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
+import kotlin.random.Random
 
 /**
- * 「歌曲」目的地（原来的首页第 1 个分区，现在是抽屉里的第一条）。
+ * 「歌曲」目的地。标题由全局页头给出，页面内只有一条工具条 + 扁平列表。
  *
- * 页面自己不再有标题条：标题由全局页头给出，「歌手筛选 / 歌手详情」这类页面内部状态
- * 走页头副标题。所以本页实现 [PageBackHandler]：进了某个歌手之后，
- * 页头的返回键先把用户送回歌手列表，再按一次才离开这个目的地。
+ * 方案 I：常驻搜索框 / 筛选 chip / 排序 RadioGroup / 独立数量行全部删除；
+ * 搜索走放大镜面板，排序走 8 选项面板，随机按钮直接播其中一首（不切播放模式）。
+ * 按歌手分组的代码路径保留（[showArtistList]），只是不再有屏幕入口。
  */
 class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler {
     private var _binding: FragmentLocalPlaylistBinding? = null
@@ -63,33 +66,68 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBack
 
         binding.songList.layoutManager = LinearLayoutManager(requireContext())
         binding.songList.adapter = songAdapter
-        binding.searchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                query = s?.toString().orEmpty()
+
+        binding.btnShufflePlay.setOnClickListener { playRandomSong() }
+        binding.btnSearch.setOnClickListener { openSearchDialog() }
+        binding.btnSort.setOnClickListener { openSortPanel() }
+        // btnSelect 在 I3b 接批量操作条时启用
+        refreshFromHost()
+    }
+
+    /** 随机播其中一首：直接起播，不切换播放模式。 */
+    private fun playRandomSong() {
+        val songs = currentVisibleSongs()
+        if (songs.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val index = Random.nextInt(songs.size)
+        (activity as? MainHost)?.playSongSubset(songs, index, LibraryKind.MUSIC)
+        (activity as? MainHost)?.selectDestination(Destination.PLAYER)
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.random_playing, songs[index].title),
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    /** 搜索面板：沿用原有 query 过滤，支持清空。 */
+    private fun openSearchDialog() {
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.search_hint)
+            setText(query)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSelection(text.length)
+        }
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.search_hint)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                query = input.text?.toString().orEmpty()
                 applyFilter()
             }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        binding.chipAllSongs.setOnClickListener { selectViewMode(PlaylistViewMode.ALL_SONGS) }
-        binding.chipArtists.setOnClickListener { selectViewMode(PlaylistViewMode.BY_ARTIST) }
-        binding.sortGroup.setOnCheckedChangeListener { _, checkedId ->
-            sortOrder = when (checkedId) {
-                R.id.sortDurationAsc -> PlaylistSortOrder.DURATION_ASC
-                R.id.sortDurationDesc -> PlaylistSortOrder.DURATION_DESC
-                else -> PlaylistSortOrder.TITLE
+            .setNegativeButton(R.string.common_cancel, null)
+        if (query.isNotBlank()) {
+            dialog.setNeutralButton(R.string.search_clear) { _, _ ->
+                query = ""
+                applyFilter()
             }
+        }
+        dialog.show()
+    }
+
+    /** 8 选项排序面板：选中即时生效并更新按钮文字。 */
+    private fun openSortPanel() {
+        SortPanel.show(requireContext(), sortOrder) { order ->
+            sortOrder = order
+            binding.btnSort.setText(SortPanel.labelOf(order))
             applyFilter()
         }
-        refreshFromHost()
     }
 
     private fun selectViewMode(mode: PlaylistViewMode) {
         viewMode = mode
         selectedArtist = null
-        binding.chipAllSongs.isChecked = mode == PlaylistViewMode.ALL_SONGS
-        binding.chipArtists.isChecked = mode == PlaylistViewMode.BY_ARTIST
         updateHeader()
         applyFilter()
     }
@@ -103,7 +141,6 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBack
 
     // ------------------------------------------------------- 页面内层级（返回键）
 
-    /** 「按歌手」并且已经点进某一位歌手——这时页头的返回键要先退回歌手列表。 */
     override fun hasInnerLevel(): Boolean =
         _binding != null && viewMode == PlaylistViewMode.BY_ARTIST && selectedArtist != null
 
@@ -184,6 +221,13 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBack
 
     private fun sortSongs(list: List<Song>): List<Song> = when (sortOrder) {
         PlaylistSortOrder.TITLE -> list.sortedBy { it.title.lowercase() }
+        PlaylistSortOrder.TITLE_DESC -> list.sortedByDescending { it.title.lowercase() }
+        PlaylistSortOrder.ARTIST -> list.sortedWith(
+            compareBy<Song> { it.artist.lowercase() }.thenBy { it.title.lowercase() }
+        )
+        PlaylistSortOrder.ALBUM -> list.sortedWith(
+            compareBy<Song> { it.album.lowercase() }.thenBy { it.title.lowercase() }
+        )
         PlaylistSortOrder.DURATION_ASC -> list.sortedWith(
             compareBy<Song> { if (it.durationMs <= 0L) Long.MAX_VALUE else it.durationMs }.thenBy { it.title.lowercase() }
         )
@@ -191,15 +235,12 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBack
             compareByDescending<Song> { if (it.durationMs <= 0L) Long.MIN_VALUE else it.durationMs }
                 .thenBy { it.title.lowercase() }
         )
+        // Song 没有「添加时间」字段，用 MediaStore 的 id 降序近似最近添加
+        PlaylistSortOrder.RECENT -> list.sortedByDescending { it.id }
+        PlaylistSortOrder.PATH -> list.sortedBy { it.path.lowercase() }
     }
 
-    /**
-     * 把「当前在筛选/看谁」的状态交给页头副标题。
-     *
-     * 原来这条信息挂在 `MaterialToolbar.subtitle` 上，返回箭头则是 `navigationIcon`。
-     * 标题条删掉之后，副标题照样有（`pageSubtitle`），返回箭头由 [PageBackHandler] +
-     * [syncPageHeaderBack] 驱动，两个信息都没丢，只是搬到了全局页头。
-     */
+    /** 把「当前在筛选/看谁」的状态交给页头副标题。 */
     private fun updateHeader() {
         val subtitle = when {
             selectedArtist != null -> selectedArtist

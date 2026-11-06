@@ -1,135 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  「歌曲」页。页头（标题 + 左上角返回/菜单）由 activity_main 的全局页头统一提供，
-  这里从搜索框开始，不再挂自己的标题条。
+  「歌曲」页（方案 I）：标题由全局页头给出，页面内只留一条工具条 + 扁平列表。
+  常驻搜索框、筛选 chip 行、排序 RadioGroup、独立数量行均已删除；
+  搜索改为工具条放大镜唤起面板，排序改为 8 选项面板。
+  「选择」入口预留（visibility=gone），I3b 接批量操作条时启用。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="8dp"
-        app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
-        app:boxCornerRadiusBottomEnd="20dp"
-        app:boxCornerRadiusBottomStart="20dp"
-        app:boxCornerRadiusTopEnd="20dp"
-        app:boxCornerRadiusTopStart="20dp"
-        app:boxStrokeColor="?attr/colorPrimary"
-        app:hintEnabled="false"
-        app:startIconDrawable="@android:drawable/ic_menu_search">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/searchInput"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="@string/search_hint"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="?attr/colorOnSurfaceVariant" />
-    </com.google.android.material.textfield.TextInputLayout>
-
     <LinearLayout
+        android:id="@+id/libraryToolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="12dp"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
 
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chipAllSongs"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
+        <ImageButton
+            android:id="@+id/btnShufflePlay"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/random_play"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_mode_shuffle"
+            android:tint="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/songCountText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:checked="true"
-            android:minHeight="48dp"
-            android:text="@string/filter_all"
-            app:chipStrokeColor="?attr/colorPrimary"
-            app:chipStrokeWidth="1dp" />
+            android:layout_marginStart="4dp"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp"
+            tools:text="共 12 首" />
 
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chipArtists"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btnSearch"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_hint"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/btnSort"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:minHeight="48dp"
-            android:text="@string/filter_artists"
-            app:chipStrokeColor="?attr/colorPrimary"
-            app:chipStrokeWidth="1dp" />
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:drawableStart="@drawable/ic_sort"
+            android:drawablePadding="4dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:singleLine="true"
+            android:text="@string/sort_title_az"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/btnSelect"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:singleLine="true"
+            android:text="@string/select"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:visibility="gone" />
     </LinearLayout>
 
-    <RadioGroup
-        android:id="@+id/sortGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <RadioButton
-            android:id="@+id/sortTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:minHeight="48dp"
-            android:text="@string/sort_title"
-            android:textColor="?attr/colorOnSurface" />
-
-        <RadioButton
-            android:id="@+id/sortDurationAsc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:text="@string/sort_duration_asc"
-            android:textColor="?attr/colorOnSurface" />
-
-        <RadioButton
-            android:id="@+id/sortDurationDesc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:text="@string/sort_duration_desc"
-            android:textColor="?attr/colorOnSurface" />
-    </RadioGroup>
-
-    <TextView
-        android:id="@+id/songCountText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="2dp"
-        android:gravity="center"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="14sp" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/songList"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingHorizontal="12dp"
-        android:paddingBottom="20dp" />
+        android:layout_weight="1">
 
-    <TextView
-        android:id="@+id/emptyText"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="@string/no_songs"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="16sp"
-        android:visibility="gone" />
+        <!-- 扁平列表：行背景透明，直接铺在页面背景上（见 SongAdapter）。 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/songList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="20dp" />
+
+        <TextView
+            android:id="@+id/emptyText"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/no_songs"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="16sp"
+            android:visibility="gone" />
+    </FrameLayout>
 
 </LinearLayout>

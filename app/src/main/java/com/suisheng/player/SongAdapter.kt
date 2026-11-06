@@ -67,9 +67,16 @@ class SongAdapter(
         fun bindPlayingState(song: Song) {
             val isPlaying = song.path == playingPath
             binding.playingBadge.visibility = if (isPlaying) android.view.View.VISIBLE else android.view.View.GONE
-            binding.root.setBackgroundColor(
-                if (isPlaying) MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceContainerHigh)
-                else android.graphics.Color.TRANSPARENT
+            // 方案 I：行不再有单独背景，正在播放只靠标题颜色 + 标记区分。
+            binding.songTitle.setTextColor(
+                MaterialColors.getColor(
+                    binding.songTitle,
+                    if (isPlaying) {
+                        com.google.android.material.R.attr.colorPrimary
+                    } else {
+                        com.google.android.material.R.attr.colorOnSurface
+                    },
+                )
             )
         }
     }

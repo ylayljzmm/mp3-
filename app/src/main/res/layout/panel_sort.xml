@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 排序方式面板（方案 I 歌曲页）：8 个单选，选中态由 SortPanel 改文字颜色与字重。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp"
+        android:text="@string/sort_panel_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/sortTitleAz"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_title_az" />
+
+    <TextView
+        android:id="@+id/sortTitleZa"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_title_za" />
+
+    <TextView
+        android:id="@+id/sortArtist"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_artist" />
+
+    <TextView
+        android:id="@+id/sortAlbum"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_album" />
+
+    <TextView
+        android:id="@+id/sortDurationAsc"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_duration_asc" />
+
+    <TextView
+        android:id="@+id/sortDurationDesc"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_duration_desc" />
+
+    <TextView
+        android:id="@+id/sortRecent"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_recent" />
+
+    <TextView
+        android:id="@+id/sortPath"
+        style="@style/Player.SpeedOption"
+        android:text="@string/sort_path" />
+
+</LinearLayout>
