@@ -12,8 +12,24 @@ import com.google.android.material.color.MaterialColors
 
 class SongAdapter(
     private val onClick: (Song, Int) -> Unit,
-    private val onLongClick: ((Song, Int) -> Unit)? = null
+    private val onLongClick: ((Song, Int) -> Unit)? = null,
+    private val onSelectionToggle: ((Song) -> Unit)? = null
 ) : ListAdapter<Song, SongAdapter.SongViewHolder>(DIFF) {
+
+    /** 多选态：默认 false，收藏页 / 在线页不受影响。 */
+    var selectionMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyDataSetChanged()
+            }
+        }
+
+    var selectedPaths: Set<String> = emptySet()
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
 
     var playingPath: String? = null
         set(value) {
@@ -57,7 +73,13 @@ class SongAdapter(
             binding.songDuration.text = TimeFormat.mmss(song.durationMs)
             binding.lrcBadge.visibility = if (song.lrcPath != null) android.view.View.VISIBLE else android.view.View.GONE
             bindPlayingState(song)
-            binding.root.setOnClickListener { onClick(song, position) }
+            // 方案 I Q-3：多选态下行首显示勾选圈，点击切换选中而不起播。
+            binding.songCheck.visibility =
+                if (selectionMode) android.view.View.VISIBLE else android.view.View.GONE
+            binding.songCheck.isChecked = song.path in selectedPaths
+            binding.root.setOnClickListener {
+                if (selectionMode) onSelectionToggle?.invoke(song) else onClick(song, position)
+            }
             binding.root.setOnLongClickListener {
                 onLongClick?.invoke(song, position)
                 onLongClick != null

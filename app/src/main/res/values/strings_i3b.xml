@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 方案 I / I3b：索引轴与批量操作条文案。 -->
+<resources>
+    <string name="index_axis">字母索引</string>
+    <string name="index_no_match">没有以 %1$s 开头的歌曲</string>
+    <string name="batch_selected">已选 %1$d 首</string>
+    <string name="batch_add_queue">加入队列</string>
+    <string name="batch_favorite">收藏</string>
+    <string name="batch_remove_queue">移出队列</string>
+    <string name="batch_done">已处理 %1$d / %2$d 首</string>
+</resources>

@@ -314,6 +314,16 @@ class MusicPlaybackService : MediaSessionService() {
                 removeFromQueue(cmd.getIntExtra(EXTRA_INDEX, -1))
             }
             ACTION_QUEUE_CLEAR -> clearQueue()
+            ACTION_QUEUE_ADD -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                addToQueue(readPlaylist(cmd)?.map { it.toSong() }.orEmpty())
+            }
+            ACTION_QUEUE_REMOVE_PATHS -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                removePathsFromQueue(
+                    cmd.getStringArrayListExtra(EXTRA_PATHS)?.toHashSet().orEmpty()
+                )
+            }
             ACTION_APPLY_EQ -> applyEqualizer()
         }
         return if (playlist.isNotEmpty()) START_STICKY else START_NOT_STICKY
@@ -323,7 +333,8 @@ class MusicPlaybackService : MediaSessionService() {
         return when (action) {
             ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP,
             ACTION_APPLY_EQ,
-            ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR -> false
+            ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR,
+            ACTION_QUEUE_ADD, ACTION_QUEUE_REMOVE_PATHS -> false
             else -> true
         }
     }
@@ -876,6 +887,37 @@ class MusicPlaybackService : MediaSessionService() {
         persistQueue()
     }
 
+    /** 批量追加到队列尾：不打断播放，已在队列里的 path 跳过。 */
+    private fun addToQueue(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val existing = playlist.map { it.path }.toHashSet()
+        val fresh = songs.filterNot { it.path in existing }
+        if (fresh.isEmpty()) return
+        playlist = playlist + fresh
+        refillShuffleQueue()
+        PlaybackStateHolder.notifyQueueChanged(playlist, currentIndex)
+        persistQueue()
+    }
+
+    /** 批量移出队列：只从播放队列移除，绝不删文件。 */
+    private fun removePathsFromQueue(paths: Set<String>) {
+        if (paths.isEmpty() || playlist.isEmpty()) return
+        val currentPath = playlist.getOrNull(currentIndex)?.path
+        val kept = playlist.filterNot { it.path in paths }
+        if (kept.isEmpty()) {
+            clearQueue()
+            return
+        }
+        val currentRemoved = currentPath != null && paths.contains(currentPath)
+        currentIndex = kept.indexOfFirst { it.path == currentPath }.takeIf { it >= 0 } ?: 0
+        playlist = kept
+        refillShuffleQueue()
+        // 先同步队列再起播：playSongAt 会按 PlaybackStateHolder.songs 反查索引
+        PlaybackStateHolder.notifyQueueChanged(playlist, currentIndex)
+        if (currentRemoved) playSongAt(currentIndex)
+        persistQueue()
+    }
+
     /** 清空整个播放队列并停播。 */
     private fun clearQueue() {
         playlist = emptyList()
@@ -1067,6 +1109,10 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_QUEUE_REMOVE = "queue_remove"
         /** 队列清空：无参数，清空列表 + 停播 + 删除落盘队列。 */
         const val ACTION_QUEUE_CLEAR = "queue_clear"
+        /** 批量加入队列尾：`EXTRA_PLAYLIST` = `ArrayList<SongParcelable>`，不打断播放。 */
+        const val ACTION_QUEUE_ADD = "queue_add"
+        /** 批量移出队列：`EXTRA_PATHS` = `ArrayList<String>`，只移队列不删文件。 */
+        const val ACTION_QUEUE_REMOVE_PATHS = "queue_remove_paths"
         /** 音效（均衡器）设置变更：无参数，服务读 `EqSettings` 后重新施加到系统音效。不拉前台。 */
         const val ACTION_APPLY_EQ = "apply_eq"
         const val ACTION_STOP = "stop"
@@ -1074,6 +1120,7 @@ class MusicPlaybackService : MediaSessionService() {
         const val EXTRA_SEEK = "seek"
         const val EXTRA_LIBRARY = "library"
         const val EXTRA_PLAYLIST = "playlist"
+        const val EXTRA_PATHS = "paths"
         const val EXTRA_MODE = "mode"
         const val EXTRA_SPEED = "speed"
         const val EXTRA_SEARCH_TITLE = "search_title"

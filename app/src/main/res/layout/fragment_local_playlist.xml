@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  「歌曲」页（方案 I）：标题由全局页头给出，页面内只留一条工具条 + 扁平列表。
-  常驻搜索框、筛选 chip 行、排序 RadioGroup、独立数量行均已删除；
-  搜索改为工具条放大镜唤起面板，排序改为 8 选项面板。
-  「选择」入口预留（visibility=gone），I3b 接批量操作条时启用。
+  「歌曲」页（方案 I / I3b）：全局页头给标题，页面内 = 工具条 + 扁平分组列表 + 右侧索引轴。
+  批量操作条直接写在本布局里（不用 include），避免 ViewBinding 对 <include> 生成类型的不确定性。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -88,8 +86,7 @@
             android:singleLine="true"
             android:text="@string/select"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            android:textSize="14sp" />
     </LinearLayout>
 
     <FrameLayout
@@ -97,14 +94,23 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- 扁平列表：行背景透明，直接铺在页面背景上（见 SongAdapter）。 -->
+        <!-- 扁平分组列表：行背景透明，分组头由 SongSectionDecoration 画在顶部。 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/songList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="12dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="52dp"
             android:paddingBottom="20dp" />
+
+        <com.suisheng.player.ui.AlphabetIndexBar
+            android:id="@+id/alphaIndexBar"
+            android:layout_width="40dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginEnd="4dp"
+            android:contentDescription="@string/index_axis" />
 
         <TextView
             android:id="@+id/emptyText"
@@ -115,6 +121,54 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="16sp"
             android:visibility="gone" />
+
+        <!-- Q-3 批量操作条：进入多选时从底部浮出。 -->
+        <LinearLayout
+            android:id="@+id/batchBar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_gravity="bottom"
+            android:background="?attr/colorSurfaceContainerHigh"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/batchCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="15sp"
+                tools:text="已选 3 首" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/batchAddQueue"
+                style="@style/Library.BatchAction"
+                android:text="@string/batch_add_queue" />
+
+            <TextView
+                android:id="@+id/batchFavorite"
+                style="@style/Library.BatchAction"
+                android:text="@string/batch_favorite" />
+
+            <TextView
+                android:id="@+id/batchRemoveQueue"
+                style="@style/Library.BatchAction"
+                android:text="@string/batch_remove_queue" />
+
+            <TextView
+                android:id="@+id/batchCancel"
+                style="@style/Library.BatchAction"
+                android:text="@string/common_cancel" />
+        </LinearLayout>
     </FrameLayout>
 
 </LinearLayout>

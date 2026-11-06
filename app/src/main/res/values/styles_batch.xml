@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Q-3 批量操作条按钮：触控区 >= 48dp，文字 >= 14sp（12 号文 §6.2）。 -->
+<resources>
+    <style name="Library.BatchAction" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minWidth">64dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+</resources>
