@@ -171,8 +171,14 @@ class SettingsFragment : Fragment() {
         }
 
         binding.rowThemeEntry.setOnClickListener {
-            // 两条入口（设置 → 外观 / 抽屉底部第三格）走同一条导航，主题页是普通目的地
+            // 外观与主题能力集中在主题页；抽屉底部药丸与设置页这里共用同一条导航
             (activity as? MainHost)?.openTheme()
+        }
+        binding.rowAdvancedLyrics.setOnClickListener { toggleAdvancedLyrics() }
+        binding.rowUiLyricsEntry.setOnClickListener {
+            if (binding.lyricAdvancedContent.visibility != View.VISIBLE) toggleAdvancedLyrics()
+            val scroll = binding.root as? ScrollView
+            scroll?.post { scroll.smoothScrollTo(0, binding.cardLyrics.top) }
         }
 
         binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
@@ -226,6 +232,13 @@ class SettingsFragment : Fragment() {
             LyricsOverlayService.refresh(requireContext())
         }
 
+    }
+
+    /** Q-2：20+ 项歌词设置全保留，默认折叠，点「高级歌词设置」展开。 */
+    private fun toggleAdvancedLyrics() {
+        val expanded = binding.lyricAdvancedContent.visibility == View.VISIBLE
+        binding.lyricAdvancedContent.visibility = if (expanded) View.GONE else View.VISIBLE
+        binding.txtAdvancedChevron.rotation = if (expanded) 0f else 90f
     }
 
     private fun checkForUpdate() {

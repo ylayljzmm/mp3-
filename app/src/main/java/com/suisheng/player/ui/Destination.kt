@@ -16,7 +16,7 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
 }
 
 /**
- * 抽屉里的 10 个目的地（外加 2 个不在抽屉里出现的：[PLAYER]、[THEME]）。
+ * 抽屉里的 9 个目的地（外加 3 个不在抽屉里出现的：[PLAYER]、[THEME]、[ABOUT]）。
  *
  * **首页（HOME）已经不存在了。** 它原来是个壳：自己没有任何内容，只用一个 ViewPager2
  * 挂「本地 / 在线 / 电台 / 播客」4 个分区标签页，标题还要靠分区栏去标识。
@@ -39,9 +39,9 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
  * @property group 所属分组
  * @property available 页面是否已落地；false = 条目置灰、点击提示「即将上线」
  * @property showsCount 是否在条目右侧显示计数（设计里只有歌曲/专辑/艺术家/文件夹 4 条有）
- * @property shownInDrawer 是否在抽屉里出现。只有 [PLAYER] 与 [THEME] 是 false ——
+ * @property shownInDrawer 是否在抽屉里出现。[PLAYER] / [THEME] / [ABOUT] 为 false ——
  *   「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地；
- *   主题页由抽屉底部的药丸与「设置 → 外观」直达。
+ *   主题页由「设置 → 用户界面」直达，关于页内容已并入设置页末组「关于」。
  */
 enum class Destination(
     @StringRes val labelRes: Int,
@@ -138,18 +138,24 @@ enum class Destination(
         available = true,
         showsCount = false,
     ),
+    /**
+     * 关于。方案 F/G 裁定：独立抽屉入口删除，版本 / 检查更新 / 崩溃日志合并进
+     * 设置页末组「关于」。这里保留枚举值以免破坏 `when` 穷举与旧存档状态恢复，
+     * 只是不再出现在抽屉里，因此抽屉恰好 9 条。
+     */
     ABOUT(
         labelRes = R.string.drawer_about,
         iconRes = R.drawable.ic_drawer_about,
         group = DrawerGroup.SYSTEM,
         available = true,
         showsCount = false,
+        shownInDrawer = false,
     ),
 
     /**
-     * 播放页。故意放在 10 条之后并且 [shownInDrawer] = false：
+     * 播放页。故意放在 9 条抽屉条目之后并且 [shownInDrawer] = false：
      * 它不是抽屉条目，而是「点了歌之后去哪儿」的目的地。
-     * 放在最后也保证前面 10 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
+     * 放在最后也保证前面 9 条的渲染顺序与 `design/04 §3.5` 的清单完全一致。
      */
     PLAYER(
         labelRes = R.string.playing_now,

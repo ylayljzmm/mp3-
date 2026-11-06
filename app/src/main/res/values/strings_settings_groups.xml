@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置页 6 个分组标题与「用户界面」子项文案。
+
+  与 strings_nav.xml 同样的约定：刻意单独开文件，不往并行修改中的 strings*.xml 里加，
+  避免同一时刻的合并冲突（Android 允许多个 values 文件并存）。
+-->
+<resources>
+    <string name="settings_group_ui">用户界面</string>
+    <string name="settings_group_local">本地音乐</string>
+    <string name="settings_group_lyrics">歌词</string>
+    <string name="settings_group_car">车机特性</string>
+    <string name="settings_group_about">关于</string>
+
+    <string name="settings_ui_theme">外观与主题</string>
+    <string name="settings_ui_lyrics">歌词界面设置</string>
+    <string name="settings_ui_lyrics_summary">配色、字体、字号与悬浮位置</string>
+    <string name="settings_advanced_lyrics">高级歌词设置</string>
+    <string name="settings_advanced_lyrics_summary">展开后保留全部 20+ 项原有设置</string>
+</resources>
