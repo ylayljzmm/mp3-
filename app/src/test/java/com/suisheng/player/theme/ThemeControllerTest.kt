@@ -127,11 +127,12 @@ class ThemeControllerTest {
 
     @Test
     fun nightMode_fromId_fallsBackToDefault() {
-        // 05 §5.2：出厂默认浅色
-        assertEquals(NightMode.LIGHT, NightMode.DEFAULT)
-        assertEquals(NightMode.LIGHT, NightMode.fromId(null))
-        assertEquals(NightMode.LIGHT, NightMode.fromId(""))
-        assertEquals(NightMode.LIGHT, NightMode.fromId("不存在的档位"))
+        // 方案 I「车机默认深色」裁定：出厂默认深色。
+        // 断言写死 DARK 而不是引用 DEFAULT，这样以后误改默认值时测试能真正拦住。
+        assertEquals(NightMode.DARK, NightMode.DEFAULT)
+        assertEquals(NightMode.DARK, NightMode.fromId(null))
+        assertEquals(NightMode.DARK, NightMode.fromId(""))
+        assertEquals(NightMode.DARK, NightMode.fromId("不存在的档位"))
     }
 
     @Test
