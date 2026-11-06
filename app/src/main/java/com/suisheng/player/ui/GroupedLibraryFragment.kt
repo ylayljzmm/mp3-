@@ -285,7 +285,7 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
     }
 
     /**
-     * 长按文件夹 → 确认后隐藏（参考 SaltPlayer 的做法）。
+     * 长按文件夹 → 确认后隐藏整棵子树。
      *
      * 隐藏的粒度是**整棵子树**：`LibraryGrouper` 的文件夹条目本来就带着整个子目录的歌，
      * 所以确认框里报的 `group.songs.size` 就是「这次会一起消失多少首」，用户不必猜。
