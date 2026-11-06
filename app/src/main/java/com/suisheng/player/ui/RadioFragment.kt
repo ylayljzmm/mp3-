@@ -142,6 +142,7 @@ class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
             val title: TextView = view.findViewById(R.id.songTitle)
             val subtitle: TextView = view.findViewById(R.id.songArtist)
             val duration: TextView = view.findViewById(R.id.songDuration)
+            val playingBadge: TextView = view.findViewById(R.id.playingBadge)
         }
 
         fun submit(list: List<RadioStation>) {
@@ -161,10 +162,15 @@ class RadioFragment : Fragment(), PlaybackStateHolder.Listener {
             holder.duration.text = if (station.bitrate > 0) "${station.bitrate}k" else "LIVE"
             holder.itemView.setOnClickListener { playStation(station) }
             val playing = station.uuid == playingUuid
-            holder.itemView.setBackgroundColor(
-                if (playing) MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh)
-                else android.graphics.Color.TRANSPARENT
+            // 方案 I：行不再有单独背景，正在播放只靠标题强调色 + 标记区分。
+            holder.title.setTextColor(
+                MaterialColors.getColor(
+                    holder.title,
+                    if (playing) com.google.android.material.R.attr.colorPrimary
+                    else com.google.android.material.R.attr.colorOnSurface
+                )
             )
+            holder.playingBadge.visibility = if (playing) View.VISIBLE else View.GONE
         }
 
         override fun getItemCount(): Int = items.size

@@ -149,6 +149,7 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
             val title: TextView = view.findViewById(R.id.songTitle)
             val subtitle: TextView = view.findViewById(R.id.songArtist)
             val duration: TextView = view.findViewById(R.id.songDuration)
+            val playingBadge: TextView = view.findViewById(R.id.playingBadge)
         }
 
         fun submit(list: List<PodcastEpisode>) {
@@ -168,10 +169,15 @@ class PodcastFragment : Fragment(), PlaybackStateHolder.Listener {
             holder.duration.text = ""
             val path = repo.songFromEpisode(episode).path
             val playing = path == playingPath
-            holder.itemView.setBackgroundColor(
-                if (playing) MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh)
-                else android.graphics.Color.TRANSPARENT
+            // 方案 I：行不再有单独背景，正在播放只靠标题强调色 + 标记区分。
+            holder.title.setTextColor(
+                MaterialColors.getColor(
+                    holder.title,
+                    if (playing) com.google.android.material.R.attr.colorPrimary
+                    else com.google.android.material.R.attr.colorOnSurface
+                )
             )
+            holder.playingBadge.visibility = if (playing) View.VISIBLE else View.GONE
             holder.itemView.setOnClickListener { playEpisode(episode, position) }
         }
 

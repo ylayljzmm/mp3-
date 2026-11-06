@@ -21,11 +21,11 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
-            app:boxCornerRadiusBottomEnd="16dp"
-            app:boxCornerRadiusBottomStart="16dp"
-            app:boxCornerRadiusTopEnd="16dp"
-            app:boxCornerRadiusTopStart="16dp"
-            app:boxStrokeColor="?attr/colorPrimary"
+            app:boxCornerRadiusBottomEnd="20dp"
+            app:boxCornerRadiusBottomStart="20dp"
+            app:boxCornerRadiusTopEnd="20dp"
+            app:boxCornerRadiusTopStart="20dp"
+            app:boxStrokeColor="?attr/colorOutline"
             app:hintEnabled="false"
             app:startIconDrawable="@android:drawable/ic_menu_search">
 
@@ -55,7 +55,7 @@
                 android:layout_height="wrap_content"
                 android:checked="true"
                 android:text="@string/online_discover"
-                app:chipStrokeColor="?attr/colorPrimary"
+                app:chipStrokeColor="?attr/colorOutline"
                 app:chipStrokeWidth="1dp" />
 
             <com.google.android.material.chip.Chip
@@ -64,7 +64,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/online_mine"
-                app:chipStrokeColor="?attr/colorPrimary"
+                app:chipStrokeColor="?attr/colorOutline"
                 app:chipStrokeWidth="1dp" />
         </com.google.android.material.chip.ChipGroup>
     </com.google.android.material.appbar.AppBarLayout>
@@ -84,12 +84,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="20dp"
                 android:layout_marginTop="8dp"
+                android:fontFamily="sans-serif-medium"
                 android:text="@string/online_charts"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textColor="?attr/colorPrimary"
+                android:textSize="16sp" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/chartList"
@@ -102,12 +102,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="20dp"
                 android:layout_marginTop="16dp"
+                android:fontFamily="sans-serif-medium"
                 android:text="@string/online_featured"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textColor="?attr/colorPrimary"
+                android:textSize="16sp" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/featuredList"
@@ -147,12 +147,12 @@
                 android:layout_weight="1"
                 android:minHeight="48dp"
                 android:text="@string/online_play_all"
-                android:textColor="?attr/colorPrimary"
+                android:textColor="?attr/colorOnSurface"
                 app:icon="@drawable/ic_play"
                 app:iconGravity="textStart"
                 app:iconPadding="8dp"
                 app:iconTint="?attr/colorPrimary"
-                app:strokeColor="?attr/colorPrimary" />
+                app:strokeColor="?attr/colorOutline" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShufflePlay"
@@ -163,12 +163,12 @@
                 android:layout_weight="1"
                 android:minHeight="48dp"
                 android:text="@string/online_shuffle_play"
-                android:textColor="?attr/colorPrimary"
+                android:textColor="?attr/colorOnSurface"
                 app:icon="@drawable/ic_mode_shuffle"
                 app:iconGravity="textStart"
                 app:iconPadding="8dp"
                 app:iconTint="?attr/colorPrimary"
-                app:strokeColor="?attr/colorPrimary" />
+                app:strokeColor="?attr/colorOutline" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnFavoritePlaylist"
@@ -182,7 +182,7 @@
                 app:icon="@android:drawable/btn_star_big_off"
                 app:iconGravity="textStart"
                 app:iconPadding="8dp"
-                app:iconTint="@android:color/white" />
+                app:iconTint="?attr/colorOnPrimary" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView

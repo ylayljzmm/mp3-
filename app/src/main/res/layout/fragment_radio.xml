@@ -15,12 +15,13 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         app:boxBackgroundColor="?attr/colorSurfaceContainerHighest"
-        app:boxCornerRadiusBottomEnd="16dp"
-        app:boxCornerRadiusBottomStart="16dp"
-        app:boxCornerRadiusTopEnd="16dp"
-        app:boxCornerRadiusTopStart="16dp"
-        app:boxStrokeColor="?attr/colorPrimary"
+        app:boxCornerRadiusBottomEnd="20dp"
+        app:boxCornerRadiusBottomStart="20dp"
+        app:boxCornerRadiusTopEnd="20dp"
+        app:boxCornerRadiusTopStart="20dp"
+        app:boxStrokeColor="?attr/colorOutline"
         app:hintEnabled="false"
         app:startIconDrawable="@android:drawable/ic_menu_search">
 
@@ -49,7 +50,7 @@
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/radio_chinese"
-            app:chipStrokeColor="?attr/colorPrimary"
+            app:chipStrokeColor="?attr/colorOutline"
             app:chipStrokeWidth="1dp" />
 
         <com.google.android.material.chip.Chip
@@ -58,7 +59,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/radio_music"
-            app:chipStrokeColor="?attr/colorPrimary"
+            app:chipStrokeColor="?attr/colorOutline"
             app:chipStrokeWidth="1dp" />
     </com.google.android.material.chip.ChipGroup>
 
