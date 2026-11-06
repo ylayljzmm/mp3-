@@ -24,6 +24,7 @@ import com.suisheng.player.model.LibraryGroup
 import com.suisheng.player.model.LibraryGrouper
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.Song
+import com.suisheng.player.util.PinyinIndex
 import java.io.File
 import kotlin.math.max
 
@@ -58,6 +59,7 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
     private val binding get() = _binding!!
     private lateinit var settings: SettingsRepository
     private lateinit var adapter: LibraryGroupAdapter
+    private var albumPositions: Map<Char, Int> = emptyMap()
 
     /** 隐藏文件夹的存储。只在这一页用到，所以不放宿主。 */
     private val hiddenStore by lazy { HiddenFolderStore(requireContext()) }
@@ -106,6 +108,21 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
         }
         binding.btnPlayFolder.setOnClickListener { playCurrentFolder() }
 
+        // Q-4：专辑页索引轴按专辑名首字母跳转；网格模式只接跳转、不画吸顶分组头
+        // （给 GRID 的组首加 top offset 会让同一行格子高度不齐）。
+        if (grouping == Grouping.ALBUM) {
+            binding.alphaIndexBar.visibility = View.VISIBLE
+            binding.alphaIndexBar.onPick = ::jumpAlbumTo
+            binding.groupList.setPaddingRelative(
+                binding.groupList.paddingStart,
+                binding.groupList.paddingTop,
+                dp(52),
+                binding.groupList.paddingBottom,
+            )
+        } else {
+            binding.alphaIndexBar.visibility = View.GONE
+        }
+
         refresh()
     }
 
@@ -125,7 +142,35 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
             Grouping.FOLDER -> folderGroups(songs)
         }
         adapter.submit(groups)
+        if (grouping == Grouping.ALBUM) rebuildAlbumIndex(groups)
         renderHeader(songs, groups)
+    }
+
+    /** 按专辑名拼音首字母建立「字母 -> 组首 position」，与歌曲页共用 PinyinIndex。 */
+    private fun rebuildAlbumIndex(groups: List<LibraryGroup>) {
+        val positions = LinkedHashMap<Char, Int>()
+        groups.forEachIndexed { index, group ->
+            val c = PinyinIndex.letterOf(group.title)
+            if (!positions.containsKey(c)) positions[c] = index
+        }
+        albumPositions = positions
+        binding.alphaIndexBar.setAvailable(positions.keys)
+    }
+
+    private fun jumpAlbumTo(letter: Char) {
+        val position = albumPositions[letter]
+        if (position == null) {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.index_no_match, letter.toString()),
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+        binding.alphaIndexBar.setSelected(letter)
+        // GridLayoutManager 继承 LinearLayoutManager，同一套定位 API
+        (binding.groupList.layoutManager as? LinearLayoutManager)
+            ?.scrollToPositionWithOffset(position, dp(6))
     }
 
     /**

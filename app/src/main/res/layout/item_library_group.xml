@@ -24,8 +24,6 @@
             android:id="@+id/cardCover"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_album_card_cover"
-            android:clipToOutline="true"
             android:contentDescription="@string/album_cover"
             android:scaleType="centerCrop" />
 
@@ -62,8 +60,22 @@
         android:singleLine="true"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="17sp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/cardYear"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/cardTitle" />
+
+    <!-- 专辑发布时间：取不到时整块 GONE，不显示 0:00 / 占位符。 -->
+    <TextView
+        android:id="@+id/cardYear"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:singleLine="true"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="15sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/cardCount"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/cardCount" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

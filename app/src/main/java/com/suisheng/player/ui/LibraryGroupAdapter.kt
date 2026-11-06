@@ -63,6 +63,13 @@ class LibraryGroupAdapter(
         holder.grid?.let { grid ->
             grid.cardTitle.text = group.title
             grid.cardCount.text = countText(group)
+            // 发布时间取组内第一首有效年份；整组都取不到就整块 GONE。
+            val year = group.songs.firstNotNullOfOrNull { song ->
+                song.year.takeIf { it in 1900..2100 }
+            }
+            grid.cardYear.text = year?.toString().orEmpty()
+            grid.cardYear.visibility =
+                if (year != null) android.view.View.VISIBLE else android.view.View.GONE
             coverLoader?.into(
                 cover = grid.cardCover,
                 letterView = grid.cardLetter,

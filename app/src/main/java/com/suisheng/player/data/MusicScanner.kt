@@ -54,7 +54,8 @@ class MusicScanner(
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.DURATION
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.YEAR
         )
         context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -72,6 +73,7 @@ class MusicScanner(
             val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
             val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            val yearCol = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             if (dataCol < 0) return emptyList()
             while (cursor.moveToNext()) {
                 val path = cursor.getString(dataCol) ?: continue
@@ -83,6 +85,10 @@ class MusicScanner(
                 val album = if (albumCol >= 0) cursor.getString(albumCol).orEmpty().trim() else ""
                 val trackDuration =
                     if (durationCol >= 0) cursor.getLong(durationCol).coerceAtLeast(0L) else 0L
+                val albumYear = if (yearCol >= 0) {
+                    // 少数 ROM 把 YEAR 存成字符串，getString + toIntOrNull 比 getInt 稳
+                    cursor.getString(yearCol)?.toIntOrNull()?.takeIf { it in 1900..2100 } ?: 0
+                } else 0
                 songs.add(
                     Song(
                         id = if (idCol >= 0) cursor.getLong(idCol) else 0L,
@@ -91,7 +97,8 @@ class MusicScanner(
                         path = path,
                         lrcPath = findLrc(path),
                         durationMs = trackDuration,
-                        album = album
+                        album = album,
+                        year = albumYear
                     )
                 )
             }

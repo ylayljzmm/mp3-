@@ -67,6 +67,16 @@
             android:paddingBottom="16dp"
             android:scrollbars="vertical" />
 
+        <!-- Q-4：专辑页索引轴（按专辑名拼音首字母跳转）；艺术家/文件夹页隐藏。 -->
+        <com.suisheng.player.ui.AlphabetIndexBar
+            android:id="@+id/alphaIndexBar"
+            android:layout_width="40dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginEnd="4dp"
+            android:contentDescription="@string/index_axis"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/emptyState"
             android:layout_width="match_parent"

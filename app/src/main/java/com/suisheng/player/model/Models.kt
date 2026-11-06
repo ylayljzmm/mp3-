@@ -13,6 +13,12 @@ data class Song(
      * 在线曲目由 `OnlineMusicApi` 填。
      */
     val album: String = "",
+    /**
+     * 专辑发布年份。本地曲库来自 MediaStore 的 `YEAR` 列；目录扫描 / SAF / 在线曲目
+     * 取不到就是 0 —— 专辑卡「获取不到的不显示」，不拿总时长或占位符冒充。
+     * 追加在末尾并给默认值，所有既有命名参数 / 位置参数构造与 Parcelable 转换都不受影响。
+     */
+    val year: Int = 0,
 )
 
 data class ArtistGroup(
