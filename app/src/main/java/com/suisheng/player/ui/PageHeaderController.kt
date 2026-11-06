@@ -12,18 +12,19 @@ import com.suisheng.player.R
  * 全局页头控制器。
  *
  * 侧边栏改版后，每个二级页共用 [com.suisheng.player.R.layout.activity_main] 里的
- * `pageHeader`：左边一格是「返回 / 菜单」二选一，中间是标题（可带一行副标题），
+ * `pageHeader`：左边一格恒为三横线菜单键，中间是标题（可带一行副标题），
  * 右边预留一个动作位。页面自己不再有标题条 —— 之前每个 `fragment_*.xml` 顶部都挂着
  * 一条 `MaterialToolbar` 或等高自定义条，同一个页面里会出现「页头一个标题 + 页面内
  * 又一个标题」的重复。
  *
- * 这个类只做一件事件：把「当前目的地 + 能不能返回」翻译成这一条页头的可视状态。
+ * 这个类只做一件事：把「当前目的地」翻译成这一条页头的可视状态。
  * 它不持有导航逻辑 —— 返回、开抽屉都通过构造参数回传给宿主。
+ * 方案 H/I 之后左上角不再有返回箭头，回退统一走系统返回键，见 [setCanGoBack]。
  *
  * @param activity 宿主 Activity，只用来 `getString(labelRes)`
  * @param root `pageHeader` 这个 View
- * @param onBack 左上角显示返回箭头时，点击做什么
- * @param onMenu 左上角显示汉堡键时，点击做什么（打开抽屉）
+ * @param onBack 保留的返回回调（当前顶栏不显示返回箭头，故不触发）
+ * @param onMenu 左上角菜单键点击做什么（打开抽屉）
  */
 class PageHeaderController(
     private val activity: Activity,
@@ -54,7 +55,8 @@ class PageHeaderController(
      * 本期不动它，所以规则放在这里，由页头自己让位。
      *
      * @param destination 当前目的地
-     * @param canGoBack true = 左上角显示返回箭头（还有上一页可退），false = 显示汉堡键
+     * @param canGoBack 保留给调用方表达「还有上一页可退」；一级页统一显示汉堡键，
+     *   该参数不再影响一级页的按钮，页内层级由 [setCanGoBack] 单独接管。
      */
     fun bind(destination: Destination, canGoBack: Boolean) {
         val hidden = destination == Destination.PLAYER || destination == Destination.THEME
@@ -62,18 +64,23 @@ class PageHeaderController(
         title.text = activity.getString(destination.labelRes)
         setSubtitle(null)
         setAction(0, null, null)
-        setCanGoBack(canGoBack)
+        // 方案 H/I 裁定：左上角恒为三横线菜单键，不因目的地栈深度或页内层级切成箭头。
+        // 两种回退都交给系统返回键（backCallback -> goBack() -> PageBackHandler -> destStack）。
+        setCanGoBack(false)
     }
 
     /**
-     * 只改左上角按钮，不动标题。
+     * 左上角按钮恒为三横线菜单键（方案 H/I 裁定）。
      *
-     * 页面内部进入/退出子层级（歌单详情、歌手详情、文件夹下钻）时用这个：
-     * 标题还是那个目的地，但「退一层」的语义要立刻反映到箭头上。
+     * 参数保留是为了兼容 `goBack()` / `refreshPageHeaderBack()` 等既有调用点，
+     * 但不再切换图标：**目的地层级与页内层级的回退统一走系统返回键** ——
+     * `MainActivity.backCallback` → `goBack()` 先问 `PageBackHandler`，再弹 `destStack`，
+     * 栈空 `finish()`，链路完整，不需要屏幕上的返回箭头。
      */
+    @Suppress("UNUSED_PARAMETER")
     fun setCanGoBack(canGoBack: Boolean) {
-        backButton.visibility = if (canGoBack) View.VISIBLE else View.GONE
-        menuButton.visibility = if (canGoBack) View.GONE else View.VISIBLE
+        backButton.visibility = View.GONE
+        menuButton.visibility = View.VISIBLE
     }
 
     /** 副标题：传 null 或空串即隐藏整行（标题保持垂直居中）。 */
@@ -111,11 +118,11 @@ class PageHeaderController(
  * 页面内部还有一层时的返回语义。
  *
  * 三个页面会实现它：歌曲页（进了某个歌手）、在线页（进了歌单详情 / 「我的」/ 搜索结果）、
- * 文件夹页（下钻到子目录）。没有这一层的时候，页头的返回键在用户眼里只有一种意思
- * ——「退一层」，可实际上它退的是**目的地**。在页面内部状态下先让页面自己消费返回，
- * 语义才对得上。
+ * 文件夹页（下钻到子目录）。方案 H/I 之后顶栏恒显菜单键，**系统返回键是唯一的回退入口**：
+ * `MainActivity.goBack()` 先让页面自己消费页内层级，再弹目的地栈。
  *
- * 实现方在进入/退出子层级后必须调用 [syncPageHeaderBack]，让页头知道该显示箭头还是汉堡。
+ * 实现方在进入/退出子层级后仍可调用 [syncPageHeaderBack]（当前为无副作用的对齐调用），
+ * 供将来需要页头提示时扩展。
  */
 interface PageBackHandler {
     /** 页面内部是否还有可退的一层。 */

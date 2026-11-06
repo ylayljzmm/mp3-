@@ -201,7 +201,7 @@ class SettingsRepository(context: Context) {
     // ---------- 主题（`design/04 §2.2` / §2.6） ----------
 
     /**
-     * 明暗档位，4 档（`04 §2.2`）。出厂默认 [NightMode.DEFAULT] = 浅色（`05 §5.2` 裁定）。
+     * 明暗档位，4 档（`04 §2.2`）。出厂默认 [NightMode.DEFAULT] = **深色**（方案 I「车机默认深色」裁定）。
      *
      * 键名带 `_v2` 是防后人误读，**不代表需要迁移**：期 2a 已把 `applicationId` 改成
      * `com.suisheng.player`，旧包名的 SharedPreferences 文件在物理上不可达，

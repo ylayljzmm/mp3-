@@ -2,8 +2,8 @@
 <!--
   迷你播放条（design/04 §3.0「迷你条只在二级页出现，64dp」）。
 
-  结构：上边缘 1dp 分隔线 + 48dp 圆角封面 + 两行文字 + 60×60 播放键。
-  整条（除播放键）可点 → 回播放页；播放键就地播放/暂停，不跳页。
+  结构：上边缘 1dp 分隔线 + 48dp 圆角封面 + 两行文字 + 上一曲 / 播放 / 下一曲三键。
+  整条（除三个按键）可点 → 回播放页；三键就地控制，不跳页。
   默认 gone：没有正在播放的歌时不留空壳（由 MiniPlayerController 决定显示）。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -69,6 +69,17 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/miniPrev"
+            android:layout_width="56dp"
+            android:layout_height="60dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/prev"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_skip_previous"
+            app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
             android:id="@+id/miniPlay"
             android:layout_width="60dp"
             android:layout_height="60dp"
@@ -77,6 +88,17 @@
             android:padding="18dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_play"
+            app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+            android:id="@+id/miniNext"
+            android:layout_width="56dp"
+            android:layout_height="60dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/next"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_skip_next"
             app:tint="?attr/colorOnSurface" />
     </LinearLayout>
 

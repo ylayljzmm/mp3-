@@ -55,8 +55,9 @@
             android:paddingStart="8dp"
             android:paddingEnd="8dp">
 
-            <!-- 返回箭头与汉堡键叠在同一格里，靠 visibility 二选一：
-                 两者尺寸、内边距、触控区完全一致，切换时标题不会左右跳动。 -->
+            <!-- 返回箭头与汉堡键叠在同一格里，尺寸 / 内边距 / 触控区完全一致。
+                 方案 H/I 裁定左上角恒为汉堡键：这里默认态即 menu 可见、back 隐藏，
+                 PageHeaderController 也只会保持这个状态，避免首帧闪出返回箭头。 -->
             <FrameLayout
                 android:layout_width="48dp"
                 android:layout_height="48dp">
@@ -70,7 +71,8 @@
                     android:padding="12dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_arrow_back"
-                    android:tint="?attr/colorOnSurface" />
+                    android:tint="?attr/colorOnSurface"
+                    android:visibility="gone" />
 
                 <ImageButton
                     android:id="@+id/btnPageMenu"
@@ -81,8 +83,7 @@
                     android:padding="12dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_menu_drawer"
-                    android:tint="?attr/colorOnSurface"
-                    android:visibility="gone" />
+                    android:tint="?attr/colorOnSurface" />
             </FrameLayout>
 
             <!-- 标题两行：主标题固定 22sp，副标题承载「共 N 首」「歌手名」「歌单名」这类

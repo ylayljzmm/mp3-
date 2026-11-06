@@ -17,7 +17,8 @@ import com.suisheng.player.util.CoverBitmap
  * 迷你播放条（`design/04 §3.0`：64dp，只在二级页出现）。
  *
  * 它补的是「抽屉取代 tab」之后丢掉的那个问题：从播放页去了别的页就回不去播放页。
- * 现在任何二级页底部都挂着这一条，点一下就回播放页，播放键则就地播放/暂停。
+ * 现在任何二级页底部都挂着这一条，点一下就回播放页；上一曲 / 播放暂停 / 下一曲
+ * 三键就地控制，不跳页。
  *
  * 播放页自己**不显示**它（沿用 03 §9）：播放页已经有整套控件，再挂一条是重复。
  *
@@ -40,7 +41,13 @@ class MiniPlayerController(
 
     fun bind() {
         binding.miniPlayer.miniPlayerBody.setOnClickListener { onOpenPlayer() }
+        binding.miniPlayer.miniPrev.setOnClickListener {
+            sendPlaybackAction(MusicPlaybackService.ACTION_PREV)
+        }
         binding.miniPlayer.miniPlay.setOnClickListener { togglePlayback() }
+        binding.miniPlayer.miniNext.setOnClickListener {
+            sendPlaybackAction(MusicPlaybackService.ACTION_NEXT)
+        }
     }
 
     /** 切页时由宿主告知：播放页要隐藏，其它页要显示（前提是有歌）。 */
@@ -99,14 +106,16 @@ class MiniPlayerController(
     }
 
     private fun togglePlayback() {
+        sendPlaybackAction(MusicPlaybackService.ACTION_TOGGLE)
+    }
+
+    /** 上一曲 / 下一曲 / 播放暂停共用一条发 Intent 的路子，和播放页走同一个 Service。 */
+    private fun sendPlaybackAction(playbackAction: String) {
         if (PlaybackStateHolder.songs.isEmpty()) return
         runCatching {
-            ContextCompat.startForegroundService(
-                activity,
-                Intent(activity, MusicPlaybackService::class.java).apply {
-                    action = MusicPlaybackService.ACTION_TOGGLE
-                },
-            )
+            val intent = Intent(activity, MusicPlaybackService::class.java)
+            intent.action = playbackAction
+            ContextCompat.startForegroundService(activity, intent)
         }
     }
 

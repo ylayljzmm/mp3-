@@ -11,7 +11,8 @@ import kotlin.math.roundToInt
 /**
  * 明暗 4 档（`design/04 §2.2`）。
  *
- * 出厂默认取 [LIGHT]（浅色）——这是 `design/05 §5.2` 对 04「默认深色」的裁定覆盖。
+ * 出厂默认取 [DARK]（深色）——车机默认深色，方案 I 裁定。
+ * 用户已保存过档位时以持久化值为准，只有全新安装 / 无值才落到 [DEFAULT]。
  *
  * @property id 持久化标识，**不可重命名**
  * @property displayName 设置页显示文案
@@ -34,8 +35,8 @@ enum class NightMode(
     ;
 
     companion object {
-        /** 出厂默认：浅色（05 §5.2 裁定）。 */
-        val DEFAULT: NightMode = LIGHT
+        /** 出厂默认：深色（方案 I「车机默认深色」裁定）。用户已保存的偏好优先。 */
+        val DEFAULT: NightMode = DARK
 
         /** 按持久化 id 解析，非法值回落 [DEFAULT]。 */
         fun fromId(id: String?): NightMode =
