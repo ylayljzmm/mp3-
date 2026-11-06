@@ -19,9 +19,9 @@
     <dimen name="player_axis_offset">8dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
     <!-- 196 + 16 + 42 + 4 + 20 + 10 + 10 + 8 + 58 + 5 + 50 = 419 ≤ 428 ✓ -->
-    <dimen name="vinyl_size">196dp</dimen>
-    <dimen name="vinyl_art">130dp</dimen>
-    <dimen name="player_gap_vinyl_title">16dp</dimen>
+    <dimen name="vinyl_size">200dp</dimen>
+    <dimen name="vinyl_art">140dp</dimen>
+    <dimen name="player_gap_vinyl_title">12dp</dimen>
     <dimen name="player_gap_title_artist">4dp</dimen>
     <dimen name="player_gap_artist_progress">10dp</dimen>
     <dimen name="player_gap_progress_transport">8dp</dimen>

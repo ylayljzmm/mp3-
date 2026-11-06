@@ -5,8 +5,6 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +13,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
@@ -110,7 +107,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             true
         }
 
-        applyPrimaryButtonTint()
         updateSpeedLabel()
         updateFavoriteUi(PlaybackStateHolder.currentSong)
         resetInteractionOnTouch(binding.root)
@@ -387,25 +383,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         val min = totalSec / 60
         val sec = totalSec % 60
         return "$min:${sec.toString().padStart(2, '0')}"
-    }
-
-    /**
-     * 78dp 主键底色：浅色模式混 20% 白（§5.3）。
-     *
-     * 直接铺 `colorPrimary` 在浅灰底上会「发闷」——M3 的 primary 是为文字/图标设计的深色调。
-     */
-    private fun applyPrimaryButtonTint() {
-        val primary = MaterialColors.getColor(
-            binding.btnPlayPause,
-            com.google.android.material.R.attr.colorPrimary,
-        )
-        val lightTheme = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_NO
-        val fill = if (lightTheme) ColorUtils.blendARGB(primary, Color.WHITE, 0.20f) else primary
-        binding.btnPlayPause.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(fill)
-        }
     }
 
     private fun renderCover(coverPath: String?) {

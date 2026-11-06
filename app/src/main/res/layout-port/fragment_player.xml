@@ -185,7 +185,7 @@
                     android:id="@+id/btnPlayPause"
                     android:layout_width="@dimen/player_transport_size"
                     android:layout_height="@dimen/player_transport_size"
-                    android:background="@drawable/bg_player_primary_button"
+                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/play"
                     android:padding="@dimen/player_transport_padding"
                     android:scaleType="fitCenter"
@@ -194,7 +194,7 @@
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/btnPrev"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:tint="?attr/colorOnPrimary" />
+                    app:tint="?attr/colorPrimary" />
 
                 <ImageButton
                     android:id="@+id/btnNext"

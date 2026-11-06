@@ -10,10 +10,10 @@
   `values/dimens.xml` 提供，三档一致。
 -->
 <resources>
-    <dimen name="vinyl_size">292dp</dimen>
+    <dimen name="vinyl_size">296dp</dimen>
     <!-- 封面直径 = 唱片 × 0.664（05 §4.1 L4），292 × 0.664 ≈ 194 -->
-    <dimen name="vinyl_art">194dp</dimen>
-    <dimen name="player_gap_vinyl_title">26dp</dimen>
+    <dimen name="vinyl_art">207dp</dimen>
+    <dimen name="player_gap_vinyl_title">22dp</dimen>
     <dimen name="player_gap_title_artist">5dp</dimen>
     <dimen name="player_gap_artist_progress">20dp</dimen>
     <dimen name="player_gap_progress_transport">14dp</dimen>

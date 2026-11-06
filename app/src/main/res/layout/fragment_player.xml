@@ -6,7 +6,7 @@
     L0 themeBackground  ?attr/colorSurface 纯色
     L1 backdropLayer    两个径向色块（BackdropView 自绘，色相往 colorPrimary 旋转 ≤12°）
     L2 scrim1 / scrim2  双层压暗（纯色 + 竖向渐变），保证任何底色上文字对比 ≥ 4.5:1
-    L3 stageRow         左右两栏：46% 中轴 / flex 歌词
+    L3 stageRow         左右两栏：46% 中轴 / flex 歌词；上下边界由共享 dimen 统一
     L4 topBar           64dp，横跨整页，叠在最上层
 
   两个刻意的取舍：
@@ -57,7 +57,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:paddingTop="@dimen/player_topbar">
+        android:paddingTop="@dimen/player_topbar"
+        android:paddingBottom="@dimen/player_pane_padding_bottom">
 
         <!-- 左栏 46%：一条 300dp 中轴，垂直居中后再整体下移 8dp（§3.1 末段） -->
         <FrameLayout
@@ -74,7 +75,7 @@
                 android:layout_marginTop="@dimen/player_axis_offset"
                 android:orientation="vertical">
 
-                <!-- 1 黑胶唱片 292 / 232 -->
+                <!-- 1 黑胶唱片：四档等比 +4dp，中心封面占比提到 0.70（环变薄） -->
                 <com.suisheng.player.ui.VinylRecordView
                     android:id="@+id/vinylRecord"
                     android:layout_width="@dimen/vinyl_size"
@@ -217,7 +218,7 @@
                         android:id="@+id/btnPlayPause"
                         android:layout_width="@dimen/player_transport_size"
                         android:layout_height="@dimen/player_transport_size"
-                        android:background="@drawable/bg_player_primary_button"
+                        android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/play"
                         android:padding="@dimen/player_transport_padding"
                         android:scaleType="fitCenter"
@@ -226,7 +227,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/btnPrev"
                         app:layout_constraintTop_toTopOf="parent"
-                        app:tint="?attr/colorOnPrimary" />
+                        app:tint="?attr/colorPrimary" />
 
                     <ImageButton
                         android:id="@+id/btnNext"
@@ -409,9 +410,9 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:paddingStart="@dimen/player_lyrics_padding_start"
-            android:paddingTop="8dp"
+            android:paddingTop="@dimen/player_pane_padding_top"
             android:paddingEnd="@dimen/player_lyrics_padding_end"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="@dimen/player_pane_padding_top" />
     </LinearLayout>
 
     <!-- L4 顶栏 64dp：左 ☰ / 全屏歌词返回箭头，右 播放队列 + 更多 -->

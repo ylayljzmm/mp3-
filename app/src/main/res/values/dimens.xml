@@ -106,10 +106,10 @@
     <dimen name="player_axis_offset">8dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
     <!-- 88 + 8 + 32 + 2 + 18 + 6 + 8 + 2 + 44 + 2 + 38 = 248 ≤ 248 ✓ -->
-    <dimen name="vinyl_size">88dp</dimen>
+    <dimen name="vinyl_size">92dp</dimen>
     <!-- 封面直径 = 唱片 × 0.664（§4.1 L4）：88 × 0.664 ≈ 58，取 60 保比例手感 -->
-    <dimen name="vinyl_art">60dp</dimen>
-    <dimen name="player_gap_vinyl_title">8dp</dimen>
+    <dimen name="vinyl_art">66dp</dimen>
+    <dimen name="player_gap_vinyl_title">4dp</dimen>
     <dimen name="player_gap_title_artist">2dp</dimen>
     <dimen name="player_gap_artist_progress">6dp</dimen>
     <dimen name="player_gap_progress_transport">2dp</dimen>
@@ -125,6 +125,12 @@
     <dimen name="player_vinyl_hole">8dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
+    <!-- 播放页两栏共享的上下边界（方案 I）：两栏同源于 stageRow 的 paddingTop
+         与这里的 paddingBottom，歌词栏上下内边距也引用 player_pane_padding_top。
+         不要再给任何一栏单独写 top / bottom 数值。 -->
+    <dimen name="player_pane_padding_top">8dp</dimen>
+    <dimen name="player_pane_padding_bottom">14dp</dimen>
+
     <dimen name="player_lyrics_padding_start">16dp</dimen>
     <dimen name="player_lyrics_padding_end">32dp</dimen>
 
