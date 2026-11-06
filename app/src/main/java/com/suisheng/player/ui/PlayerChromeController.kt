@@ -14,7 +14,7 @@ import com.suisheng.player.databinding.FragmentPlayerBinding
  * |---|---|---|---|---|
  * | [State.DUO] 双栏 | 冷启动 / 切歌 | 完整六段 | 歌词 | 显示，8s 后自动隐藏 |
  * | [State.IMMERSIVE] 沉浸 | 无操作 8s | 唱片 + 歌名（进度/控件/功能行淡出） | 歌词 | 隐藏 |
- * | [State.LYRICS_FULL] 全屏歌词 | 点封面 / 点功能行「歌词」 | GONE | 占满 | 返回箭头 |
+ * | [State.LYRICS_FULL] 全屏歌词 | 入口已按方案 I 删除，状态保留但不可达 | GONE | 占满 | 返回箭头 |
  * | [State.COVER_ONLY] 仅封面 | 长按封面 800ms | 只有唱片，放大到 340dp | GONE | 隐藏 |
  *
  * **零位移**（§7 末段）：沉浸态只改 `alpha` + `translationY(10dp)`，

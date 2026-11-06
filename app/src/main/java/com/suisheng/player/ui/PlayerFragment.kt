@@ -35,7 +35,7 @@ import kotlin.math.max
  *
  * 版式在 `fragment_player.xml` / `layout-port/fragment_player.xml` 里，
  * 四态显隐在 [PlayerChromeController]，背景色块在 [BackdropView]，黑胶在 [VinylRecordView]。
- * 本类只做三件事：**绑事件、把播放状态映射到界面、维护倍速链路**。
+ * 本类只做三件事：**绑事件、把播放状态映射到界面、维护歌曲信息与倍速链路**。
  *
  * 关键约束（都在 05 里有出处）：
  *  - 四态切换只由 [PlayerChromeController] 决定，这里不直接改 visibility；
@@ -107,7 +107,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             true
         }
 
-        updateSpeedLabel()
         updateFavoriteUi(PlaybackStateHolder.currentSong)
         resetInteractionOnTouch(binding.root)
 
@@ -145,20 +144,15 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnPlayPause.setOnClickListener { sendAction(MusicPlaybackService.ACTION_TOGGLE) }
         binding.btnNext.setOnClickListener { sendAction(MusicPlaybackService.ACTION_NEXT) }
         binding.btnPrev.setOnClickListener { sendAction(MusicPlaybackService.ACTION_PREV) }
-        binding.btnMode.setOnClickListener { toggleMode() }
-        // 第 5 位：播放队列（与顶栏 btnTopQueue 打开的是同一份队列）
-        binding.btnQueue.setOnClickListener { openQueuePanel() }
     }
 
+    /** 方案 I 功能行 5 键：播放模式 / 收藏 / 音效 / 队列 / 歌曲信息。 */
     private fun bindActionRow() {
-        binding.btnActionLyrics.setOnClickListener {
-            chrome.onUserInteraction()
-            chrome.toggleFullLyrics()
-        }
+        binding.btnMode.setOnClickListener { toggleMode() }
         binding.btnActionFavorite.setOnClickListener { toggleFavorite() }
-        // 第 4 格：音效（均衡器面板）
         binding.btnActionSound.setOnClickListener { openEqPanel() }
-        binding.btnActionSpeed.setOnClickListener { openSpeedPanel() }
+        binding.btnQueue.setOnClickListener { openQueuePanel() }
+        binding.btnActionInfo.setOnClickListener { openSongInfoPanel() }
     }
 
     private fun bindTopBar() {
@@ -176,8 +170,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     private fun bindVinyl() {
         binding.vinylRecord.onTap = {
+            // 纯歌词界面连同入口一并删除：点封面只重置沉浸计时，不再切全屏歌词。
             chrome.onUserInteraction()
-            chrome.setState(PlayerChromeController.State.LYRICS_FULL)
         }
         binding.vinylRecord.onLongPress = {
             chrome.onUserInteraction()
@@ -403,19 +397,29 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
     }.getOrNull()
 
+    /** 三态模式：图标、短标签、无障碍描述一起换。 */
     private fun updateModeUi(mode: PlaybackMode) {
-        if (mode == PlaybackMode.SHUFFLE) {
-            binding.btnMode.setImageResource(R.drawable.ic_mode_shuffle)
-            binding.btnMode.contentDescription = getString(R.string.mode_shuffle)
-        } else {
-            binding.btnMode.setImageResource(R.drawable.ic_mode_order)
-            binding.btnMode.contentDescription = getString(R.string.mode_order)
+        val (icon, shortLabel, description) = when (mode) {
+            PlaybackMode.ORDER -> Triple(
+                R.drawable.ic_mode_order, R.string.mode_short_order, R.string.mode_order
+            )
+            PlaybackMode.SHUFFLE -> Triple(
+                R.drawable.ic_mode_shuffle, R.string.mode_short_shuffle, R.string.mode_shuffle
+            )
+            PlaybackMode.REPEAT_ONE -> Triple(
+                R.drawable.ic_mode_repeat_one,
+                R.string.mode_short_repeat_one,
+                R.string.mode_repeat_one,
+            )
         }
+        binding.iconActionMode.setImageResource(icon)
+        binding.labelMode.setText(shortLabel)
+        binding.btnMode.contentDescription = getString(description)
     }
 
     // ---------------------------------------------------------------- 队列 / 收藏 / 更多
 
-    /** 传输行第 5 位与顶栏队列按钮共用：弹出真实队列面板。 */
+    /** 功能行第 4 格与顶栏队列按钮共用：弹出真实队列面板。 */
     private fun openQueuePanel() {
         chrome.onUserInteraction()
         QueuePanel.show(
@@ -521,18 +525,22 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
-    // ---------------------------------------------------------------- 倍速
+    // ---------------------------------------------------------------- 歌曲信息 / 倍速
 
-    private fun updateSpeedLabel() {
-        binding.labelSpeed.text = getString(R.string.speed_x, SpeedPanel.label(settings.playbackSpeed))
-    }
-
-    private fun openSpeedPanel() {
+    /**
+     * 功能行第 5 格：歌曲信息 + 播放速度。
+     * 独立倍速格已按方案 I 删除，倍速链路整体收进这个面板，功能一个不减。
+     */
+    private fun openSongInfoPanel() {
         chrome.onUserInteraction()
-        SpeedPanel.show(requireContext(), settings.playbackSpeed) { speed ->
-            // §12 Q3：全局记住、不随切歌重置 —— 所以写设置而不是只改播放器
+        val song = PlaybackStateHolder.currentSong
+        if (song == null) {
+            Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
+            return
+        }
+        SongInfoPanel.show(requireContext(), song, settings.playbackSpeed) { speed ->
+            // 全局记住、不随切歌重置 —— 写设置而不是只改播放器
             settings.playbackSpeed = speed
-            updateSpeedLabel()
             sendSpeed(speed)
         }
     }
@@ -591,10 +599,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     private fun toggleMode() {
         chrome.onUserInteraction()
-        val next = if (PlaybackStateHolder.playMode == PlaybackMode.ORDER) {
-            PlaybackMode.SHUFFLE
-        } else {
-            PlaybackMode.ORDER
+        val next = when (PlaybackStateHolder.playMode) {
+            PlaybackMode.ORDER -> PlaybackMode.SHUFFLE
+            PlaybackMode.SHUFFLE -> PlaybackMode.REPEAT_ONE
+            PlaybackMode.REPEAT_ONE -> PlaybackMode.ORDER
         }
         val intent = Intent(requireContext(), MusicPlaybackService::class.java).apply {
             action = MusicPlaybackService.ACTION_SET_MODE

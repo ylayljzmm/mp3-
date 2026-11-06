@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌曲信息面板（方案 I 功能行第 5 格）：逐行显示曲目字段 + 5 档播放速度。
+  独立倍速格已删除，倍速链路整体收进这里；格式由 SongInfoPanel 真实读取文件元数据。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp"
+        android:text="@string/more_info_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/infoSong"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/infoArtist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/infoAlbum"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/infoDuration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/infoFormat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/infoPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/infoLrc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="4dp"
+        android:text="@string/speed_panel_title"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/infoSpeedSlowest"
+        style="@style/Player.SpeedOption"
+        android:text="0.75x" />
+
+    <TextView
+        android:id="@+id/infoSpeedNormal"
+        style="@style/Player.SpeedOption"
+        android:text="1.0x" />
+
+    <TextView
+        android:id="@+id/infoSpeedFast"
+        style="@style/Player.SpeedOption"
+        android:text="1.25x" />
+
+    <TextView
+        android:id="@+id/infoSpeedFaster"
+        style="@style/Player.SpeedOption"
+        android:text="1.5x" />
+
+    <TextView
+        android:id="@+id/infoSpeedFastest"
+        style="@style/Player.SpeedOption"
+        android:text="2.0x" />
+
+</LinearLayout>

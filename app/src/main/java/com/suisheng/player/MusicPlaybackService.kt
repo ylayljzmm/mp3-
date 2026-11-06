@@ -164,7 +164,7 @@ class MusicPlaybackService : MediaSessionService() {
                     runCatching { setPlaybackSpeed(settings.playbackSpeed) }
                     addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (playbackState == Player.STATE_ENDED) playNext()
+                        if (playbackState == Player.STATE_ENDED) playNext(auto = true)
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
@@ -288,7 +288,7 @@ class MusicPlaybackService : MediaSessionService() {
             }
             ACTION_SET_MODE -> {
                 val cmd = intent ?: return START_NOT_STICKY
-                val mode = PlaybackMode.entries[cmd.getIntExtra(EXTRA_MODE, 0)]
+                val mode = PlaybackMode.entries.getOrElse(cmd.getIntExtra(EXTRA_MODE, 0)) { PlaybackMode.SHUFFLE }
                 setPlayMode(mode)
             }
             ACTION_SET_SPEED -> {
@@ -775,15 +775,24 @@ class MusicPlaybackService : MediaSessionService() {
         }
     }
 
-    private fun playNext() {
+    /**
+     * @param auto true 表示「播完自动续播」。单曲循环只在自动续播时重播当前曲；
+     * 手动下一曲、跳过不可播曲目仍强制切下一首，避免死循环。
+     */
+    private fun playNext(auto: Boolean = false) {
         runCatching {
             if (playlist.isEmpty()) return@runCatching
+            if (auto && PlaybackStateHolder.playMode == PlaybackMode.REPEAT_ONE) {
+                playSongAt(currentIndex)
+                return@runCatching
+            }
             val next = when (PlaybackStateHolder.playMode) {
                 PlaybackMode.SHUFFLE -> {
                     if (shuffleQueue.isEmpty()) refillShuffleQueue()
                     shuffleQueue.removeFirstOrNull() ?: Random.nextInt(playlist.size)
                 }
-                PlaybackMode.ORDER -> if (currentIndex + 1 < playlist.size) currentIndex + 1 else 0
+                PlaybackMode.REPEAT_ONE, PlaybackMode.ORDER ->
+                    if (currentIndex + 1 < playlist.size) currentIndex + 1 else 0
             }
             playSongAt(next)
         }.onFailure {
@@ -804,7 +813,8 @@ class MusicPlaybackService : MediaSessionService() {
                     if (shuffleQueue.isEmpty()) refillShuffleQueue()
                     shuffleQueue.removeLastOrNull() ?: Random.nextInt(playlist.size)
                 }
-                PlaybackMode.ORDER -> if (currentIndex - 1 >= 0) currentIndex - 1 else playlist.lastIndex
+                PlaybackMode.REPEAT_ONE, PlaybackMode.ORDER ->
+                    if (currentIndex - 1 >= 0) currentIndex - 1 else playlist.lastIndex
             }
             playSongAt(prev)
         }.onFailure {

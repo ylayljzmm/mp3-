@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 方案 I 播放页新增文案。沿用项目约定：不往并行修改的 strings*.xml 里追加。 -->
+<resources>
+    <string name="mode_repeat_one">单曲循环</string>
+    <string name="mode_short_order">顺序</string>
+    <string name="mode_short_shuffle">随机</string>
+    <string name="mode_short_repeat_one">单曲循环</string>
+    <string name="player_action_queue">队列</string>
+    <string name="player_action_info">歌曲信息</string>
+    <string name="more_info_format">格式：%1$s</string>
+</resources>

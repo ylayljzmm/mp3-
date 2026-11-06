@@ -2,7 +2,12 @@ package com.suisheng.player.model
 
 enum class PlaybackMode {
     ORDER,
-    SHUFFLE
+    SHUFFLE,
+    /**
+     * 单曲循环：播完自动重播当前曲；手动点下一曲仍强制切下一首。
+     * 追加在末尾，旧存档里的 ordinal 0/1 含义不变。
+     */
+    REPEAT_ONE
 }
 
 // 明暗档位已迁到 com.suisheng.player.theme.NightMode（4 档，含按时间自动），
