@@ -263,8 +263,8 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/previewPlay"
                         style="@style/Widget.Material3.Button.IconButton.Filled"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
                         android:contentDescription="@string/theme_preview_play"
                         app:icon="@android:drawable/ic_media_play"
                         app:iconSize="20dp"
