@@ -42,6 +42,9 @@ class VinylRecordView @JvmOverloads constructor(
     private val coverView: ImageView
     private var currentBitmap: Bitmap? = null
 
+    /** 最近一次写进封面的直径（px）；0 表示还没算过。 */
+    private var coverSizePx = 0
+
     private var spinner: ValueAnimator? = null
     private var lastFrameAt = 0L
     private var angle = 0f
@@ -64,6 +67,28 @@ class VinylRecordView @JvmOverloads constructor(
     }
 
     // ------------------------------------------------------------------ 封面
+
+    /**
+     * 封面直径按**实际尺寸**算，不再引用 `@dimen/vinyl_art`。
+     *
+     * 播放页改成三页滑动之后，唱片所在的格子在竖屏 / 横屏、手机 / 车机上的实际边长
+     * 差别很大（从几十 dp 到几百 dp），写死一套 dimen 必然在某一档上「封面比盘大」
+     * 或者「封面缩在圆心一小块」。这里统一取 0.70 × 短边，与 `VinylDiscView`
+     * 的封面外圈（0.715R）对齐 —— 差的那 0.015 正好让白描边露在外面压住锯齿。
+     *
+     * 只在尺寸真的变了才写 layoutParams：`onSizeChanged` 里改子 View 布局会再触发
+     * 一次 layout，不做去重就会变成"布局 → onSizeChanged → 布局"的无底循环。
+     */
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val size = (min(w, h) * COVER_RATIO).toInt()
+        if (size <= 0 || size == coverSizePx) return
+        coverSizePx = size
+        val params = coverView.layoutParams ?: return
+        params.width = size
+        params.height = size
+        coverView.layoutParams = params
+    }
 
     fun setCoverBitmap(bitmap: Bitmap?) {
         val previous = currentBitmap
@@ -186,5 +211,8 @@ class VinylRecordView @JvmOverloads constructor(
 
         /** 30fps 上限 ≈ 33ms 一帧。 */
         const val FRAME_INTERVAL_MS = 33L
+
+        /** 封面直径占唱片短边的比例（`design/05 §4.1` L4：0.70）。 */
+        const val COVER_RATIO = 0.70f
     }
 }

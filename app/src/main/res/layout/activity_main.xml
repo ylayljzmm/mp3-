@@ -3,13 +3,14 @@
   主界面外壳（design/04 §3.5）：左侧抽屉 + 右侧内容列。
   导航完全交给抽屉：首页已经拆掉，它内部的 4 个分区标签成了抽屉条目本身。
 
-  内容列自下而上是「全局页头 64dp → 页面区 → 迷你条 → 车机 Dock 安全区」。
+  内容列自下而上是「全局页头 64dp → 页面区 → 迷你条」。
   页头是所有二级页共用的一条，页面里不再各自挂标题条。
 
   注意两点：
   ① DrawerLayout 的 `fitsSystemWindows` 必须是 false —— 沉浸模式由 ImmersiveHelper 打开，
-     由我们自己在底部留出车机系统 Dock 的安全区（`car_dock_safe_area`），
-     不让系统再插一层 inset padding。
+     系统栏 / 刘海的安全区由 `ImmersiveHelper.applyInsets(contentColumn, drawerPanelBody)`
+     按真实 window insets 统一处理，**不再写死 dp**（旧版那个 60dp 的
+     `car_dock_safe_area` 正是手机被整体抬高 60dp 的元凶，已删除）。
   ② 抽屉面板不用 NavigationView，是「FrameLayout 包一层 LinearLayout」的纯手写结构：
      分组标题、条目、底部三格都由代码填（`DrawerPanelController`）。
 -->
@@ -22,9 +23,10 @@
     android:fitsSystemWindows="false">
 
     <!--
-      内容列：全局页头 + 页面区（Fragment 容器）+ 迷你条 + 车机 Dock 安全区。
+      内容列：全局页头 + 页面区（Fragment 容器）+ 迷你条。
       迷你条放在页面区**下面**而不是叠在上面：叠上去就得给每个页面算底部 padding，
       而迷你条只在二级页出现（播放页隐藏），高度会变，叠着算必然漏。
+      底部安全区由 ImmersiveHelper.applyInsets 补在这个容器上，不在这里写死 dp。
     -->
     <LinearLayout
         android:id="@+id/contentColumn"
@@ -142,11 +144,6 @@
         <include
             android:id="@+id/miniPlayer"
             layout="@layout/view_mini_player" />
-
-        <View
-            android:id="@+id/dockSafeArea"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/car_dock_safe_area" />
     </LinearLayout>
 
     <!-- 抽屉面板：左侧贴边直角、右侧 28dp 圆角（背景在 DrawerPanelController 里用
@@ -293,11 +290,6 @@
                         app:tint="?attr/colorOnPrimaryContainer" />
                 </FrameLayout>
             </LinearLayout>
-
-            <!-- 车机系统 Dock 安全区：面板内容不受遮挡 -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/car_dock_safe_area" />
         </LinearLayout>
 
         <!-- 右侧 1dp 描边；上下各让出圆角半径，避免直线戳出圆角 -->

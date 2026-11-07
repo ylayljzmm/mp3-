@@ -34,4 +34,12 @@
     <dimen name="player_title_text_size">35sp</dimen>
     <dimen name="player_artist_text_size">16sp</dimen>
     <dimen name="player_action_icon_size">30dp</dimen>
+
+    <!-- 5.6.0 手机档顶栏：h480dp 那里是车机的 64dp / 60dp / 12dp，手机竖屏
+         （约 780dp 高）落 h720dp，屏高 600~719dp 的大屏手机落本档。
+         手机没有车机那么宽的 Dock 边距，顶栏用 56dp 就够，按键回到 48dp
+         的 Material 最小触控区。 -->
+    <dimen name="player_topbar">56dp</dimen>
+    <dimen name="player_topbar_button">48dp</dimen>
+    <dimen name="player_topbar_padding">8dp</dimen>
 </resources>

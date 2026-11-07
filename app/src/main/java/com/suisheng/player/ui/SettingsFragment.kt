@@ -3,9 +3,7 @@ package com.suisheng.player.ui
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -17,59 +15,47 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.chip.Chip
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.suisheng.player.BuildConfig
 import com.suisheng.player.ClusterLyricService
-import com.suisheng.player.LyricsOverlayService
 import com.suisheng.player.R
 import com.suisheng.player.data.HiddenFolderStore
 import com.suisheng.player.data.ScanPathHelper
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentSettingsBinding
-import com.suisheng.player.model.LyricFontFamily
-import com.suisheng.player.model.LyricThemePreset
 import com.suisheng.player.update.AppUpdateInfo
 import com.suisheng.player.update.AppUpdateManager
 import com.suisheng.player.update.InstallRequest
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.chip.Chip
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
-import com.google.android.material.slider.Slider
-import com.google.android.material.switchmaterial.SwitchMaterial
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import com.google.android.material.color.MaterialColors
 
+/**
+ * 设置页。
+ *
+ * 5.6.0 起**不再包含任何歌词控件**：配色 / 字体 / 播放页字号 / 悬浮歌词的 20+ 个设置项
+ * 整体搬到独立子页 [LyricSettingsFragment]（设置页只留一行入口）。
+ * 原因是原来那块「原地展开」的折叠区在 `onViewCreated` 里一次性给 8 个 Slider 赋存量值，
+ * 存量值越出 `valueFrom..valueTo` 会抛 `IllegalStateException` 直接崩页 ——
+ * 车机上用户点了「高级歌词设置」就闪退。搬走之后本页只剩开关、按钮与入口行，
+ * 不再有 slider，也就没有这一类崩溃面。
+ */
 class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private lateinit var settings: SettingsRepository
     private var switchBootOpenApp: SwitchMaterial? = null
     private var switchBootReturnHome: SwitchMaterial? = null
-    private var switchOverlayBold: SwitchMaterial? = null
-    private var switchOverlayStroke: SwitchMaterial? = null
-    private var overlayStrokeWidthSlider: Slider? = null
     private lateinit var updateManager: AppUpdateManager
     private var pendingUpdateApk: File? = null
     private var availableUpdate: AppUpdateInfo? = null
-
-    /**
-     * 系统「悬浮窗权限」页的回调。
-     *
-     * 车机上点「去授权」会跳到系统设置再回来，页面完全可能在回来之前被回收，
-     * 所以这里**不能**用 `_binding!!`：拿不到视图就整段跳过，重建时 onViewCreated 会重读设置。
-     */
-    private val overlayPermission = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        val views = _binding ?: return@registerForActivityResult
-        val ctx = context ?: return@registerForActivityResult
-        views.switchOverlay.isChecked = settings.overlayEnabled && Settings.canDrawOverlays(ctx)
-    }
 
     /**
      * 选文件夹（SAF）的回调，同样可能在页面销毁后到达；`requireContext()` 在这个时机
@@ -108,8 +94,7 @@ class SettingsFragment : Fragment() {
         settings = SettingsRepository(requireContext())
         updateManager = AppUpdateManager(requireContext().applicationContext)
         binding.updateStatus.text = getString(R.string.settings_update_current, BuildConfig.VERSION_NAME)
-        // Long-press the version line to send the last crash report. This is the only
-        // way to get a stack trace off a head unit without a PC attached.
+        // 长按版本行发一份崩溃日志：车机上没有电脑，这是唯一的取栈方式。
         binding.updateStatus.setOnLongClickListener {
             shareCrashReport()
             true
@@ -122,26 +107,9 @@ class SettingsFragment : Fragment() {
         binding.switchBootAutoStart.isChecked = settings.bootAutoStart
         setupBootExtraSwitches()
         binding.switchClusterLyrics.isChecked = settings.clusterLyricsEnabled
-        binding.switchOverlay.isChecked = settings.overlayEnabled
         binding.switchOnlineLyrics.isChecked = settings.onlineLyricsEnabled
         binding.switchOnlineCover.isChecked = settings.onlineCoverEnabled
-        binding.switchSmoothLyrics.isChecked = settings.smoothLyrics
-        binding.playerFontSizeSlider.value = settings.playerFontSizeSp
-        binding.playerNextFontSizeSlider.value = settings.playerNextFontSizeSp
-        binding.playerLineSpacingSlider.value = settings.playerLyricLineSpacing
-        binding.fontSizeSlider.value = settings.fontSizeSp
-        binding.currentLineScaleSlider.value = settings.currentLineScale
-        binding.nextLineScaleSlider.value = settings.nextLineScale
-        binding.maxLyricLinesSlider.value = settings.maxLyricVisualLines.toFloat()
 
-        when (settings.overlayPosition) {
-            SettingsRepository.POSITION_TOP -> binding.posTop.isChecked = true
-            SettingsRepository.POSITION_BOTTOM -> binding.posBottom.isChecked = true
-            else -> binding.posCenter.isChecked = true
-        }
-
-        setupLyricThemeChips()
-        setupLyricFontChips()
         refreshScanPathsUi(binding)
         setupOnlineSettings()
         setupHiddenFolders()
@@ -164,7 +132,7 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(
                     ctx,
                     ctx.getString(R.string.scan_done, musicCount),
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
             }
         }
@@ -185,74 +153,15 @@ class SettingsFragment : Fragment() {
         binding.switchOnlineCover.setOnCheckedChangeListener { _, checked ->
             settings.onlineCoverEnabled = checked
         }
-        binding.switchSmoothLyrics.setOnCheckedChangeListener { _, checked ->
-            settings.smoothLyrics = checked
-        }
 
         binding.rowThemeEntry.setOnClickListener {
             // 外观与主题能力集中在主题页；抽屉底部药丸与设置页这里共用同一条导航
             (activity as? MainHost)?.openTheme()
         }
-        binding.rowAdvancedLyrics.setOnClickListener { toggleAdvancedLyrics() }
-
-        binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
-            if (checked && !Settings.canDrawOverlays(requireContext())) {
-                binding.switchOverlay.isChecked = false
-                requestOverlay()
-                return@setOnCheckedChangeListener
-            }
-            settings.overlayEnabled = checked
-            if (checked) LyricsOverlayService.start(requireContext()) else LyricsOverlayService.stop(requireContext())
+        // 歌词设置是独立子页：这里的点击只负责「去哪儿」，控件全在那一页
+        binding.rowAdvancedLyrics.setOnClickListener {
+            (activity as? MainHost)?.openLyricSettings()
         }
-
-        binding.btnGrantOverlay.setOnClickListener { requestOverlay() }
-
-        binding.playerFontSizeSlider.addOnChangeListener { _, value, _ ->
-            settings.playerFontSizeSp = value
-            notifyLyricStyleChanged()
-        }
-        binding.playerNextFontSizeSlider.addOnChangeListener { _, value, _ ->
-            settings.playerNextFontSizeSp = value
-            notifyLyricStyleChanged()
-        }
-        binding.playerLineSpacingSlider.addOnChangeListener { _, value, _ ->
-            settings.playerLyricLineSpacing = value
-            notifyLyricStyleChanged()
-        }
-        binding.fontSizeSlider.addOnChangeListener { _, value, _ ->
-            settings.fontSizeSp = value
-            LyricsOverlayService.refresh(requireContext())
-        }
-        setupOverlayBoldSwitch()
-        binding.currentLineScaleSlider.addOnChangeListener { _, value, _ ->
-            settings.currentLineScale = value
-            notifyLyricStyleChanged()
-        }
-        binding.nextLineScaleSlider.addOnChangeListener { _, value, _ ->
-            settings.nextLineScale = value
-            notifyLyricStyleChanged()
-        }
-        binding.maxLyricLinesSlider.addOnChangeListener { _, value, _ ->
-            settings.maxLyricVisualLines = value.toInt()
-            notifyLyricStyleChanged()
-        }
-
-        binding.positionGroup.setOnCheckedChangeListener { _, checkedId ->
-            settings.overlayPosition = when (checkedId) {
-                R.id.posTop -> SettingsRepository.POSITION_TOP
-                R.id.posBottom -> SettingsRepository.POSITION_BOTTOM
-                else -> SettingsRepository.POSITION_CENTER
-            }
-            LyricsOverlayService.refresh(requireContext())
-        }
-
-    }
-
-    /** Q-2：20+ 项歌词设置全保留，默认折叠，点「高级歌词设置」展开。 */
-    private fun toggleAdvancedLyrics() {
-        val expanded = binding.lyricAdvancedContent.visibility == View.VISIBLE
-        binding.lyricAdvancedContent.visibility = if (expanded) View.GONE else View.VISIBLE
-        binding.txtAdvancedChevron.rotation = if (expanded) 0f else 90f
     }
 
     private fun checkForUpdate() {
@@ -358,112 +267,6 @@ class SettingsFragment : Fragment() {
         parent.addView(returnHome, insertAt + 1)
         switchBootOpenApp = openApp
         switchBootReturnHome = returnHome
-    }
-
-    private fun setupOverlayBoldSwitch() {
-        val parent = binding.fontSizeSlider.parent as? LinearLayout ?: return
-        switchOverlayBold?.let { parent.removeView(it) }
-        switchOverlayStroke?.let { parent.removeView(it) }
-        overlayStrokeWidthSlider?.let { parent.removeView(it) }
-        parent.children.toList().filter { it.tag == "overlay_stroke_width_label" }.forEach { parent.removeView(it) }
-        val boldSwitch = SwitchMaterial(requireContext()).apply {
-            text = getString(R.string.overlay_lyric_bold)
-            isChecked = settings.overlayLyricBold
-            setOnCheckedChangeListener { _, checked ->
-                settings.overlayLyricBold = checked
-                notifyLyricStyleChanged()
-                LyricsOverlayService.refresh(requireContext())
-            }
-        }
-        val insertAt = parent.indexOfChild(binding.fontSizeSlider) + 1
-        parent.addView(boldSwitch, insertAt)
-        switchOverlayBold = boldSwitch
-        val strokeSwitch = SwitchMaterial(requireContext()).apply {
-            text = getString(R.string.overlay_lyric_stroke)
-            isChecked = settings.overlayStrokeEnabled
-            setOnCheckedChangeListener { _, checked ->
-                settings.overlayStrokeEnabled = checked
-                notifyLyricStyleChanged()
-                LyricsOverlayService.refresh(requireContext())
-            }
-        }
-        parent.addView(strokeSwitch, insertAt + 1)
-        switchOverlayStroke = strokeSwitch
-        val strokeWidthLabel = TextView(requireContext()).apply {
-            tag = "overlay_stroke_width_label"
-            text = getString(R.string.overlay_stroke_width)
-            setTextColor(MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
-            textSize = 14f
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = (8 * resources.displayMetrics.density).toInt() }
-        }
-        parent.addView(strokeWidthLabel, insertAt + 2)
-        val strokeWidthSlider = Slider(requireContext()).apply {
-            valueFrom = 1f
-            valueTo = 10f
-            stepSize = 1f
-            value = settings.overlayStrokeWidth.toFloat()
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            addOnChangeListener { _, value, _ ->
-                settings.overlayStrokeWidth = value.toInt()
-                notifyLyricStyleChanged()
-                LyricsOverlayService.refresh(requireContext())
-            }
-        }
-        parent.addView(strokeWidthSlider, insertAt + 3)
-        overlayStrokeWidthSlider = strokeWidthSlider
-    }
-
-    private fun setupLyricThemeChips() {
-        binding.lyricThemeGroup.removeAllViews()
-        val current = settings.lyricTheme()
-        LyricThemePreset.entries.forEach { preset ->
-            val chip = Chip(requireContext()).apply {
-                text = preset.displayName
-                isCheckable = true
-                isChecked = preset == current
-                setOnClickListener {
-                    settings.setLyricTheme(preset)
-                    binding.playerFontSizeSlider.value = settings.playerFontSizeSp
-                    binding.playerNextFontSizeSlider.value = settings.playerNextFontSizeSp
-                    binding.fontSizeSlider.value = settings.fontSizeSp
-                    notifyLyricStyleChanged()
-                }
-            }
-            binding.lyricThemeGroup.addView(chip)
-        }
-    }
-
-    private fun setupLyricFontChips() {
-        binding.lyricFontGroup.removeAllViews()
-        val current = settings.lyricFontFamily()
-        LyricFontFamily.entries.forEach { family ->
-            val chip = Chip(requireContext()).apply {
-                text = family.displayName
-                isCheckable = true
-                isChecked = family == current
-                setOnClickListener {
-                    settings.setLyricFontFamily(family)
-                    LyricFontProvider.invalidate()
-                    LyricFontProvider.preload(requireContext(), family) {
-                        activity?.runOnUiThread { notifyLyricStyleChanged() }
-                    }
-                    notifyLyricStyleChanged()
-                }
-            }
-            binding.lyricFontGroup.addView(chip)
-        }
-    }
-
-    private fun notifyLyricStyleChanged() {
-        LyricsOverlayService.refresh(requireContext())
-        ClusterLyricService.refresh(requireContext())
-        (activity as? MainHost)?.notifyLyricStyleChanged()
     }
 
     /** Shares the most recent crash report as plain text (no file, no extra permission). */
@@ -593,12 +396,6 @@ class SettingsFragment : Fragment() {
                 views.scanPathsChipGroup.addView(chip)
             }
         }
-    }
-
-    private fun requestOverlay() {
-        overlayPermission.launch(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${requireContext().packageName}"))
-        )
     }
 
     // ------------------------------------------------------- 已隐藏的文件夹

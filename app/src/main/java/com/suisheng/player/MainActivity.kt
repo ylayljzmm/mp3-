@@ -12,6 +12,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
@@ -33,6 +34,7 @@ import com.suisheng.player.ui.FavoriteFragment
 import com.suisheng.player.ui.GroupedLibraryFragment
 import com.suisheng.player.ui.ImmersiveHelper
 import com.suisheng.player.ui.LocalPlaylistFragment
+import com.suisheng.player.ui.LyricSettingsFragment
 import com.suisheng.player.ui.MainHost
 import com.suisheng.player.ui.MiniPlayerController
 import com.suisheng.player.ui.OnlineMusicFragment
@@ -141,6 +143,10 @@ class MainActivity : AppCompatActivity(), MainHost {
         ImmersiveHelper.apply(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // 系统栏安全区不再写死 dp（那是「手机被抬高 60dp」的直接原因），
+        // 改成把真实的 systemBars / 刘海 inset 变成内容列的 padding。
+        // 内容列与抽屉面板各自消费：抽屉是独立一层，没有跟着 DrawerLayout 一起补边。
+        ImmersiveHelper.applyInsets(binding.contentColumn, binding.drawerPanelBody)
 
         setupMiniPlayer()
         // 页头必须先于抽屉建好：抽屉里恢复出来的目的地会立刻走 showDestination()，
@@ -327,6 +333,13 @@ class MainActivity : AppCompatActivity(), MainHost {
         selectDestination(Destination.THEME)
     }
 
+    override fun openLyricSettings() {
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
+        if (currentDestination == Destination.LYRIC_SETTINGS) return
+        // 同样走 selectDestination：歌词设置要入栈，返回键才能退回设置页。
+        selectDestination(Destination.LYRIC_SETTINGS)
+    }
+
     /**
      * 退一层。
      *
@@ -387,6 +400,7 @@ class MainActivity : AppCompatActivity(), MainHost {
         Destination.ABOUT -> AboutFragment()
         Destination.PLAYER -> PlayerFragment()
         Destination.THEME -> ThemeFragment()
+        Destination.LYRIC_SETTINGS -> LyricSettingsFragment()
     }
 
     // ---------------------------------------------------------------- 页头回写
@@ -601,6 +615,13 @@ class MainActivity : AppCompatActivity(), MainHost {
         }
         window.navigationBarColor = palette.background
         window.statusBarColor = android.graphics.Color.TRANSPARENT
+        // 深色底要亮图标、浅色底要暗图标。用背景色亮度判断而不是读 nightMode：
+        // 用户可能手动选了一个很亮的强调色却仍是深色档，那时按「背景」判断才不会
+        // 出现「深色底 + 深色图标」这种看不见的状态栏文字。
+        ImmersiveHelper.applyBarAppearance(
+            this,
+            lightBackground = ColorUtils.calculateLuminance(palette.background) > 0.5,
+        )
     }
 
     private fun requestPermissionsAndScan() {

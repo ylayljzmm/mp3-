@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  5.6.0 新增文案：播放页「歌曲信息」子页 + 歌词设置子页的分组标题。
+
+  单独一个文件而不是塞进 strings.xml：这一批是一次功能改造的完整增量，
+  将来要回退/比对只动这一个文件，不会和既有 400 多条文案混在一起。
+-->
+<resources>
+
+    <!-- ================= 歌曲信息页（播放页左右滑动的第 1 页） ================= -->
+    <string name="song_info_title">歌曲信息</string>
+    <string name="song_info_page_hint">左右滑动切换</string>
+
+    <string name="song_info_section_basic">基本信息</string>
+    <string name="song_info_section_audio">音频参数</string>
+    <string name="song_info_section_file">文件</string>
+
+    <string name="song_info_label_album">专辑</string>
+    <string name="song_info_label_year">年份</string>
+    <string name="song_info_label_duration">时长</string>
+    <string name="song_info_label_track">音轨</string>
+    <string name="song_info_label_format">格式</string>
+    <string name="song_info_label_mime">编码</string>
+    <string name="song_info_label_bitrate">码率</string>
+    <string name="song_info_label_sample_rate">采样率</string>
+    <string name="song_info_label_bits">位深</string>
+    <string name="song_info_label_size">文件大小</string>
+    <string name="song_info_label_path">路径</string>
+    <string name="song_info_label_lyrics">歌词</string>
+
+    <!-- 空值占位：取不到的字段一律显示这一条，绝不拿别的值冒充 -->
+    <string name="song_info_empty">—</string>
+
+    <string name="song_info_lyrics_local">同名 LRC</string>
+    <string name="song_info_lyrics_embedded">内嵌歌词</string>
+    <string name="song_info_lyrics_online">联网获取</string>
+
+    <string name="song_info_kbps">%1$d kbps</string>
+    <string name="song_info_hz">%1$s Hz</string>
+    <string name="song_info_bits">%1$d bit</string>
+
+    <!-- ================= 歌词设置子页的三张卡片标题 ================= -->
+    <string name="lyric_settings_section_player">播放页歌词</string>
+    <string name="lyric_settings_section_style">配色与字体</string>
+    <string name="lyric_settings_section_overlay">桌面悬浮歌词</string>
+
+</resources>

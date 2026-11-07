@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  播放页 · 竖屏档（design/05 只给了横屏基准，竖屏按同一套中轴竖向堆叠）。
+  播放页 · 竖屏档（手机）。
 
-  竖屏下 46% 的左栏只有约 184dp，装不下 300dp 中轴，所以不做左右分栏：
-  中轴独占整屏、歌词覆盖在上面（默认 GONE），进「全屏歌词」态时才显示。
-  控件 id 与横屏档完全一致，ViewBinding 与 PlayerFragment 只写一套。
+  竖屏下没有右栏的位置（46% 只有约 180dp），所以改成「一张卡片三页横向滑动」：
+    第 1 页 = 歌曲信息（SongInfoPageView）
+    第 2 页 = 封面黑胶（VinylRecordView）
+    第 3 页 = 歌词（ScrollLyricView）
+  默认停在**第 2 页（封面）** —— 打开播放页第一眼应该看到唱片，而不是参数表。
 
-  竖屏不显示同屏歌词是刻意的：300dp 中轴 + 歌词上下堆叠会超出屏高，
-  而这个页面的第一职责是「这是什么歌、怎么控制」（05 §0 的一句话结论）。
+  ⚠ 这个文件与 `layout/fragment_player.xml` 的 **id 集合必须完全一致**：
+  ViewBinding 只按 id 生成一份 `FragmentPlayerBinding`。横屏那边的歌词是右栏
+  （deck 只有 2 页），这边歌词是 deck 的第 3 页 —— 结构不同，id 必须相同。
+
+  控件行（歌名 / 歌手 / 进度 / 传输 / 功能）固定在 deck 下方，不随滑动移动：
+  「怎么控制」这件事不该被翻页藏起来。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -38,316 +44,330 @@
         android:layout_height="match_parent"
         android:background="@drawable/bg_player_scrim_vertical" />
 
-    <!-- 中轴：竖屏独占整宽，垂直居中后下移 8dp -->
-    <FrameLayout
-        android:id="@+id/axisColumn"
+    <LinearLayout
+        android:id="@+id/playerColumn"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingTop="@dimen/player_topbar">
+        android:orientation="vertical"
+        android:paddingStart="@dimen/player_side_padding"
+        android:paddingTop="@dimen/player_topbar"
+        android:paddingEnd="@dimen/player_side_padding">
+
+        <!-- 三页横向滑动：信息 / 封面 / 歌词 -->
+        <com.suisheng.player.ui.SwipeDeckLayout
+            android:id="@+id/swipeDeck"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <FrameLayout
+                android:id="@+id/pageInfo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <com.suisheng.player.ui.SongInfoPageView
+                    android:id="@+id/songInfoPage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/pageCover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <!-- 初始 120dp 只是布局阶段的兜底值：真实边长由
+                     `PlayerFragment.setupCoverSizing()` 按格子大小动态写回。 -->
+                <com.suisheng.player.ui.VinylRecordView
+                    android:id="@+id/vinylRecord"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/player_cover_action" />
+            </FrameLayout>
+
+            <com.suisheng.player.ui.ScrollLyricView
+                android:id="@+id/scrollLyricView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingStart="@dimen/player_side_padding"
+                android:paddingTop="16dp"
+                android:paddingEnd="@dimen/player_side_padding"
+                android:paddingBottom="16dp" />
+        </com.suisheng.player.ui.SwipeDeckLayout>
 
         <LinearLayout
-            android:id="@+id/playerAxis"
-            android:layout_width="@dimen/player_axis_width"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical|center_horizontal"
-            android:layout_marginTop="@dimen/player_axis_offset"
-            android:orientation="vertical">
+            android:id="@+id/pageDots"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/player_dots_height"
+            android:gravity="center"
+            android:orientation="horizontal" />
 
-            <com.suisheng.player.ui.VinylRecordView
-                android:id="@+id/vinylRecord"
-                android:layout_width="@dimen/vinyl_size"
-                android:layout_height="@dimen/vinyl_size"
-                android:layout_gravity="center_horizontal"
-                android:contentDescription="@string/player_cover_action" />
+        <TextView
+            android:id="@+id/songTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start"
+            android:letterSpacing="-0.025"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="@dimen/player_title_text_size"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/songArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/player_gap_title_artist"
+            android:ellipsize="end"
+            android:gravity="start"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="@dimen/player_artist_text_size" />
+
+        <LinearLayout
+            android:id="@+id/progressRow"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/player_progress_height"
+            android:layout_marginTop="@dimen/player_gap_artist_progress"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/songTitle"
-                android:layout_width="match_parent"
+                android:id="@+id/timeCurrent"
+                android:layout_width="@dimen/player_time_width"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/player_gap_vinyl_title"
-                android:ellipsize="end"
-                android:gravity="start"
-                android:letterSpacing="-0.025"
+                android:fontFeatureSettings="tnum"
+                android:gravity="start|center_vertical"
+                android:includeFontPadding="false"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="@dimen/player_title_text_size"
-                android:textStyle="bold" />
+                android:text="0:00"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="14sp" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/player_progress_height"
+                android:layout_weight="1"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/progressSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center_vertical"
+                    android:stepSize="1"
+                    android:valueFrom="0"
+                    android:valueTo="100"
+                    app:haloRadius="20dp"
+                    app:thumbColor="?attr/colorPrimary"
+                    app:thumbRadius="@dimen/player_slider_thumb_radius"
+                    app:tickVisible="false"
+                    app:trackColorActive="?attr/colorPrimary"
+                    app:trackColorInactive="?attr/colorSurfaceContainerHighest"
+                    app:trackHeight="4dp" />
+            </FrameLayout>
 
             <TextView
-                android:id="@+id/songArtist"
-                android:layout_width="match_parent"
+                android:id="@+id/timeTotal"
+                android:layout_width="@dimen/player_time_width"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/player_gap_title_artist"
-                android:ellipsize="end"
-                android:gravity="start"
+                android:fontFeatureSettings="tnum"
+                android:gravity="end|center_vertical"
+                android:includeFontPadding="false"
+                android:maxLines="1"
                 android:singleLine="true"
+                android:text="0:00"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="@dimen/player_artist_text_size" />
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/transportRow"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/player_transport_size"
+            android:layout_marginTop="@dimen/player_gap_progress_transport">
+
+            <ImageButton
+                android:id="@+id/btnPrev"
+                android:layout_width="@dimen/player_transport_btn"
+                android:layout_height="@dimen/player_transport_btn"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/prev"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_skip_previous"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
+                app:layout_constraintHorizontal_chainStyle="spread"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="?attr/colorOnSurface" />
+
+            <ImageButton
+                android:id="@+id/btnPlayPause"
+                android:layout_width="@dimen/player_transport_size"
+                android:layout_height="@dimen/player_transport_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/play"
+                android:padding="@dimen/player_transport_padding"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_play"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnNext"
+                app:layout_constraintStart_toEndOf="@id/btnPrev"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/btnNext"
+                android:layout_width="@dimen/player_transport_btn"
+                android:layout_height="@dimen/player_transport_btn"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/next"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_skip_next"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/btnPlayPause"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="?attr/colorOnSurface" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/actionRow"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/player_action_row_height"
+            android:layout_marginTop="@dimen/player_gap_transport_actions">
 
             <LinearLayout
-                android:id="@+id/progressRow"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/player_progress_height"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/player_gap_artist_progress"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:id="@+id/btnMode"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnActionFavorite"
+                app:layout_constraintHorizontal_chainStyle="spread"
+                app:layout_constraintHorizontal_weight="1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <TextView
-                    android:id="@+id/timeCurrent"
-                    android:layout_width="@dimen/player_time_width"
-                    android:layout_height="wrap_content"
-                    android:fontFeatureSettings="tnum"
-                    android:gravity="start|center_vertical"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="0:00"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
-
-                <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="@dimen/player_progress_height"
-                    android:layout_weight="1"
-                    android:clipChildren="false"
-                    android:clipToPadding="false">
-
-                    <com.google.android.material.slider.Slider
-                        android:id="@+id/progressSlider"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_gravity="center_vertical"
-                        android:stepSize="1"
-                        android:valueFrom="0"
-                        android:valueTo="100"
-                        app:haloRadius="20dp"
-                        app:thumbColor="?attr/colorPrimary"
-                        app:thumbRadius="@dimen/player_slider_thumb_radius"
-                        app:tickVisible="false"
-                        app:trackColorActive="?attr/colorPrimary"
-                        app:trackColorInactive="?attr/colorSurfaceContainerHighest"
-                        app:trackHeight="4dp" />
-                </FrameLayout>
-
-                <TextView
-                    android:id="@+id/timeTotal"
-                    android:layout_width="@dimen/player_time_width"
-                    android:layout_height="wrap_content"
-                    android:fontFeatureSettings="tnum"
-                    android:gravity="end|center_vertical"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="0:00"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
+                <ImageView
+                    android:id="@+id/iconActionMode"
+                    android:layout_width="@dimen/player_action_icon_size"
+                    android:layout_height="@dimen/player_action_icon_size"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_mode_shuffle"
+                    app:tint="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
 
-            <!-- 方案 I：三键严格等分居中；播放模式与队列移到功能行，spread chain 保证播放键落在正中。 -->
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/transportRow"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/player_transport_size"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/player_gap_progress_transport">
+            <LinearLayout
+                android:id="@+id/btnActionFavorite"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="@string/player_action_favorite"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnActionSound"
+                app:layout_constraintHorizontal_weight="1"
+                app:layout_constraintStart_toEndOf="@id/btnMode"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <ImageButton
-                    android:id="@+id/btnPrev"
-                    android:layout_width="@dimen/player_transport_btn"
-                    android:layout_height="@dimen/player_transport_btn"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/prev"
-                    android:padding="12dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_skip_previous"
-                    app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintHorizontal_chainStyle="spread"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:tint="?attr/colorOnSurface" />
+                <ImageView
+                    android:id="@+id/iconActionFavorite"
+                    android:layout_width="@dimen/player_action_icon_size"
+                    android:layout_height="@dimen/player_action_icon_size"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_favorite_border"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/btnPlayPause"
-                    android:layout_width="@dimen/player_transport_size"
-                    android:layout_height="@dimen/player_transport_size"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/play"
-                    android:padding="@dimen/player_transport_padding"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_play"
-                    app:layout_constraintEnd_toStartOf="@id/btnNext"
-                    app:layout_constraintStart_toEndOf="@id/btnPrev"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:tint="?attr/colorPrimary" />
+            <LinearLayout
+                android:id="@+id/btnActionSound"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="@string/player_action_sound"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnQueue"
+                app:layout_constraintHorizontal_weight="1"
+                app:layout_constraintStart_toEndOf="@id/btnActionFavorite"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <ImageButton
-                    android:id="@+id/btnNext"
-                    android:layout_width="@dimen/player_transport_btn"
-                    android:layout_height="@dimen/player_transport_btn"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/next"
-                    android:padding="12dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_skip_next"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/btnPlayPause"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:tint="?attr/colorOnSurface" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                <ImageView
+                    android:layout_width="@dimen/player_action_icon_size"
+                    android:layout_height="@dimen/player_action_icon_size"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_equalizer"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
 
-            <!-- 方案 I 功能行：5 格严格等宽（模式 / 收藏 / 音效 / 队列 / 歌曲信息）。
-                 5.5.0 车机整改：5 个文字标签全部删除，只留图标，行高随之压到
-                 @dimen/player_action_row_height，省出的高度让给进度条与时间文字。
-                 无障碍描述挂在整格 LinearLayout 上（内层 ImageView 仍为 @null）。 -->
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/actionRow"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/player_action_row_height"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/player_gap_transport_actions">
+            <LinearLayout
+                android:id="@+id/btnQueue"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="@string/player_action_queue"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnActionInfo"
+                app:layout_constraintHorizontal_weight="1"
+                app:layout_constraintStart_toEndOf="@id/btnActionSound"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <LinearLayout
-                    android:id="@+id/btnMode"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    app:layout_constraintHorizontal_weight="1"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/btnActionFavorite"
-                    app:layout_constraintHorizontal_chainStyle="spread"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
+                <ImageView
+                    android:layout_width="@dimen/player_action_icon_size"
+                    android:layout_height="@dimen/player_action_icon_size"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_queue_music"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
 
-                    <ImageView
-                        android:id="@+id/iconActionMode"
-                        android:layout_width="@dimen/player_action_icon_size"
-                        android:layout_height="@dimen/player_action_icon_size"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_mode_shuffle"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
+            <LinearLayout
+                android:id="@+id/btnActionInfo"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="@string/player_action_info"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_weight="1"
+                app:layout_constraintStart_toEndOf="@id/btnQueue"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <LinearLayout
-                    android:id="@+id/btnActionFavorite"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:contentDescription="@string/player_action_favorite"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    app:layout_constraintHorizontal_weight="1"
-                    app:layout_constraintStart_toEndOf="@id/btnMode"
-                    app:layout_constraintEnd_toStartOf="@id/btnActionSound"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <ImageView
-                        android:id="@+id/iconActionFavorite"
-                        android:layout_width="@dimen/player_action_icon_size"
-                        android:layout_height="@dimen/player_action_icon_size"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_favorite_border"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/btnActionSound"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:contentDescription="@string/player_action_sound"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    app:layout_constraintHorizontal_weight="1"
-                    app:layout_constraintStart_toEndOf="@id/btnActionFavorite"
-                    app:layout_constraintEnd_toStartOf="@id/btnQueue"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <ImageView
-                        android:layout_width="@dimen/player_action_icon_size"
-                        android:layout_height="@dimen/player_action_icon_size"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_equalizer"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/btnQueue"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:contentDescription="@string/player_action_queue"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    app:layout_constraintHorizontal_weight="1"
-                    app:layout_constraintStart_toEndOf="@id/btnActionSound"
-                    app:layout_constraintEnd_toStartOf="@id/btnActionInfo"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <ImageView
-                        android:layout_width="@dimen/player_action_icon_size"
-                        android:layout_height="@dimen/player_action_icon_size"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_queue_music"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/btnActionInfo"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:contentDescription="@string/player_action_info"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    app:layout_constraintHorizontal_weight="1"
-                    app:layout_constraintStart_toEndOf="@id/btnQueue"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <ImageView
-                        android:layout_width="@dimen/player_action_icon_size"
-                        android:layout_height="@dimen/player_action_icon_size"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_song_info"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </LinearLayout>
-    </FrameLayout>
-
-    <!-- 竖屏：歌词层叠在中轴之上，只有「全屏歌词」态才显示 -->
-    <com.suisheng.player.ui.ScrollLyricView
-        android:id="@+id/scrollLyricView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingStart="@dimen/player_lyrics_padding_start"
-        android:paddingTop="@dimen/player_topbar"
-        android:paddingEnd="@dimen/player_lyrics_padding_start"
-        android:paddingBottom="24dp"
-        android:visibility="gone" />
+                <ImageView
+                    android:layout_width="@dimen/player_action_icon_size"
+                    android:layout_height="@dimen/player_action_icon_size"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_song_info"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
     <FrameLayout
         android:id="@+id/topBar"
@@ -367,19 +387,6 @@
             android:padding="18dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_menu_drawer"
-            app:tint="?attr/colorOnSurface" />
-
-        <ImageButton
-            android:id="@+id/btnLyricsBack"
-            android:layout_width="@dimen/player_topbar_button"
-            android:layout_height="@dimen/player_topbar_button"
-            android:layout_gravity="start|center_vertical"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/player_lyrics_back"
-            android:padding="18dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_arrow_back"
-            android:visibility="gone"
             app:tint="?attr/colorOnSurface" />
 
         <LinearLayout

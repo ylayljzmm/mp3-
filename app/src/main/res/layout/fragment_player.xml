@@ -1,27 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  播放页（design/05 方案 D，§2 版式总览 + §3 尺寸表）。
+  播放页 · 横屏 / 车机档（`design/05` 方案 D + 6.0 滑动改造）。
 
   结构（从下往上，同层级按书写顺序叠放）：
     L0 themeBackground  ?attr/colorSurface 纯色
-    L1 backdropLayer    两个径向色块（BackdropView 自绘，色相往 colorPrimary 旋转 ≤12°）
-    L2 scrim1 / scrim2  双层压暗（纯色 + 竖向渐变），保证任何底色上文字对比 ≥ 4.5:1
-    L3 stageRow         左右两栏：46% 中轴 / flex 歌词；上下边界由共享 dimen 统一
-    L4 topBar           64dp，横跨整页，叠在最上层
+    L1 backdropLayer    两个径向色块（BackdropView 自绘）
+    L2 scrim1 / scrim2  双层压暗，保证任何底色上文字对比 ≥ 4.5:1
+    L3 两栏            左 46% 中轴（含两页滑动）/ 右 flex 歌词
+    L4 topBar           顶栏，横跨整页，叠在最上层
 
-  两个刻意的取舍：
-  ① topBar 叠在 stageRow 之上、stageRow 自己吃 paddingTop=64dp ——
-     这样隐藏顶栏不会让下方内容上移，满足 §7「零位移要求」。
-  ② 两排控件（传输 / 功能）用 ConstraintLayout 水平链 spread_inside 实现 §3.1 的
-     space-between：52+52+78+52+52=286 在 300 里两侧到底、中间均分，比手算 margin 稳。
+  6.0 的两处结构变化：
+  ① 中轴上半段变成 SwipeDeckLayout —— **横屏这里只有 2 页**（信息 / 封面），
+     歌词不在 deck 里，它是右栏。竖屏那份布局的 deck 有 3 页。
+     所以 SwipeDeckLayout 必须按子 View 数量工作，不能写死页数。
+  ② `btnLyricsBack` 删除：全屏歌词态与「点封面进全屏」一起取消了，
+     歌词永远在右栏（横屏）或 deck 第 3 页（竖屏），不再需要退出按钮。
+
+  **两个布局文件的 id 集合必须完全一致**：ViewBinding 只按 id 生成一份
+  `FragmentPlayerBinding`，任何一侧多一个或少一个 id 都会让它编译不过。
+  改动后请自查：把本文件与 `layout-port/fragment_player.xml` 的
+  `android:id="@+id/..."` 全部抓出来排序去重后逐行对比，必须一字不差。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- L0 底色：浅色/深色 × 10 套主题色都由 attr 解析 -->
+    <!-- L0 底色 -->
     <View
         android:id="@+id/themeBackground"
         android:layout_width="match_parent"
@@ -34,10 +39,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!--
-      L2 压暗：先一层「surface 半透」（浅色 40% / 深色 52%，由 values-night 的
-      Player.ScrimSolid 样式切换 —— alpha 不能用 attr，只能进样式），再一层竖向渐变。
-    -->
+    <!-- L2 压暗：surface 半透 + 竖向渐变 -->
     <View
         android:id="@+id/scrim1"
         style="@style/Player.ScrimSolid"
@@ -53,43 +55,72 @@
 
     <!-- L3 两栏 -->
     <LinearLayout
-        android:id="@+id/stageRow"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
         android:paddingTop="@dimen/player_topbar"
         android:paddingBottom="@dimen/player_pane_padding_bottom">
 
-        <!-- 左栏 46%：一条 300dp 中轴，垂直居中后再整体下移 8dp（§3.1 末段） -->
+        <!-- 左栏 46%：一条 300dp 中轴 -->
         <FrameLayout
-            android:id="@+id/axisColumn"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="0.46">
 
             <LinearLayout
-                android:id="@+id/playerAxis"
+                android:id="@+id/playerColumn"
                 android:layout_width="@dimen/player_axis_width"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical|center_horizontal"
-                android:layout_marginTop="@dimen/player_axis_offset"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_horizontal"
                 android:orientation="vertical">
 
-                <!-- 1 黑胶唱片：四档等比 +4dp，中心封面占比提到 0.70（环变薄） -->
-                <com.suisheng.player.ui.VinylRecordView
-                    android:id="@+id/vinylRecord"
-                    android:layout_width="@dimen/vinyl_size"
-                    android:layout_height="@dimen/vinyl_size"
-                    android:layout_gravity="center_horizontal"
-                    android:contentDescription="@string/player_cover_action" />
+                <!-- 两页：信息 / 封面。deck 吃掉剩余高度，控件行固定在底部。 -->
+                <com.suisheng.player.ui.SwipeDeckLayout
+                    android:id="@+id/swipeDeck"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
 
-                <!-- 2 歌名 35sp / 700 / 字距 −0.025em -->
+                    <FrameLayout
+                        android:id="@+id/pageInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <com.suisheng.player.ui.SongInfoPageView
+                            android:id="@+id/songInfoPage"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:id="@+id/pageCover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <!-- 初始 120dp 只是布局阶段的兜底值：真实边长由
+                             `PlayerFragment.setupCoverSizing()` 按格子大小动态写回
+                             （最小 120dp、最大 420dp）。 -->
+                        <com.suisheng.player.ui.VinylRecordView
+                            android:id="@+id/vinylRecord"
+                            android:layout_width="120dp"
+                            android:layout_height="120dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@string/player_cover_action" />
+                    </FrameLayout>
+                </com.suisheng.player.ui.SwipeDeckLayout>
+
+                <!-- 页码点由代码填（数量 = deck 页数） -->
+                <LinearLayout
+                    android:id="@+id/pageDots"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/player_dots_height"
+                    android:gravity="center"
+                    android:orientation="horizontal" />
+
                 <TextView
                     android:id="@+id/songTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="@dimen/player_gap_vinyl_title"
                     android:ellipsize="end"
                     android:gravity="start"
                     android:letterSpacing="-0.025"
@@ -99,12 +130,10 @@
                     android:textSize="@dimen/player_title_text_size"
                     android:textStyle="bold" />
 
-                <!-- 3 歌手 · 专辑 16sp -->
                 <TextView
                     android:id="@+id/songArtist"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
                     android:layout_marginTop="@dimen/player_gap_title_artist"
                     android:ellipsize="end"
                     android:gravity="start"
@@ -112,12 +141,10 @@
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="@dimen/player_artist_text_size" />
 
-                <!-- 4 进度区：38 + 4 + 220 + 4 + 38 = 300，布局带高 10dp -->
                 <LinearLayout
                     android:id="@+id/progressRow"
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/player_progress_height"
-                    android:layout_gravity="center_horizontal"
                     android:layout_marginTop="@dimen/player_gap_artist_progress"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
@@ -135,12 +162,8 @@
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp" />
 
-                    <!--
-                      轨道视觉 4dp，但可点区做成 48dp：Slider 自己撑高 48dp、外层 10dp 的
-                      FrameLayout clipChildren=false，于是「布局占 10dp、手指可点 48dp」同时成立
-                      （§3.2 要求热区 ≥ 48dp）。这比给 10dp 高的 Slider 套 TouchDelegate 更直接：
-                      TouchDelegate 只是转发事件，滑块本身仍会被裁掉一半。
-                    -->
+                    <!-- 轨道视觉 4dp，但可点区做成 48dp：Slider 自己撑高 48dp、
+                         外层 clipChildren=false，于是「布局占十几 dp、手指可点 48dp」同时成立。 -->
                     <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="@dimen/player_progress_height"
@@ -179,12 +202,11 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- 方案 I：三键严格等分居中；播放模式与队列移到功能行，spread chain 保证播放键落在正中。 -->
+                <!-- 三键严格等分居中：spread chain 保证播放键落在正中 -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/transportRow"
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/player_transport_size"
-                    android:layout_gravity="center_horizontal"
                     android:layout_marginTop="@dimen/player_gap_progress_transport">
 
                     <ImageButton
@@ -196,10 +218,10 @@
                         android:padding="12dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_skip_previous"
-                        app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintHorizontal_chainStyle="spread"
                         app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
+                        app:layout_constraintHorizontal_chainStyle="spread"
+                        app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:tint="?attr/colorOnSurface" />
 
@@ -212,9 +234,9 @@
                         android:padding="@dimen/player_transport_padding"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_play"
+                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/btnNext"
                         app:layout_constraintStart_toEndOf="@id/btnPrev"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:tint="?attr/colorPrimary" />
 
@@ -227,23 +249,20 @@
                         android:padding="12dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_skip_next"
+                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@id/btnPlayPause"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:tint="?attr/colorOnSurface" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-                <!-- 方案 I 功能行：5 格严格等宽（模式 / 收藏 / 音效 / 队列 / 歌曲信息）。
-                     5.5.0 车机整改：5 个文字标签全部删除，只留图标，行高随之压到
-                     @dimen/player_action_row_height，省出的高度让给进度条与时间文字。
-                     无障碍描述挂在整格 LinearLayout 上（内层 ImageView 仍为 @null）：
-                     可点容器才是无障碍焦点，挂在图标上会被读两次。 -->
+                <!-- 功能行 5 格严格等宽（模式 / 收藏 / 音效 / 队列 / 信息）。
+                     无障碍描述挂在整格 LinearLayout 上，内层 ImageView 为 @null：
+                     可点容器才是焦点，挂在图标上会被读两次。 -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/actionRow"
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/player_action_row_height"
-                    android:layout_gravity="center_horizontal"
                     android:layout_marginTop="@dimen/player_gap_transport_actions">
 
                     <LinearLayout
@@ -255,11 +274,11 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
-                        app:layout_constraintHorizontal_weight="1"
-                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/btnActionFavorite"
                         app:layout_constraintHorizontal_chainStyle="spread"
-                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintHorizontal_weight="1"
+                        app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
@@ -281,10 +300,10 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnActionSound"
                         app:layout_constraintHorizontal_weight="1"
                         app:layout_constraintStart_toEndOf="@id/btnMode"
-                        app:layout_constraintEnd_toStartOf="@id/btnActionSound"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
@@ -306,10 +325,10 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnQueue"
                         app:layout_constraintHorizontal_weight="1"
                         app:layout_constraintStart_toEndOf="@id/btnActionFavorite"
-                        app:layout_constraintEnd_toStartOf="@id/btnQueue"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
@@ -330,10 +349,10 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnActionInfo"
                         app:layout_constraintHorizontal_weight="1"
                         app:layout_constraintStart_toEndOf="@id/btnActionSound"
-                        app:layout_constraintEnd_toStartOf="@id/btnActionInfo"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
@@ -354,10 +373,10 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintHorizontal_weight="1"
                         app:layout_constraintStart_toEndOf="@id/btnQueue"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <ImageView
@@ -371,7 +390,7 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- 右栏 flex：歌词左对齐，左右内边距 16 / 64（§6） -->
+        <!-- 右栏 flex：歌词左对齐，左右内边距 16 / 64 -->
         <com.suisheng.player.ui.ScrollLyricView
             android:id="@+id/scrollLyricView"
             android:layout_width="0dp"
@@ -383,7 +402,7 @@
             android:paddingBottom="@dimen/player_pane_padding_top" />
     </LinearLayout>
 
-    <!-- L4 顶栏 64dp：左 ☰ / 全屏歌词返回箭头，右「更多」 -->
+    <!-- L4 顶栏：左 ☰，右「更多」 -->
     <FrameLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -402,19 +421,6 @@
             android:padding="18dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_menu_drawer"
-            app:tint="?attr/colorOnSurface" />
-
-        <ImageButton
-            android:id="@+id/btnLyricsBack"
-            android:layout_width="@dimen/player_topbar_button"
-            android:layout_height="@dimen/player_topbar_button"
-            android:layout_gravity="start|center_vertical"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/player_lyrics_back"
-            android:padding="18dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_arrow_back"
-            android:visibility="gone"
             app:tint="?attr/colorOnSurface" />
 
         <LinearLayout

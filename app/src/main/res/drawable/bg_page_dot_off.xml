@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  页码点 · 未选中态。与选中态画的是同一个纯白不透明圆，颜色全部由
+  `PlayerFragment.updateDots()` 的 `backgroundTintList` 决定。
+
+  这里**不能**再自带 alpha（曾用 #33FFFFFF）：tint 的默认 TintMode 是 SRC_IN，
+  会与 drawable 自身的 alpha 相乘，0.2 × 0.35 之后连 7% 都不到 ——
+  在浅色主题上就是"看不见"。透明度统一交给 tint 那一侧表达。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#FFFFFFFF" />
+</shape>

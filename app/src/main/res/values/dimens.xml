@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 车机系统 Dock 安全区：把内容区与抽屉面板底部抬到系统 Dock 之上，
-         适配 2021 款宋 PLUS DM-i（DiLink 3.0）默认横屏。改这一处即可全局微调。 -->
-    <dimen name="car_dock_safe_area">60dp</dimen>
-
     <!-- =========================================================
          主题系统 token（design/04 §2.8、§3.7）
          ========================================================= -->
@@ -117,7 +113,10 @@
     <dimen name="player_topbar">64dp</dimen>
     <!-- 82 + 4 + 32 + 2 + 18 + 4 + 22 + 2 + 44 + 2 + 34 = 246 ≤ 248 ✓ -->
     <dimen name="vinyl_size">82dp</dimen>
-    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：82 × 0.70 ≈ 58 -->
+    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：82 × 0.70 ≈ 58。
+         6.0 起这只是一个**布局阶段的兜底值**：真实直径由 `VinylRecordView.onSizeChanged`
+         按控件实际短边 × 0.70 写回（播放页的唱片格子会随屏幕与滑动页高度变化），
+         四档仍保留同名 dimen，是为了首帧不会先画一个错尺寸再跳。 -->
     <dimen name="vinyl_art">58dp</dimen>
     <dimen name="player_gap_vinyl_title">4dp</dimen>
     <dimen name="player_gap_title_artist">2dp</dimen>
@@ -160,4 +159,22 @@
     <dimen name="player_title_text_size">26sp</dimen>
     <dimen name="player_artist_text_size">13sp</dimen>
     <dimen name="player_action_icon_size">22dp</dimen>
+
+    <!-- =========================================================
+         5.6.0 播放页改版（竖屏三页滑动 + 横屏双栏）+ 歌曲信息页
+
+         `car_dock_safe_area` 已删除：那个「底部 60dp 空 View」是手机被整体
+         抬高 60dp 的直接原因（车机上刚好把内容抬到 Dock 之上，手机上就是
+         一条谁也解释不了的空白）。安全区改由 `ImmersiveHelper.applyInsets`
+         按真实 window insets 计算，见 `activity_main.xml`。
+         ========================================================= -->
+    <!-- 竖屏中轴左右内边距；SwipeDeckLayout 的页面也用它 -->
+    <dimen name="player_side_padding">20dp</dimen>
+    <!-- 页码点一行的高度 / 单个点直径 / 点间距 -->
+    <dimen name="player_dots_height">20dp</dimen>
+    <dimen name="player_dot_size">6dp</dimen>
+    <dimen name="player_dot_gap">6dp</dimen>
+    <!-- 歌曲信息页：头部封面边长；每行的最小高度（≥ 40dp，车机上单手也点得准） -->
+    <dimen name="song_info_cover_size">96dp</dimen>
+    <dimen name="song_info_row_min_height">40dp</dimen>
 </resources>

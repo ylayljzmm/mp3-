@@ -1,26 +1,32 @@
 package com.suisheng.player.ui
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
 import com.suisheng.player.MusicPlaybackService
 import com.suisheng.player.R
+import com.suisheng.player.data.CoverArtFetcher
 import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.FavoriteStore
 import com.suisheng.player.data.SettingsRepository
+import com.suisheng.player.data.SongInfoLoader
 import com.suisheng.player.databinding.DialogLyricSearchBinding
 import com.suisheng.player.databinding.FragmentPlayerBinding
 import com.suisheng.player.model.LrcLine
@@ -28,23 +34,36 @@ import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.AudioEffectController
 import com.suisheng.player.playback.PlaybackStateHolder
+import com.suisheng.player.util.CoverBitmap
+import java.io.File
 import kotlin.math.max
+import kotlin.math.min
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * 播放页（`design/05` 方案 D）。
+ * 播放页。
  *
- * 版式在 `fragment_player.xml` / `layout-port/fragment_player.xml` 里，
- * 双态显隐在 [PlayerChromeController]，背景色块在 [BackdropView]，黑胶在 [VinylRecordView]。
- * 本类只做三件事：**绑事件、把播放状态映射到界面、维护歌曲信息与倍速链路**。
+ * 版式在 `fragment_player.xml`（横屏 / 车机，双栏）与 `layout-port/fragment_player.xml`
+ * （竖屏，三页滑动）里；背景色块在 [BackdropView]，黑胶在 [VinylRecordView]，
+ * 翻页在 [SwipeDeckLayout]，信息页在 [SongInfoPageView]。
  *
- * 关键约束（都在 05 里有出处）：
- *  - 状态切换只由 [PlayerChromeController] 决定，这里不直接改 visibility；
- *  - `renderedStateKey` 节流保留：进度回调约 8Hz，不加节流会在低端车机上抖；
- *  - 主题在 inflate 前套 overlay（§6），所以下面的 `?attr/` 全部按播放页分控色解析。
+ * ## 6.0 的三处结构性变化
  *
- * 5.5.0 车机整改：沉浸态（自动隐藏顶栏/功能行）与「仅封面」放大态整体删除，
- * 播放页只保留 [PlayerChromeController.State.DUO] / [PlayerChromeController.State.LYRICS_FULL]
- * 两态；相应地不再有交互计时、不再需要遍历视图树挂触摸监听。
+ * ① **删掉 [PlayerChromeController]**：它维护的「双栏 / 全屏歌词」两态里，
+ *    全屏歌词的入口（点封面、长按封面）在 5.5.0 就已经删了，状态永远到不了；
+ *    留着只是一个每帧都要判断一次的 `if`。现在歌词的呈现位置由**布局**决定：
+ *    横屏在右栏，竖屏是 deck 的第 3 页 —— 不需要任何运行时状态。
+ * ② **中轴拆成可横滑的页面**：信息 / 封面（/ 歌词）。
+ * ③ **封面尺寸按容器动态算**（[setupCoverSizing]）：竖屏与横屏、手机与车机的
+ *    格子边长差一个数量级，写死 dimen 必然在某一档上翻车。
+ *
+ * ## 保留的既有约束
+ *
+ * - `renderedStateKey` 节流：进度回调约 8Hz，不加节流会在低端车机上抖；
+ * - 主题在 inflate 前套 overlay（`04 §6`），所以下面的 `?attr/` 按播放页分控色解析；
+ * - 收藏图标的去重键、队列空时队列键置灰、长按歌词搜歌词 —— 全部保留。
  */
 class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
@@ -52,7 +71,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private val binding get() = _binding!!
 
     private lateinit var settings: SettingsRepository
-    private lateinit var chrome: PlayerChromeController
 
     /** 本地收藏（`filesDir/favorites.json`）；首次用到时才创建，避免 onCreateView 里多一次 IO。 */
     private val favorites by lazy { FavoriteStore(requireContext()) }
@@ -62,13 +80,23 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     private var userSeeking = false
 
-    /** 上一帧渲染的状态关键字，挡住每秒 8 次的进度回调（保留自 2c-2，别删）。 */
+    /** 上一帧渲染的状态关键字，挡住每秒 8 次的进度回调。 */
     private var renderedStateKey: String? = null
 
     /** 收藏图标的去重关键字（`Song.path|是否已收藏`），View 重建时置空。 */
     private var favoriteUiKey: String? = null
 
-    private var singleColumn = false
+    /**
+     * 歌曲信息页最近一次「读进界面」的曲目路径。
+     *
+     * `MediaMetadataRetriever.setDataSource` 要开文件、解容器头，车机上 U 盘里的 FLAC
+     * 一次几十毫秒 —— 不能跟着 8Hz 的播放回调跑。所以用它做去重：
+     * 路径没变就直接返回；路径变了但用户不在信息页时也先不读，
+     * 等切回信息页由 `onPageChanged` 补一次。
+     */
+    private var songInfoKey: String? = null
+
+    // ---------------------------------------------------------------- 生命周期
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -87,19 +115,14 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        singleColumn =
-            resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
-        chrome = PlayerChromeController(
-            binding = binding,
-            singleColumn = singleColumn,
-            onStateChanged = ::onChromeStateChanged,
-        )
 
         bindTransport()
         bindActionRow()
         bindTopBar()
         setupSlider()
+        setupSwipeDeck()
+        setupCoverSizing()
+        setupSongInfo()
 
         binding.scrollLyricView.setFadeColor(
             MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
@@ -113,6 +136,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         updateFavoriteUi(PlaybackStateHolder.currentSong)
 
         renderState()
+        // renderState() 只画标题 / 播放键 / 黑胶这类低频状态，歌词这一帧得单独补：
+        // 进页面时还没有任何 onPlaybackChanged 回调，不补就是一片空白歌词。
+        binding.scrollLyricView.update(
+            PlaybackStateHolder.lrcLines,
+            PlaybackStateHolder.positionMs,
+        )
         renderCover(PlaybackStateHolder.coverArtPath)
         updateProgressUi(PlaybackStateHolder.positionMs, PlaybackStateHolder.durationMs)
     }
@@ -134,10 +163,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         _binding = null
         // 视图重建后图标从 XML 的默认态开始，去重键必须跟着失效，否则不会重画
         favoriteUiKey = null
+        // 同理：视图重建后歌曲信息页是空白 XML，下一次滑到它要重新读一遍
+        songInfoKey = null
         super.onDestroyView()
     }
 
-    // ---------------------------------------------------------------- 绑定
+    // ---------------------------------------------------------------- 事件绑定
 
     private fun bindTransport() {
         binding.btnPlayPause.setOnClickListener { sendAction(MusicPlaybackService.ACTION_TOGGLE) }
@@ -145,7 +176,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnPrev.setOnClickListener { sendAction(MusicPlaybackService.ACTION_PREV) }
     }
 
-    /** 方案 I 功能行 5 键：播放模式 / 收藏 / 音效 / 队列 / 歌曲信息（纯图标，无文字标签）。 */
+    /** 功能行 5 键：播放模式 / 收藏 / 音效 / 队列 / 歌曲信息（纯图标，无文字标签）。 */
     private fun bindActionRow() {
         binding.btnMode.setOnClickListener { toggleMode() }
         binding.btnActionFavorite.setOnClickListener { toggleFavorite() }
@@ -158,16 +189,13 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnDrawerMenu.setOnClickListener {
             (activity as? MainHost)?.openDrawer()
         }
-        binding.btnLyricsBack.setOnClickListener {
-            chrome.exitFullLyrics()
-        }
         binding.btnMore.setOnClickListener { openMorePanel() }
     }
 
     private fun setupSlider() {
         val slider = binding.progressSlider
-        // §3.2：拖动中把两条时间都转成主色、滑块从 13dp 放大到 16dp；
-        // 静止态的颜色与半径取自 XML（@dimen/player_slider_thumb_radius = 6.5dp 半径 = 13dp 直径）。
+        // 拖动中把两条时间都转成主色、滑块从 13dp 放大到 16dp；
+        // 静止态的颜色与半径取自 XML（@dimen/player_slider_thumb_radius = 6.5dp 半径）。
         val idleTextColor = MaterialColors.getColor(
             binding.timeCurrent,
             com.google.android.material.R.attr.colorOnSurfaceVariant,
@@ -193,7 +221,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
                 slider.thumbRadius = thumbIdlePx
                 binding.timeCurrent.setTextColor(idleTextColor)
                 binding.timeTotal.setTextColor(idleTextColor)
-                // 只有抬手才 seek，拖动过程中不打断播放（§3.2 末段）
+                // 只有抬手才 seek，拖动过程中不打断播放
                 val target = slider.value.toLong()
                 seekTo(target)
                 // 先把界面钉到手抬起的值，避免下一次状态回调把滑块弹回旧位置
@@ -201,7 +229,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             }
         })
 
-        // §3.2：拖动过程中「当前时间」实时跟手（只动文字，不动播放位置）
+        // 拖动过程中「当前时间」实时跟手（只动文字，不动播放位置）
         slider.addOnChangeListener { _, value, fromUser ->
             if (fromUser && userSeeking) {
                 binding.timeCurrent.text = formatTime(value.toLong())
@@ -209,48 +237,221 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
-    // ---------------------------------------------------------------- 双态
+    // ---------------------------------------------------------------- 滑动页
 
-    private fun onChromeStateChanged(state: PlayerChromeController.State) {
-        val fullLyrics = state == PlayerChromeController.State.LYRICS_FULL
-        binding.scrollLyricView.setFullscreen(fullLyrics)
-        applyLyricsWidthClamp(fullLyrics)
-        // 全屏歌词态下歌词列占满整屏，单击退出全屏；双栏态不需要这层点击
-        if (singleColumn) {
-            binding.scrollLyricView.isClickable = fullLyrics
+    /**
+     * 页码点与信息页加载。
+     *
+     * 页数从 [SwipeDeckLayout.pageCount]（= 子 View 数）读：竖屏 3 页、横屏 2 页，
+     * 两个布局共用一份 ViewBinding，写死数字必然在另一侧越界。
+     *
+     * 初始页固定到 `pageCover`：打开播放页第一眼要看唱片，而不是参数表。
+     * 用 `post` 是因为此时 deck 的 `width` 还是 0，`translationX` 无从算起。
+     */
+    private fun setupSwipeDeck() {
+        binding.swipeDeck.onPageChanged = { index ->
+            updateDots()
+            if (index == infoPageIndex()) loadSongInfo()
+        }
+        binding.swipeDeck.post {
+            if (_binding == null) return@post
+            val cover = binding.swipeDeck.indexOfPage(R.id.pageCover)
+            val initial = if (cover >= 0) cover else binding.swipeDeck.pageCount / 2
+            binding.swipeDeck.setCurrent(initial, animate = false)
+            rebuildDots()
+            updateDots()
+        }
+    }
+
+    private fun infoPageIndex(): Int = binding.swipeDeck.indexOfPage(R.id.pageInfo)
+
+    private fun currentPageIsInfo(): Boolean {
+        val index = infoPageIndex()
+        return index >= 0 && binding.swipeDeck.currentIndex == index
+    }
+
+    /** 按页数生成圆点；点本身没有 id（数量随布局变，ViewBinding 里也不该有）。 */
+    private fun rebuildDots() {
+        val container = binding.pageDots
+        container.removeAllViews()
+        val size = resources.getDimensionPixelSize(R.dimen.player_dot_size)
+        val gap = resources.getDimensionPixelSize(R.dimen.player_dot_gap)
+        for (i in 0 until binding.swipeDeck.pageCount) {
+            val dot = ImageView(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    if (i > 0) marginStart = gap
+                }
+                contentDescription = null
+                setBackgroundResource(R.drawable.bg_page_dot_off)
+                setOnClickListener { binding.swipeDeck.setCurrent(i, animate = true) }
+            }
+            container.addView(dot)
         }
     }
 
     /**
-     * 全屏歌词态行宽 clamp 到 900dp 居中（§7 第三行）。
+     * 选中态用 `colorPrimary`，其余用 `colorOnSurfaceVariant` 的 35% 透明。
      *
-     * 用内边距实现而不是改 layout_width：改宽度会触发重新布局，
-     * 而歌词视图在两种形态之间切换时不应出现「字先横移再淡入」。
+     * 两个 drawable 画的是同一个纯白实心圆，颜色全部由 `backgroundTintList` 决定 ——
+     * 这样切主题时不用重新 setBackground（drawable 里的 `?attr/` 不会随运行时换主题更新）。
+     *
+     * **必须是 `backgroundTintList`，不能是 `imageTintList`**：圆点是用
+     * `setBackgroundResource` 画的，从头到尾没设过 `src`，而 `ImageView.imageTintList`
+     * 只对 `src` 的 drawable 上色 —— 写在那里是空操作，点在浅色主题上就是一坨
+     * 看不见的纯白（默认主题 `Theme.Suisheng.Base` 的 `colorSurface` 是浅米色）。
      */
-    private fun applyLyricsWidthClamp(fullLyrics: Boolean) {
-        val view = binding.scrollLyricView
-        val density = resources.displayMetrics.density
-        val baseStart = resources.getDimensionPixelSize(R.dimen.player_lyrics_padding_start)
-        val baseEnd = if (singleColumn) {
-            baseStart
-        } else {
-            resources.getDimensionPixelSize(R.dimen.player_lyrics_padding_end)
-        }
-        val top = view.paddingTop
-        val bottom = view.paddingBottom
-        if (!fullLyrics) {
-            view.setPadding(baseStart, top, baseEnd, bottom)
-            return
-        }
-        view.post {
-            if (_binding == null) return@post
-            val maxContent = (MAX_LYRICS_WIDTH_DP * density).toInt()
-            val extra = ((view.width - maxContent) / 2).coerceAtLeast(baseStart)
-            view.setPadding(extra, top, extra, bottom)
+    private fun updateDots() {
+        val container = binding.pageDots
+        if (container.childCount == 0) return
+        val active = ColorStateList.valueOf(
+            MaterialColors.getColor(container, com.google.android.material.R.attr.colorPrimary)
+        )
+        val inactiveColor = MaterialColors.getColor(
+            container,
+            com.google.android.material.R.attr.colorOnSurfaceVariant,
+        )
+        val inactive = ColorStateList.valueOf(
+            ColorUtils.setAlphaComponent(inactiveColor, DOT_INACTIVE_ALPHA)
+        )
+        val current = binding.swipeDeck.currentIndex
+        for (i in 0 until container.childCount) {
+            val dot = container.getChildAt(i) as? ImageView ?: continue
+            val selected = i == current
+            dot.setBackgroundResource(
+                if (selected) R.drawable.bg_page_dot_on else R.drawable.bg_page_dot_off
+            )
+            dot.backgroundTintList = if (selected) active else inactive
         }
     }
 
-    // ---------------------------------------------------------------- 状态
+    // ---------------------------------------------------------------- 封面尺寸
+
+    /**
+     * 封面边长跟着格子算：`min(可用宽, 可用高)`，两边各让 8dp 余量，夹在 120dp ~ 420dp。
+     *
+     * 为什么用 `addOnLayoutChangeListener` 而不是一次性的 `doOnLayout`：
+     * 旋转屏幕、切分屏、抽屉展开都会让格子变成另一个尺寸，只算一次会留下一个
+     * 「封面比格子大」或「封面缩成一小块」的旧值。
+     *
+     * 为什么必须先比对尺寸再写 `layoutParams`：改子 View 的布局参数会再触发一次
+     * 该容器的 layout，不做去重就是「layout → 监听 → layout」的死循环。
+     */
+    private fun setupCoverSizing() {
+        binding.pageCover.addOnLayoutChangeListener { view, _, _, right, bottom, _, _, _, _ ->
+            val width = right - view.left
+            val height = bottom - view.top
+            if (width > 0 && height > 0) {
+                val pad = dp(COVER_PADDING_DP)
+                val size = min(width - 2 * pad, height - 2 * pad)
+                    .coerceIn(dp(COVER_MIN_SIZE_DP), dp(COVER_MAX_SIZE_DP))
+                applyCoverSize(size)
+            }
+        }
+    }
+
+    private fun applyCoverSize(size: Int) {
+        if (size <= 0) return
+        val params = binding.vinylRecord.layoutParams ?: return
+        if (params.width == size && params.height == size) return
+        params.width = size
+        params.height = size
+        binding.vinylRecord.layoutParams = params
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    // ---------------------------------------------------------------- 歌曲信息
+
+    /**
+     * 信息页的初始数据 + 封面。
+     *
+     * 第一次进页面就把数据读好（一次 IO 换一次「滑过去不是空白」），之后由
+     * [onPlaybackChanged] 与 [setupSwipeDeck] 里的 `onPageChanged` 按需刷新。
+     * 封面**不在这里读** —— 播放服务解出内嵌封面往往晚于曲目信息，
+     * 由 [onCoverChanged] 单独补（见那里的注释）。
+     */
+    private fun setupSongInfo() {
+        loadSongInfo()
+    }
+
+    /**
+     * 读当前曲目的技术参数 + 封面。路径没变直接返回（详见 [songInfoKey] 的注释）。
+     *
+     * `MediaMetadataRetriever` 与封面解码都必须离开主线程；`bind()` 只做
+     * setText / setImageBitmap，所以整段是「IO 读 → 主线程写」两段，
+     * 没有跨线程共享的可变状态。
+     */
+    private fun loadSongInfo() {
+        val song = PlaybackStateHolder.currentSong
+        val key = song?.path
+        if (key == songInfoKey) return
+        songInfoKey = key
+        if (song == null) {
+            binding.songInfoPage.bind(null, null, null)
+            return
+        }
+        val hasLyrics = PlaybackStateHolder.lrcLines.isNotEmpty()
+        val onlineLyrics = settings.onlineLyricsEnabled
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val payload = withContext(Dispatchers.IO) {
+                SongInfoLoader.load(appContext, song, hasLyrics, onlineLyrics) to
+                    loadInfoCover(appContext, song)
+            }
+            if (_binding == null) return@launch
+            binding.songInfoPage.bind(song, payload.first, payload.second)
+        }
+    }
+
+    /**
+     * 取信息页封面的位图。**只在 IO 线程调用。**
+     *
+     * 三级来源，由近到远：
+     * ① 播放服务已经落盘的当前封面（`PlaybackStateHolder.coverArtPath`）——
+     *    当前曲目必然已经解过一次，直接复用，不必再开一个 `MediaMetadataRetriever`；
+     * ② 自己抽一次内嵌封面：`CoverArtFetcher.fetchEmbeddedOnly` 把 `embeddedPicture`
+     *    写到 `cacheDir/song_info_cover/<hash>.img` 并返回该路径；
+     * ③ 都没有 → null，界面保留占位图。
+     *
+     * 一律走 `CoverBitmap.decode(path, maxPx)`：它内部先 `inJustDecodeBounds`
+     * 再按 `inSampleSize` 降采样。车机上的内嵌封面动辄 3000×3000（ARGB_8888 ≈ 36MB），
+     * 直接 `BitmapFactory.decodeFile` 就是一次 OOM。
+     *
+     * 注意 ① 有一瞬间可能是**上一首**的封面（播放服务换图比状态回调晚一帧）。
+     * 那种情况下 [onCoverChanged] 紧接着会送来新路径并再刷一次，所以不做去抖。
+     */
+    private fun loadInfoCover(appContext: Context, song: Song): Bitmap? {
+        CoverBitmap.decode(PlaybackStateHolder.coverArtPath, INFO_COVER_PX)?.let { return it }
+        return runCatching {
+            val dir = File(appContext.cacheDir, INFO_COVER_DIR)
+            // 先收拾一次再写：这张图是「为一首歌临时抽出来的一次性产物」，
+            // 换歌之后基本不会再被用到（复用走的是 ① 那条 coverArtPath 快路），
+            // 不清理就会在车机上无限增长 —— 每首几十 KB × 几千首是很实在的几百 MB。
+            pruneInfoCoverCache(dir)
+            val cacheFile = File(dir, "${song.path.hashCode()}.img")
+            val path = CoverArtFetcher(appContext).fetchEmbeddedOnly(song, cacheFile)
+            CoverBitmap.decode(path, INFO_COVER_PX)
+        }.getOrNull()
+    }
+
+    /**
+     * 把信息页封面缓存裁到 [INFO_COVER_CACHE_KEEP] 个以内。
+     *
+     * 只在文件数超过 [INFO_COVER_CACHE_MAX] 时才动手，按 `lastModified()` 升序删最老的。
+     * 特意不引入 LRU 库：这里缓存的是可再生的缩略图，误删了下次滑到信息页重抽一次即可，
+     * 为它加一个依赖不值。整段 `runCatching` —— 清理失败不该影响「把封面显示出来」。
+     */
+    private fun pruneInfoCoverCache(dir: File) {
+        runCatching {
+            val files = dir.listFiles() ?: return@runCatching
+            if (files.size <= INFO_COVER_CACHE_MAX) return@runCatching
+            files.sortedBy { it.lastModified() }
+                .take(files.size - INFO_COVER_CACHE_KEEP)
+                .forEach { it.delete() }
+        }
+    }
+
+    // ---------------------------------------------------------------- 播放状态
 
     override fun onPlaybackChanged(
         song: Song?,
@@ -263,6 +464,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         if (!userSeeking) updateProgressUi(positionMs, PlaybackStateHolder.durationMs)
         // 切歌 / 恢复播放后收藏图标要跟着当前曲目走（收藏是按 Song.path 记的）
         updateFavoriteUi(song)
+        // 只在信息页可见时重读参数：停在封面页就让它保持旧值，
+        // 切回信息页时 `onPageChanged` 会补一次（那边同样走 songInfoKey 去重）。
+        if (currentPageIsInfo()) loadSongInfo()
     }
 
     override fun onPlayModeChanged(mode: PlaybackMode) {
@@ -283,6 +487,15 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     override fun onCoverChanged(coverPath: String?) {
         renderCover(coverPath)
+        // 信息页的封面单独补：播放服务解出内嵌封面通常晚于曲目信息，
+        // 那时只需要换一张图，不该把整页 12 行文字重读一遍。
+        // 复用 viewLifecycleOwner 的作用域，不新开线程池。
+        if (_binding == null) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val bitmap = withContext(Dispatchers.IO) { CoverBitmap.decode(coverPath, INFO_COVER_PX) }
+            if (_binding == null) return@launch
+            binding.songInfoPage.setCoverBitmap(bitmap)
+        }
     }
 
     override fun onDurationChanged(durationMs: Long) {
@@ -315,7 +528,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             }
             updateModeUi(PlaybackStateHolder.playMode)
         }
-        binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
+        // 歌词**不在这里**刷：调用方 onPlaybackChanged 已经拿着最新的 positionMs 刷过一次。
+        // 放在这里会让 8Hz 的进度回调每帧刷两遍（两次线性 findIndex + 两次 currentStyle()，
+        // 后者内部还要新建 SettingsRepository 读 prefs），低端车机上就是白掉的 CPU。
+        // 唯一不带位置的调用点 onViewCreated 自己在后面补一次 update。
     }
 
     private fun updateProgressUi(positionMs: Long, durationMs: Long) {
@@ -366,7 +582,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     // ---------------------------------------------------------------- 队列 / 收藏 / 更多
 
-    /** 功能行第 4 格：弹出真实队列面板（顶栏队列按钮已按 5.5.0 整改删除）。 */
+    /** 功能行第 4 格：弹出真实队列面板。 */
     private fun openQueuePanel() {
         QueuePanel.show(
             requireContext(),
@@ -424,7 +640,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /**
      * 收藏按钮的两种态：已收藏 = 实心 + 主色；未收藏 = 空心 + onSurfaceVariant。
-     * 两态 `alpha` 都固定 1f（置灰只发生在空队列时的队列键上，收藏态不置灰）。
      *
      * `onPlaybackChanged` 每秒来 8 次，`setImageResource` 会重建 drawable，
      * 所以按「曲目路径 + 收藏态」做一次去重，只有真变了才碰图标。
@@ -470,8 +685,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     // ---------------------------------------------------------------- 歌曲信息 / 倍速
 
     /**
-     * 功能行第 5 格：歌曲信息 + 播放速度。
-     * 独立倍速格已按方案 I 删除，倍速链路整体收进这个面板，功能一个不减。
+     * 功能行第 5 格：歌曲信息 + 播放速度面板。
+     *
+     * 与滑动到第 1 页看到的「歌曲信息」不冲突：这里是**可操作的**面板
+     * （能改倍速、能看时长格式），第 1 页是**只读的参数表**。
      */
     private fun openSongInfoPanel() {
         val song = PlaybackStateHolder.currentSong
@@ -501,13 +718,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     // ---------------------------------------------------------------- 音效
 
     /**
-     * 功能行第 3 格：弹出音效（均衡器）面板。
-     *
      * 面板就地改 [eqSettings] 这份实例（setter 同时落盘），回调里只需要**通知服务**重新施加。
      *
      * `supported` 取 [AudioEffectController.lastKnownSupported]：服务里第一次施加过之后就有结论，
-     * 设备不支持时面板把滑块 / chip / 开关全置灰并提示；还没探测过（`null`）按「支持」处理，
-     * 面板照常可用，服务端静默降级。
+     * 设备不支持时面板把滑块 / chip / 开关全置灰并提示；还没探测过（`null`）按「支持」处理。
      */
     private fun openEqPanel() {
         val supported = AudioEffectController.lastKnownSupported != false
@@ -519,12 +733,11 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     /**
-     * 音效指令单独发，**不走 [sendAction]**：后者在 `PlaybackStateHolder.songs` 为空时直接
-     * Toast「没有歌曲」并 return，而音效在没歌时也应该能设（下次播放生效）。
+     * 音效指令单独发，**不走 sendAction**：后者在队列为空时直接 Toast「没有歌曲」并 return，
+     * 而音效在没歌时也应该能设（下次播放生效）。
      *
      * 用 `startService` 而不是 `startForegroundService`：`ACTION_APPLY_EQ` 在服务端
-     * `requiresForeground()` 返回 false、不会 `startForeground()`，而 `startForegroundService`
-     * 要求 5 秒内必须起通知，否则 ANR/异常。
+     * 不会 `startForeground()`，而 `startForegroundService` 要求 5 秒内必须起通知。
      */
     private fun sendEqCommand() {
         runCatching {
@@ -607,13 +820,33 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     private companion object {
-        /** 解码上限：768px 最长边（与原实现一致，避免 3000×3000 封面在车机上 OOM）。 */
+        /** 解码上限：768px 最长边（避免 3000×3000 封面在车机上 OOM）。 */
         const val COVER_MAX_PX = 768
 
-        /** 全屏歌词行宽上限（`design/05 §7` 第三行「行宽 clamp 900dp 居中」）。 */
-        const val MAX_LYRICS_WIDTH_DP = 900f
+        /**
+         * 歌曲信息页头部封面的解码上限。
+         *
+         * 显示格子只有 96dp，×3 密度 = 288px；取 256 已经足够（略小于格子，
+         * 由 `centerCrop` 补齐），再大只是白占内存 —— 黑色车机上这点余量很值钱。
+         */
+        const val INFO_COVER_PX = 256
+
+        /** 信息页封面的落盘目录（`cacheDir/song_info_cover`）。 */
+        const val INFO_COVER_DIR = "song_info_cover"
+
+        /** 缓存文件数超过这个值就触发清理，清到 [INFO_COVER_CACHE_KEEP] 个。 */
+        const val INFO_COVER_CACHE_MAX = 60
+        const val INFO_COVER_CACHE_KEEP = 40
 
         /** 队列为空时功能行队列键的透明度（有队列时回到 1f）。 */
         const val QUEUE_EMPTY_ALPHA = 0.5f
+
+        /** 页码点未选中态的 alpha（0.35 × 255 ≈ 89）。 */
+        const val DOT_INACTIVE_ALPHA = 89
+
+        /** 封面格子四周留白与尺寸上下限（dp）。 */
+        const val COVER_PADDING_DP = 8
+        const val COVER_MIN_SIZE_DP = 120
+        const val COVER_MAX_SIZE_DP = 420
     }
 }

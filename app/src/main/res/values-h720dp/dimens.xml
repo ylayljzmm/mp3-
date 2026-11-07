@@ -32,4 +32,10 @@
     <dimen name="player_title_text_size">35sp</dimen>
     <dimen name="player_artist_text_size">16sp</dimen>
     <dimen name="player_action_icon_size">32dp</dimen>
+
+    <!-- 5.6.0 手机档顶栏（与 h600dp 同值）：手机竖屏是这一档的主要使用者。
+         车机档（≤ 599dp 屏高）仍是 64dp / 60dp / 12dp，不动。 -->
+    <dimen name="player_topbar">56dp</dimen>
+    <dimen name="player_topbar_button">48dp</dimen>
+    <dimen name="player_topbar_padding">8dp</dimen>
 </resources>

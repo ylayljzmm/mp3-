@@ -38,9 +38,6 @@ class ScrollLyricView @JvmOverloads constructor(
     private var layoutIndex = -2
     private var layoutKey = -1f
 
-    /** 全屏歌词态的字号放大系数（§7 第三行：24→33sp / 27sp 一档）。 */
-    private var sizeScale = 1f
-
     /**
      * 是否启用「按行渐隐」。5.5.0 起不再用色块遮罩，只把颜色当作开关：
      * 传 `Color.TRANSPARENT` 关闭，其余任何颜色都表示启用。
@@ -59,7 +56,10 @@ class ScrollLyricView @JvmOverloads constructor(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean {
-                parent?.requestDisallowInterceptTouchEvent(true)
+                // 刻意**不**调用 requestDisallowInterceptTouchEvent(true)：
+                // 播放页现在把歌词放在 SwipeDeckLayout 里，横向滑动是翻页手势。
+                // 一旦在 DOWN 就禁止父容器拦截，deck 永远收不到横向事件，歌词页就锁死了。
+                // 竖向滚动不受影响：deck 只在「横向位移 > 纵向位移 × 1.5」时才拦截。
                 return true
             }
 
@@ -173,26 +173,9 @@ class ScrollLyricView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun currentStyle(): LyricRenderer.Style {
-        val base = LyricRenderer.styleFrom(
-            context, settings, resources.displayMetrics.scaledDensity, forPlayer = true
-        )
-        if (sizeScale == 1f) return base
-        return base.copy(
-            currentSizePx = base.currentSizePx * sizeScale,
-            nextSizePx = base.nextSizePx * sizeScale,
-            otherSizePx = base.otherSizePx * sizeScale,
-        )
-    }
-
-    /** 全屏歌词态：字号整体放大（`design/05 §7` 第三行）。 */
-    fun setFullscreen(enabled: Boolean) {
-        val next = if (enabled) FULLSCREEN_SIZE_SCALE else 1f
-        if (next == sizeScale) return
-        sizeScale = next
-        invalidateLayout()
-        invalidate()
-    }
+    private fun currentStyle(): LyricRenderer.Style = LyricRenderer.styleFrom(
+        context, settings, resources.displayMetrics.scaledDensity, forPlayer = true
+    )
 
     /**
      * 传 `Color.TRANSPARENT` 关闭按行渐隐，其余颜色开启（`05 §6`）。
@@ -382,13 +365,14 @@ class ScrollLyricView @JvmOverloads constructor(
          * GC 抖动与每帧 requestLayout）。`design/05 §9.2` 给的四个数落在：
          *  - 行距 `1.72`      → `SettingsRepository.playerLyricLineSpacing`
          *  - 当前行 `1.55`    → `SettingsRepository.currentLineScale`
-         *  - 基准 `20 → 27sp` → `SettingsRepository.playerFontSizeSp` × [FULLSCREEN_SIZE_SCALE]
+         *  - 基准字号         → `SettingsRepository.playerFontSizeSp`
          *  - 渐隐区 `上下各 58%` → [FADE_SOLID_RATIO] / [FADE_MIN_ALPHA]（5.5.0 改为按行透明度）
+         *
+         * 6.0 起**没有全屏歌词态**（歌词永远是横屏右栏 / 竖屏 deck 第 3 页），
+         * 所以「全屏字号放大 1.35 倍」那条常量与本类的 `sizeScale` 一起删除：
+         * 字号只由用户的「歌词设置」决定，不再有第二种来源。
          */
         const val ROW_RATIO = 1.35f
-
-        /** 全屏歌词字号放大：20 × 1.35 = 27sp（`design/05 §9.2`「基准 20→27sp」）。 */
-        const val FULLSCREEN_SIZE_SCALE = 1.35f
 
         /** 视口中心 ±(height/2 × 0.42) 的行完全不透明，也就是中间 84% 是阅读区。 */
         const val FADE_SOLID_RATIO = 0.42f

@@ -3,8 +3,10 @@
   黑胶唱片（design/05 §4.1）。
 
   层级顺序（FrameLayout 的子 View 按书写顺序叠放）：
-    vinylDisc       L1 盘体 + L2 40 圈纹路 + L3 高光（VinylDiscView 自绘）
-    vinylCover      L4 封面 194dp（尺寸由 VinylRecordView 在 onSizeChanged 里按 0.664 算）
+    vinylDisc       L1 盘体 + L2 密集纹路 + L3 离轴高光（VinylDiscView 自绘）
+    vinylCover      L4 封面（尺寸由 VinylRecordView 在 onSizeChanged 里按
+                       `min(w, h) × COVER_RATIO(0.70)` 动态写回 layoutParams；
+                       XML 里的 @dimen/vinyl_art 只是首帧兜底值）
     vinylHole       L5 中心孔（已按方案 F 置 gone）
   vinylDisc 与 vinylCover 都在 vinylRotateGroup 里，各自用 rotation 反向等速自转。
 -->

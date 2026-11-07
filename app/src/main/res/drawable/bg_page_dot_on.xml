@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  页码点 · 选中态。
+
+  刻意做成**纯白不透明实心圆**而不是直接引用 `?attr/colorPrimary`：
+  drawable 里的颜色不能在运行时改成"当前主色"，而主色是随主题切换的。
+  所以这里画纯白，颜色由 `PlayerFragment` 用 `backgroundTintList` 统一上色
+  （选中 = colorPrimary，未选中 = colorOnSurfaceVariant + 35% alpha）。
+
+  必须是 `backgroundTintList`：圆点是 setBackgroundResource 画的，没有 src，
+  `imageTintList` 只对 src 生效，写在那里等于没画颜色。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#FFFFFFFF" />
+</shape>

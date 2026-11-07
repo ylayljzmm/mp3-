@@ -16,7 +16,8 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
 }
 
 /**
- * 抽屉里的 9 个目的地（外加 3 个不在抽屉里出现的：[PLAYER]、[THEME]、[ABOUT]）。
+ * 抽屉里的 9 个目的地（外加 4 个不在抽屉里出现的：[PLAYER]、[THEME]、[ABOUT]、
+ * [LYRIC_SETTINGS]）。
  *
  * **首页（HOME）已经不存在了。** 它原来是个壳：自己没有任何内容，只用一个 ViewPager2
  * 挂「本地 / 在线 / 电台 / 播客」4 个分区标签页，标题还要靠分区栏去标识。
@@ -39,9 +40,10 @@ enum class DrawerGroup(@StringRes val titleRes: Int) {
  * @property group 所属分组
  * @property available 页面是否已落地；false = 条目置灰、点击提示「即将上线」
  * @property showsCount 是否在条目右侧显示计数（设计里只有歌曲/专辑/艺术家/文件夹 4 条有）
- * @property shownInDrawer 是否在抽屉里出现。[PLAYER] / [THEME] / [ABOUT] 为 false ——
- *   「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地；
- *   主题页由「设置 → 用户界面」直达，关于页内容已并入设置页末组「关于」。
+ * @property shownInDrawer 是否在抽屉里出现。[PLAYER] / [THEME] / [ABOUT] / [LYRIC_SETTINGS]
+ *   为 false —— 「正在播放」不是一个「去哪」的目的地，而是播放动作的目的地；
+ *   主题页由「设置 → 用户界面」直达，关于页内容已并入设置页末组「关于」，
+ *   歌词设置是设置页的下一级页面。
  */
 enum class Destination(
     @StringRes val labelRes: Int,
@@ -174,6 +176,27 @@ enum class Destination(
     THEME(
         labelRes = R.string.theme_title,
         iconRes = R.drawable.ic_drawer_theme,
+        group = DrawerGroup.SYSTEM,
+        available = true,
+        showsCount = false,
+        shownInDrawer = false,
+    ),
+
+    /**
+     * 歌词设置。**设置页的下一级页面**，不在抽屉里出现。
+     *
+     * 原来是设置页里一块「原地展开」的折叠区（20+ 个控件堆在同一张卡片里），
+     * 展开后既超出屏幕又在 `onViewCreated` 里一次性给 8 个 slider 赋存量值 ——
+     * 越界值直接抛 `IllegalStateException`，用户看到的是「点歌词设置闪退」。
+     * 拆成独立页面后：控件有一整屏可排、赋值全部走 `SliderBinding` 的 clamp，
+     * 而且返回键能正常退回设置页（走 [destStack]，与主题页同一条链路）。
+     *
+     * `shownInDrawer = false` 的另一个原因：它是 SETTINGS 的子页，
+     * 让它同时出现在抽屉里会和「设置」并列，反而分不清主次。
+     */
+    LYRIC_SETTINGS(
+        labelRes = R.string.settings_lyrics,
+        iconRes = R.drawable.ic_lyrics,
         group = DrawerGroup.SYSTEM,
         available = true,
         showsCount = false,
