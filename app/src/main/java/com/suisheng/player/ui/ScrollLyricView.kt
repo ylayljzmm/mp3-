@@ -3,9 +3,7 @@ package com.suisheng.player.ui
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Shader
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Choreographer
@@ -43,9 +41,11 @@ class ScrollLyricView @JvmOverloads constructor(
     /** 全屏歌词态的字号放大系数（§7 第三行：24→33sp / 27sp 一档）。 */
     private var sizeScale = 1f
 
-    /** 上下渐隐遮罩的颜色（透传 surface 色），TRANSPARENT 表示不画。 */
-    private var fadeColor: Int = Color.TRANSPARENT
-    private val fadePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    /**
+     * 是否启用「按行渐隐」。5.5.0 起不再用色块遮罩，只把颜色当作开关：
+     * 传 `Color.TRANSPARENT` 关闭，其余任何颜色都表示启用。
+     */
+    private var fadeEnabled: Boolean = false
 
     private var targetPositionMs = 0L
     private var displayPositionMs = 0f
@@ -194,10 +194,19 @@ class ScrollLyricView @JvmOverloads constructor(
         invalidate()
     }
 
-    /** 上下 96dp 渐隐遮罩的颜色；传 `Color.TRANSPARENT` 关闭（`05 §6`）。 */
+    /**
+     * 传 `Color.TRANSPARENT` 关闭按行渐隐，其余颜色开启（`05 §6`）。
+     *
+     * 5.5.0 起**语义变了但签名没变**：原来是「用这个颜色画上下 96dp 的不透明遮罩」，
+     * 那个做法在播放页上必然对不上色 —— 真实背景是 `BackdropView` 的双径向色块
+     * 加两层 scrim，`colorSurface` 永远不是屏幕上那个像素色，于是画出两条硬边，
+     * 还把 428dp 高的歌词列上下各吃掉 96dp。现在这个颜色只当开关用
+     * （3 个调用方不用改），渐隐改成按行透明度实现。
+     */
     fun setFadeColor(@ColorInt color: Int) {
-        if (fadeColor == color) return
-        fadeColor = color
+        val enabled = color != Color.TRANSPARENT
+        if (fadeEnabled == enabled) return
+        fadeEnabled = enabled
         invalidate()
     }
 
@@ -294,22 +303,6 @@ class ScrollLyricView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         drawLyrics(canvas)
-        drawFadeMasks(canvas)
-    }
-
-    /** 上下 96dp 渐隐：中间清晰、两端融进底色，滚动时不会「硬切」出半行字。 */
-    private fun drawFadeMasks(canvas: Canvas) {
-        if (fadeColor == Color.TRANSPARENT || height <= 0) return
-        val band = dp(FADE_HEIGHT_DP).coerceAtMost(height / 2f)
-        fadePaint.shader = LinearGradient(
-            0f, 0f, 0f, band, fadeColor, Color.TRANSPARENT, Shader.TileMode.CLAMP
-        )
-        canvas.drawRect(0f, 0f, width.toFloat(), band, fadePaint)
-        fadePaint.shader = LinearGradient(
-            0f, height - band, 0f, height.toFloat(), Color.TRANSPARENT, fadeColor, Shader.TileMode.CLAMP
-        )
-        canvas.drawRect(0f, height - band, width.toFloat(), height.toFloat(), fadePaint)
-        fadePaint.shader = null
     }
 
     private fun drawLyrics(canvas: Canvas) {
@@ -333,10 +326,11 @@ class ScrollLyricView @JvmOverloads constructor(
             val lineCenterY = blockTop + lineHeights[i] / 2f
             if (lineCenterY < -lineHeights[i] || lineCenterY > height + lineHeights[i]) continue
 
+            val alpha = lineAlpha(lineCenterY)
             if (i == idx) {
                 LyricRenderer.drawKaraokeLine(
                     canvas, lines[i], displayPositionMs, lineCenterY,
-                    style, width.toFloat(), sungPaint, pendingPaint
+                    style, width.toFloat(), sungPaint, pendingPaint, alpha
                 )
             } else {
                 val size = when (abs(i - idx)) {
@@ -346,10 +340,29 @@ class ScrollLyricView @JvmOverloads constructor(
                 val color = if (i < idx) style.nextLineColor else style.pendingColor
                 LyricRenderer.drawWrappedStaticLine(
                     canvas, lines[i].text, lineCenterY, nextPaint, style,
-                    width.toFloat(), color, size, style.maxVisualLines
+                    width.toFloat(), color, size, style.maxVisualLines, alpha
                 )
             }
         }
+    }
+
+    /**
+     * 按行渐隐：行中心与视图中心的距离决定透明度（5.5.0 取代上下遮罩）。
+     *
+     * - 距中心 ≤ `height/2 × 0.42` 的行完全不透明（视口中间的 84% 是阅读区）；
+     * - 之外线性衰减，最边缘降到 6%（16/255），刚好够看见"还有下一行"但不抢焦点；
+     * - 关闭渐隐（[fadeEnabled] = false）时恒为 255，与改造前副屏的表现逐像素一致。
+     */
+    private fun lineAlpha(lineCenterY: Float): Int {
+        if (!fadeEnabled || height <= 0) return 255
+        val half = height / 2f
+        val solidBand = half * FADE_SOLID_RATIO
+        val distance = abs(lineCenterY - half)
+        if (distance <= solidBand) return 255
+        val span = (half - solidBand).coerceAtLeast(1f)
+        val t = ((distance - solidBand) / span).coerceIn(0f, 1f)
+        val alpha = (255f + (FADE_MIN_ALPHA - 255f) * t).toInt()
+        return alpha.coerceIn(FADE_MIN_ALPHA, 255)
     }
 
     private fun findIndex(positionMs: Long): Int {
@@ -370,14 +383,17 @@ class ScrollLyricView @JvmOverloads constructor(
          *  - 行距 `1.72`      → `SettingsRepository.playerLyricLineSpacing`
          *  - 当前行 `1.55`    → `SettingsRepository.currentLineScale`
          *  - 基准 `20 → 27sp` → `SettingsRepository.playerFontSizeSp` × [FULLSCREEN_SIZE_SCALE]
-         *  - 遮罩 `96dp`      → [FADE_HEIGHT_DP]
+         *  - 渐隐区 `上下各 58%` → [FADE_SOLID_RATIO] / [FADE_MIN_ALPHA]（5.5.0 改为按行透明度）
          */
         const val ROW_RATIO = 1.35f
 
         /** 全屏歌词字号放大：20 × 1.35 = 27sp（`design/05 §9.2`「基准 20→27sp」）。 */
         const val FULLSCREEN_SIZE_SCALE = 1.35f
 
-        /** 上下渐隐遮罩高度（`design/05 §6`）。 */
-        const val FADE_HEIGHT_DP = 96f
+        /** 视口中心 ±(height/2 × 0.42) 的行完全不透明，也就是中间 84% 是阅读区。 */
+        const val FADE_SOLID_RATIO = 0.42f
+
+        /** 最边缘的行保留 6% 透明度：看得见"还有下一行"，但不抢当前行的注意力。 */
+        const val FADE_MIN_ALPHA = 16
     }
 }

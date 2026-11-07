@@ -100,7 +100,7 @@
     <string name="player_queue">播放队列</string>
     <string name="player_more">更多</string>
     <string name="player_lyrics_back">返回播放页</string>
-    <string name="player_cover_action">封面：单击看全屏歌词，长按只看封面</string>
+    <string name="player_cover_action">封面</string>
     <string name="no_lyrics">暂无歌词</string>
     <string name="now_playing">正在播放</string>
     <string name="playback_start_failed">无法启动播放，请重试</string>

@@ -3,35 +3,40 @@
   播放页中轴 · 第二档（480 ~ 599dp 屏高）。
 
   可用高度 = 540 − 64（顶栏）− 48（上下各 24 安全边距）= 428dp
-  该档总高 = 196 + 16 + 42 + 4 + 20 + 10 + 10 + 8 + 58 + 5 + 50 = 419dp ≤ 428 ✓
+  该档总高 = 195 + 10 + 42 + 4 + 20 + 8 + 24 + 6 + 58 + 4 + 48 = 419dp ≤ 428 ✓（余量 9）
 
-  这一档就是原先 `values/dimens.xml` 里的默认档，整体搬过来，**一个数值都没改**：
-  1920×1080 面板按 320dpi 上报（dp 高 540）的车机、以及大屏横屏平板都落这里。
-  屏高 < 480dp 的手机横屏走 `values/dimens.xml` 的紧凑档，≥ 600dp 走 h600dp / h720dp。
-  四档对照表见 `values/dimens.xml` 里播放页那一段注释。
+  这一档是原先 `values/dimens.xml` 里的默认档，1920×1080 面板按 320dpi 上报（dp 高 540）
+  的车机、以及大屏横屏平板都落这里。屏高 < 480dp 的手机横屏走 `values/dimens.xml` 的紧凑档，
+  ≥ 600dp 走 h600dp / h720dp。四档对照表见 `values/dimens.xml` 里播放页那一段注释。
+
+  5.5.0 车机整改（四档同改）：功能行文字标签全删 → 行高 50 → 48；省出的高度进进度带
+  （10 → 24，滑块直径 13dp 不再被裁）；时间宽 38 → 46（容得下「10:00」）；功能行图标
+  22 → 28（去掉文字后图标可以吃满格子）；唱片 200 → 195、两个竖向间距各减 2dp 平衡预算。
 
   本文件给全了播放页中轴的**所有** key（含轴宽、顶栏、时间宽、进度带高、滑块半径等），
-  所以 h600dp / h720dp 里没写的 key 会回落到本文件 —— 这与改动前回落到 `values/`
-  的取值完全相同，那两档的渲染结果因此一字未改。
+  所以 h600dp / h720dp 里没写的 key 会回落到本文件。
 -->
 <resources>
     <dimen name="player_axis_width">300dp</dimen>
     <dimen name="player_axis_offset">8dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
-    <!-- 196 + 16 + 42 + 4 + 20 + 10 + 10 + 8 + 58 + 5 + 50 = 419 ≤ 428 ✓ -->
-    <dimen name="vinyl_size">200dp</dimen>
-    <dimen name="vinyl_art">140dp</dimen>
-    <dimen name="player_gap_vinyl_title">12dp</dimen>
+    <!-- 195 + 10 + 42 + 4 + 20 + 8 + 24 + 6 + 58 + 4 + 48 = 419 ≤ 428 ✓ -->
+    <dimen name="vinyl_size">195dp</dimen>
+    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：195 × 0.70 ≈ 136 -->
+    <dimen name="vinyl_art">136dp</dimen>
+    <dimen name="player_gap_vinyl_title">10dp</dimen>
     <dimen name="player_gap_title_artist">4dp</dimen>
-    <dimen name="player_gap_artist_progress">10dp</dimen>
-    <dimen name="player_gap_progress_transport">8dp</dimen>
-    <dimen name="player_gap_transport_actions">5dp</dimen>
+    <dimen name="player_gap_artist_progress">8dp</dimen>
+    <dimen name="player_gap_progress_transport">6dp</dimen>
+    <dimen name="player_gap_transport_actions">4dp</dimen>
     <dimen name="player_transport_size">58dp</dimen>
     <dimen name="player_transport_btn">52dp</dimen>
-    <dimen name="player_action_row_height">50dp</dimen>
-    <dimen name="player_action_cell_width">64dp</dimen>
-    <dimen name="player_time_width">38dp</dimen>
-    <dimen name="player_progress_height">10dp</dimen>
+    <!-- 5.5.0：功能行只剩 28dp 图标，行高 50 → 48；让出的高度进进度带 -->
+    <dimen name="player_action_row_height">48dp</dimen>
+    <!-- 46dp 容得下「10:00」（5 字符 × 8.4dp + 冒号余量） -->
+    <dimen name="player_time_width">46dp</dimen>
+    <!-- 24dp ≥ 13dp 滑块直径 + 上下各 5dp 余量 -->
+    <dimen name="player_progress_height">24dp</dimen>
     <dimen name="player_vinyl_hole">12dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
@@ -46,10 +51,8 @@
     <dimen name="player_slider_thumb_radius">6.5dp</dimen>
     <dimen name="player_slider_thumb_radius_active">8dp</dimen>
 
-    <!-- 布局里不再写字面值的四处，本档与改动前完全一致：歌名 35sp、歌手 16sp、
-         功能行图标 22dp、功能行文字 14sp。 -->
+    <!-- 布局里不再写字面值的三处：歌名 35sp、歌手 16sp、功能行图标 28dp（5.5.0 由 22dp 放大）。 -->
     <dimen name="player_title_text_size">35sp</dimen>
     <dimen name="player_artist_text_size">16sp</dimen>
-    <dimen name="player_action_icon_size">22dp</dimen>
-    <dimen name="player_action_label_text_size">14sp</dimen>
+    <dimen name="player_action_icon_size">28dp</dimen>
 </resources>

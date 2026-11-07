@@ -7,6 +7,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.Typeface
+import androidx.core.graphics.ColorUtils
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.model.LrcChar
 import com.suisheng.player.model.LrcLine
@@ -182,7 +183,8 @@ object LyricRenderer {
         style: Style,
         maxWidth: Float,
         sungPaint: Paint,
-        pendingPaint: Paint
+        pendingPaint: Paint,
+        alpha: Int = 255
     ): Float {
         sungPaint.typeface = style.typeface
         pendingPaint.typeface = style.typeface
@@ -210,7 +212,8 @@ object LyricRenderer {
                 style = style,
                 padX = padX,
                 sungPaint = sungPaint,
-                pendingPaint = pendingPaint
+                pendingPaint = pendingPaint,
+                alpha = alpha
             )
             charGlobalIndex += row.chars.size
             topY += style.currentSizePx * 1.35f
@@ -228,7 +231,8 @@ object LyricRenderer {
         style: Style,
         padX: Float,
         sungPaint: Paint,
-        pendingPaint: Paint
+        pendingPaint: Paint,
+        alpha: Int = 255
     ) {
         if (row.chars.isEmpty()) return
         val text = row.chars.joinToString("") { it.char }
@@ -236,7 +240,7 @@ object LyricRenderer {
         val textSize = style.currentSizePx
         val fillEndX = sungFillEndX(line, positionMs, pendingPaint, row, rowStartIndex, padX)
 
-        drawKaraokeRowLayer(canvas, text, x, baselineY, pendingPaint, style, played = false)
+        drawKaraokeRowLayer(canvas, text, x, baselineY, pendingPaint, style, played = false, alpha = alpha)
 
         if (fillEndX > x + 0.5f) {
             canvas.save()
@@ -246,7 +250,7 @@ object LyricRenderer {
                 fillEndX,
                 baselineY + textSize * 0.15f
             )
-            drawKaraokeRowLayer(canvas, text, x, baselineY, sungPaint, style, played = true)
+            drawKaraokeRowLayer(canvas, text, x, baselineY, sungPaint, style, played = true, alpha = alpha)
             canvas.restore()
         }
     }
@@ -258,7 +262,8 @@ object LyricRenderer {
         baselineY: Float,
         paint: Paint,
         style: Style,
-        played: Boolean
+        played: Boolean,
+        alpha: Int = 255
     ) {
         if (style.outline) {
             if (played) {
@@ -266,18 +271,23 @@ object LyricRenderer {
                     canvas, text, x, baselineY, paint, style,
                     style.overlayPlayedTopColor,
                     style.overlayPlayedBottomColor,
-                    style.overlayPlayedStrokeColor
+                    style.overlayPlayedStrokeColor,
+                    alpha
                 )
             } else {
                 drawGradientText(
                     canvas, text, x, baselineY, paint, style,
                     style.overlayPendingTopColor,
                     style.overlayPendingBottomColor,
-                    style.overlayPendingStrokeColor
+                    style.overlayPendingStrokeColor,
+                    alpha
                 )
             }
         } else {
-            paint.color = if (played) style.highlightColor else style.pendingColor
+            paint.color = ColorUtils.setAlphaComponent(
+                if (played) style.highlightColor else style.pendingColor,
+                alpha,
+            )
             canvas.drawText(text, x, baselineY, paint)
         }
     }
@@ -340,10 +350,13 @@ object LyricRenderer {
         maxWidth: Float,
         color: Int,
         sizePx: Float,
-        maxLines: Int
+        maxLines: Int,
+        alpha: Int = 255
     ) {
         paint.typeface = style.typeface
-        paint.color = color
+        // 判等（isPlayedLike / isNextLike）必须用**原始 color**，不能掺进 alpha，
+        // 否则描边选色会随行透明度一起漂移。
+        paint.color = ColorUtils.setAlphaComponent(color, alpha)
         paint.textSize = sizePx
         val lines = wrapText(text, paint, maxWidth - padding(style), maxLines)
         val lineHeight = sizePx * 1.3f
@@ -371,7 +384,7 @@ object LyricRenderer {
                     isNextLike -> style.overlayNextStrokeColor
                     else -> style.overlayPendingStrokeColor
                 }
-                drawGradientText(canvas, line, lineX, y, paint, style, top, bottom, stroke)
+                drawGradientText(canvas, line, lineX, y, paint, style, top, bottom, stroke, alpha)
             } else {
                 drawText(canvas, line, lineX, y, paint, style)
             }
@@ -446,7 +459,8 @@ object LyricRenderer {
         style: Style,
         topColor: Int,
         bottomColor: Int,
-        strokeColor: Int
+        strokeColor: Int,
+        alpha: Int = 255
     ) {
         val fillColor = paint.color
         val prevShader = paint.shader
@@ -454,14 +468,16 @@ object LyricRenderer {
         val textBottom = baselineY + paint.textSize * 0.1f
         paint.shader = LinearGradient(
             x, textTop, x, textBottom,
-            topColor, bottomColor, Shader.TileMode.CLAMP
+            ColorUtils.setAlphaComponent(topColor, alpha),
+            ColorUtils.setAlphaComponent(bottomColor, alpha),
+            Shader.TileMode.CLAMP
         )
         if (style.outline) {
             val strokeWidth = strokeWidthFor(paint.textSize, style.strokeWidthPx)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = strokeWidth
             paint.strokeJoin = Paint.Join.ROUND
-            paint.color = strokeColor
+            paint.color = ColorUtils.setAlphaComponent(strokeColor, alpha)
             canvas.drawText(text, x, baselineY, paint)
             paint.style = Paint.Style.FILL
         }
@@ -470,7 +486,7 @@ object LyricRenderer {
         paint.color = fillColor
     }
 
-    /** 悬浮歌词：正在播放行用高饱和主题色（网易云红） */
+    /** 悬浮歌词：正在播放行用高饱和主题色 */
     private fun overlayHighlightColor(color: Int): Int {
         val base = if (Color.alpha(color) == 0) Color.parseColor("#EC4141") else color
         val hsv = FloatArray(3)

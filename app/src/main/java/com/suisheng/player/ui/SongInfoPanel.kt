@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.view.LayoutInflater
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.suisheng.player.R
 import com.suisheng.player.databinding.PanelSongInfoBinding
@@ -30,8 +29,8 @@ object SongInfoPanel {
         onPickSpeed: (Float) -> Unit,
     ) {
         val binding = PanelSongInfoBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
+        // 歌曲信息行多（路径可能换行），车机上容易超屏高：交给 PanelHost 套一层滚动容器
+        val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         val unknown = context.getString(R.string.more_info_unknown)
         binding.infoSong.text = context.getString(

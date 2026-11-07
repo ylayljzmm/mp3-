@@ -2,31 +2,34 @@
 <!--
   播放页中轴：720dp 及以上屏高用 design/05 §3.1 的文档原值。
 
-  中轴六段总高 = 292 + 26 + 42（歌名行高）+ 5 + 20（歌手行高）+ 20 + 10 + 14 + 78 + 8 + 68
-              = 583dp
+  中轴各段 = 296 + 22 + 42（歌名行高）+ 4 + 20（歌手行高）+ 18 + 28（进度带）+ 12 + 78 + 7 + 56
+           = 583dp
   720dp 画布减顶栏 64、上下各 24 安全边距 → 可用 608dp，余量 25dp，不滚动。
 
-  只覆盖受屏高约束的那几个尺寸；其余（轴宽 300、时间 38、进度高 10 …）由
-  `values/dimens.xml` 提供，三档一致。
+  5.5.0 车机整改（四档同改）：功能行文字标签全删 → 行高 68 → 56；省出的高度进进度带
+  （10 → 28）；时间宽 38 → 46；功能行图标 22 → 32；两个竖向间距各减 2dp / 1dp。
+
+  只覆盖受屏高约束的那几个尺寸；轴宽 300、主键 52、滑块半径等回落到 `values-h480dp/dimens.xml`。
 -->
 <resources>
     <dimen name="vinyl_size">296dp</dimen>
-    <!-- 封面直径 = 唱片 × 0.664（05 §4.1 L4），292 × 0.664 ≈ 194 -->
+    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4），296 × 0.70 ≈ 207 -->
     <dimen name="vinyl_art">207dp</dimen>
     <dimen name="player_gap_vinyl_title">22dp</dimen>
-    <dimen name="player_gap_title_artist">5dp</dimen>
-    <dimen name="player_gap_artist_progress">20dp</dimen>
-    <dimen name="player_gap_progress_transport">14dp</dimen>
-    <dimen name="player_gap_transport_actions">8dp</dimen>
+    <dimen name="player_gap_title_artist">4dp</dimen>
+    <dimen name="player_gap_artist_progress">18dp</dimen>
+    <dimen name="player_gap_progress_transport">12dp</dimen>
+    <dimen name="player_gap_transport_actions">7dp</dimen>
     <dimen name="player_transport_size">78dp</dimen>
-    <dimen name="player_action_row_height">68dp</dimen>
+    <dimen name="player_action_row_height">56dp</dimen>
+    <dimen name="player_time_width">46dp</dimen>
+    <dimen name="player_progress_height">28dp</dimen>
     <!-- 主键图标恒为 (78 − 2×22) = 34dp（§3.3） -->
     <dimen name="player_transport_padding">22dp</dimen>
 
-    <!-- 字号 / 功能行图标：与改动前布局里的字面值一致（35sp / 16sp / 22dp / 14sp）。
-         资源回落上本档会取 h480dp 的同名值，这里仍显式写一遍，方便对照阅读。 -->
+    <!-- 字号 / 功能行图标：歌名 35sp、歌手 16sp 保持不变（用户要大字），
+         功能行图标 5.5.0 由 22dp 放大到 32dp。 -->
     <dimen name="player_title_text_size">35sp</dimen>
     <dimen name="player_artist_text_size">16sp</dimen>
-    <dimen name="player_action_icon_size">22dp</dimen>
-    <dimen name="player_action_label_text_size">14sp</dimen>
+    <dimen name="player_action_icon_size">32dp</dimen>
 </resources>

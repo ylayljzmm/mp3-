@@ -34,13 +34,17 @@ import kotlin.math.max
  * 播放页（`design/05` 方案 D）。
  *
  * 版式在 `fragment_player.xml` / `layout-port/fragment_player.xml` 里，
- * 四态显隐在 [PlayerChromeController]，背景色块在 [BackdropView]，黑胶在 [VinylRecordView]。
+ * 双态显隐在 [PlayerChromeController]，背景色块在 [BackdropView]，黑胶在 [VinylRecordView]。
  * 本类只做三件事：**绑事件、把播放状态映射到界面、维护歌曲信息与倍速链路**。
  *
  * 关键约束（都在 05 里有出处）：
- *  - 四态切换只由 [PlayerChromeController] 决定，这里不直接改 visibility；
+ *  - 状态切换只由 [PlayerChromeController] 决定，这里不直接改 visibility；
  *  - `renderedStateKey` 节流保留：进度回调约 8Hz，不加节流会在低端车机上抖；
  *  - 主题在 inflate 前套 overlay（§6），所以下面的 `?attr/` 全部按播放页分控色解析。
+ *
+ * 5.5.0 车机整改：沉浸态（自动隐藏顶栏/功能行）与「仅封面」放大态整体删除，
+ * 播放页只保留 [PlayerChromeController.State.DUO] / [PlayerChromeController.State.LYRICS_FULL]
+ * 两态；相应地不再有交互计时、不再需要遍历视图树挂触摸监听。
  */
 class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
@@ -95,7 +99,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         bindTransport()
         bindActionRow()
         bindTopBar()
-        bindVinyl()
         setupSlider()
 
         binding.scrollLyricView.setFadeColor(
@@ -108,7 +111,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
 
         updateFavoriteUi(PlaybackStateHolder.currentSong)
-        resetInteractionOnTouch(binding.root)
 
         renderState()
         renderCover(PlaybackStateHolder.coverArtPath)
@@ -118,7 +120,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     override fun onStart() {
         super.onStart()
         PlaybackStateHolder.addListener(this)
-        chrome.onUserInteraction()
         if (PlaybackStateHolder.isPlaying) binding.vinylRecord.resumeSpin()
     }
 
@@ -126,12 +127,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         PlaybackStateHolder.removeListener(this)
         // 后台/息屏不再转；不清角度，回来接着转
         binding.vinylRecord.pauseSpin()
-        chrome.detach()
         super.onStop()
     }
 
     override fun onDestroyView() {
-        chrome.detach()
         _binding = null
         // 视图重建后图标从 XML 的默认态开始，去重键必须跟着失效，否则不会重画
         favoriteUiKey = null
@@ -146,7 +145,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         binding.btnPrev.setOnClickListener { sendAction(MusicPlaybackService.ACTION_PREV) }
     }
 
-    /** 方案 I 功能行 5 键：播放模式 / 收藏 / 音效 / 队列 / 歌曲信息。 */
+    /** 方案 I 功能行 5 键：播放模式 / 收藏 / 音效 / 队列 / 歌曲信息（纯图标，无文字标签）。 */
     private fun bindActionRow() {
         binding.btnMode.setOnClickListener { toggleMode() }
         binding.btnActionFavorite.setOnClickListener { toggleFavorite() }
@@ -157,26 +156,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     private fun bindTopBar() {
         binding.btnDrawerMenu.setOnClickListener {
-            chrome.onUserInteraction()
             (activity as? MainHost)?.openDrawer()
         }
         binding.btnLyricsBack.setOnClickListener {
-            chrome.onUserInteraction()
             chrome.exitFullLyrics()
         }
-        binding.btnTopQueue.setOnClickListener { openQueuePanel() }
         binding.btnMore.setOnClickListener { openMorePanel() }
-    }
-
-    private fun bindVinyl() {
-        binding.vinylRecord.onTap = {
-            // 纯歌词界面连同入口一并删除：点封面只重置沉浸计时，不再切全屏歌词。
-            chrome.onUserInteraction()
-        }
-        binding.vinylRecord.onLongPress = {
-            chrome.onUserInteraction()
-            chrome.toggleCoverOnly()
-        }
     }
 
     private fun setupSlider() {
@@ -198,7 +183,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
                 userSeeking = true
-                chrome.onUserInteraction()
                 slider.thumbRadius = thumbActivePx
                 binding.timeCurrent.setTextColor(activeTextColor)
                 binding.timeTotal.setTextColor(activeTextColor)
@@ -225,13 +209,13 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
-    // ------------------------------------------------------- 四态与交互计时
+    // ---------------------------------------------------------------- 双态
 
     private fun onChromeStateChanged(state: PlayerChromeController.State) {
         val fullLyrics = state == PlayerChromeController.State.LYRICS_FULL
         binding.scrollLyricView.setFullscreen(fullLyrics)
         applyLyricsWidthClamp(fullLyrics)
-        // 沉浸态不是「全屏歌词」但顶栏会消失，此时歌词列仍要占满原始位置
+        // 全屏歌词态下歌词列占满整屏，单击退出全屏；双栏态不需要这层点击
         if (singleColumn) {
             binding.scrollLyricView.isClickable = fullLyrics
         }
@@ -266,28 +250,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
-    /**
-     * 任何触摸都重置 8 秒沉浸计时（§12 Q1）。
-     *
-     * 两层覆盖：根布局接住「没打到任何控件的空白区」；每个可点控件各接一层。
-     * 监听器一律返回 false，不消费事件，所以不改变任何既有行为。
-     */
-    private fun resetInteractionOnTouch(view: View) {
-        // Slider 自己有一套触摸实现，套 OnTouchListener 有覆盖其内部监听的风险；
-        // 它的「开始拖动」回调里已经调过 onUserInteraction()，这里跳过即可。
-        if (view.id == R.id.progressSlider) return
-        view.setOnTouchListener { _, _ ->
-            chrome.onUserInteraction()
-            false
-        }
-        if (view is ViewGroup) {
-            for (index in 0 until view.childCount) {
-                val child = view.getChildAt(index)
-                if (child.isClickable || child is ViewGroup) resetInteractionOnTouch(child)
-            }
-        }
-    }
-
     // ---------------------------------------------------------------- 状态
 
     override fun onPlaybackChanged(
@@ -296,12 +258,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         positionMs: Long,
         lines: List<LrcLine>,
     ) {
-        val previous = renderedStateKey
         renderState()
-        if (previous != renderedStateKey) {
-            // 切歌算一次交互：把沉浸态拉回双栏（§12 Q1「切歌事件重置计时」）
-            chrome.onUserInteraction()
-        }
         binding.scrollLyricView.update(lines, positionMs)
         if (!userSeeking) updateProgressUi(positionMs, PlaybackStateHolder.durationMs)
         // 切歌 / 恢复播放后收藏图标要跟着当前曲目走（收藏是按 Song.path 记的）
@@ -316,13 +273,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 队列增删 / 清空后回调。
      *
      * 面板本身每次打开都重新读 [PlaybackStateHolder.songs] 快照，所以这里不缓存队列；
-     * 只把「有没有队列」映射到两个队列入口的透明度上——空队列时点开是个空面板，先给个暗示。
+     * 只把「有没有队列」映射到功能行队列键的透明度上——空队列时点开是个空面板，先给个暗示。
      */
     override fun onPlaylistChanged(songs: List<Song>) {
         val view = _binding ?: return
         val alpha = if (songs.isEmpty()) QUEUE_EMPTY_ALPHA else 1f
         view.btnQueue.alpha = alpha
-        view.btnTopQueue.alpha = alpha
     }
 
     override fun onCoverChanged(coverPath: String?) {
@@ -397,31 +353,21 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
     }.getOrNull()
 
-    /** 三态模式：图标、短标签、无障碍描述一起换。 */
+    /** 三态模式：图标与无障碍描述一起换（功能行已改纯图标，没有文字标签可换）。 */
     private fun updateModeUi(mode: PlaybackMode) {
-        val (icon, shortLabel, description) = when (mode) {
-            PlaybackMode.ORDER -> Triple(
-                R.drawable.ic_mode_order, R.string.mode_short_order, R.string.mode_order
-            )
-            PlaybackMode.SHUFFLE -> Triple(
-                R.drawable.ic_mode_shuffle, R.string.mode_short_shuffle, R.string.mode_shuffle
-            )
-            PlaybackMode.REPEAT_ONE -> Triple(
-                R.drawable.ic_mode_repeat_one,
-                R.string.mode_short_repeat_one,
-                R.string.mode_repeat_one,
-            )
+        val (icon, description) = when (mode) {
+            PlaybackMode.ORDER -> Pair(R.drawable.ic_mode_order, R.string.mode_order)
+            PlaybackMode.SHUFFLE -> Pair(R.drawable.ic_mode_shuffle, R.string.mode_shuffle)
+            PlaybackMode.REPEAT_ONE -> Pair(R.drawable.ic_mode_repeat_one, R.string.mode_repeat_one)
         }
         binding.iconActionMode.setImageResource(icon)
-        binding.labelMode.setText(shortLabel)
         binding.btnMode.contentDescription = getString(description)
     }
 
     // ---------------------------------------------------------------- 队列 / 收藏 / 更多
 
-    /** 功能行第 4 格与顶栏队列按钮共用：弹出真实队列面板。 */
+    /** 功能行第 4 格：弹出真实队列面板（顶栏队列按钮已按 5.5.0 整改删除）。 */
     private fun openQueuePanel() {
-        chrome.onUserInteraction()
         QueuePanel.show(
             requireContext(),
             onJump = { index -> sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_JUMP, index) },
@@ -435,7 +381,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /** 顶栏「更多」：收藏 / 从队列移除 / 歌曲信息。 */
     private fun openMorePanel() {
-        chrome.onUserInteraction()
         val song = PlaybackStateHolder.currentSong
         if (song == null) {
             Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
@@ -455,7 +400,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /** 功能行第 2 格：切换当前曲目的收藏状态（立即落盘 + 立即换图标）。 */
     private fun toggleFavorite() {
-        chrome.onUserInteraction()
         val song = PlaybackStateHolder.currentSong
         if (song == null) {
             Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
@@ -480,7 +424,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /**
      * 收藏按钮的两种态：已收藏 = 实心 + 主色；未收藏 = 空心 + onSurfaceVariant。
-     * 两态 `alpha` 都固定 1f（置灰由 [onPlaylistChanged] 之外的逻辑负责，收藏态不置灰）。
+     * 两态 `alpha` 都固定 1f（置灰只发生在空队列时的队列键上，收藏态不置灰）。
      *
      * `onPlaybackChanged` 每秒来 8 次，`setImageResource` 会重建 drawable，
      * 所以按「曲目路径 + 收藏态」做一次去重，只有真变了才碰图标。
@@ -510,8 +454,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * @param index `null` 时不带 [MusicPlaybackService.EXTRA_INDEX]（清空队列用）
      */
     private fun sendQueueCommand(action: String, index: Int?) {
-        // 面板在 BottomSheet 里，触摸事件不在播放页视图树上，这里补一次交互计时重置
-        chrome.onUserInteraction()
         runCatching {
             ContextCompat.startForegroundService(
                 requireContext(),
@@ -532,7 +474,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 独立倍速格已按方案 I 删除，倍速链路整体收进这个面板，功能一个不减。
      */
     private fun openSongInfoPanel() {
-        chrome.onUserInteraction()
         val song = PlaybackStateHolder.currentSong
         if (song == null) {
             Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
@@ -560,7 +501,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     // ---------------------------------------------------------------- 音效
 
     /**
-     * 功能行第 4 格：弹出音效（均衡器）面板。
+     * 功能行第 3 格：弹出音效（均衡器）面板。
      *
      * 面板就地改 [eqSettings] 这份实例（setter 同时落盘），回调里只需要**通知服务**重新施加。
      *
@@ -569,7 +510,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 面板照常可用，服务端静默降级。
      */
     private fun openEqPanel() {
-        chrome.onUserInteraction()
         val supported = AudioEffectController.lastKnownSupported != false
         EqPanel.show(requireContext(), eqSettings, supported = supported) { updated ->
             // 面板已经改完内存值（同一份实例），这里只补一次落盘 + 通知服务
@@ -598,7 +538,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     // ---------------------------------------------------------------- 播放控制
 
     private fun toggleMode() {
-        chrome.onUserInteraction()
         val next = when (PlaybackStateHolder.playMode) {
             PlaybackMode.ORDER -> PlaybackMode.SHUFFLE
             PlaybackMode.SHUFFLE -> PlaybackMode.REPEAT_ONE
@@ -620,7 +559,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     private fun sendAction(action: String) {
-        chrome.onUserInteraction()
         if (PlaybackStateHolder.songs.isEmpty()) {
             Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
             return
@@ -675,7 +613,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         /** 全屏歌词行宽上限（`design/05 §7` 第三行「行宽 clamp 900dp 居中」）。 */
         const val MAX_LYRICS_WIDTH_DP = 900f
 
-        /** 队列为空时两个队列入口的透明度（有队列时回到 1f）。 */
+        /** 队列为空时功能行队列键的透明度（有队列时回到 1f）。 */
         const val QUEUE_EMPTY_ALPHA = 0.5f
     }
 }

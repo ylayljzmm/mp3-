@@ -128,6 +128,8 @@
                         android:layout_height="wrap_content"
                         android:fontFeatureSettings="tnum"
                         android:gravity="start|center_vertical"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
                         android:singleLine="true"
                         android:text="0:00"
                         android:textColor="?attr/colorOnSurfaceVariant"
@@ -169,6 +171,8 @@
                         android:layout_height="wrap_content"
                         android:fontFeatureSettings="tnum"
                         android:gravity="end|center_vertical"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
                         android:singleLine="true"
                         android:text="0:00"
                         android:textColor="?attr/colorOnSurfaceVariant"
@@ -231,7 +235,10 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <!-- 方案 I 功能行：5 格严格等宽（模式 / 收藏 / 音效 / 队列 / 歌曲信息）。
-                     纯歌词界面与独立倍速格已删除；倍速收进「歌曲信息」面板。 -->
+                     5.5.0 车机整改：5 个文字标签全部删除，只留图标，行高随之压到
+                     @dimen/player_action_row_height，省出的高度让给进度条与时间文字。
+                     无障碍描述挂在整格 LinearLayout 上（内层 ImageView 仍为 @null）：
+                     可点容器才是无障碍焦点，挂在图标上会被读两次。 -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/actionRow"
                     android:layout_width="match_parent"
@@ -262,16 +269,6 @@
                             android:contentDescription="@null"
                             android:src="@drawable/ic_mode_shuffle"
                             app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <TextView
-                            android:id="@+id/labelMode"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:singleLine="true"
-                            android:text="@string/mode_short_shuffle"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -280,6 +277,7 @@
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
+                        android:contentDescription="@string/player_action_favorite"
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
@@ -296,15 +294,6 @@
                             android:contentDescription="@null"
                             android:src="@drawable/ic_favorite_border"
                             app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:singleLine="true"
-                            android:text="@string/player_action_favorite"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -313,6 +302,7 @@
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
+                        android:contentDescription="@string/player_action_sound"
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
@@ -328,15 +318,6 @@
                             android:contentDescription="@null"
                             android:src="@drawable/ic_equalizer"
                             app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:singleLine="true"
-                            android:text="@string/player_action_sound"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -345,6 +326,7 @@
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
+                        android:contentDescription="@string/player_action_queue"
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
@@ -360,15 +342,6 @@
                             android:contentDescription="@null"
                             android:src="@drawable/ic_queue_music"
                             app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:singleLine="true"
-                            android:text="@string/player_action_queue"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -377,6 +350,7 @@
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
+                        android:contentDescription="@string/player_action_info"
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
@@ -392,15 +366,6 @@
                             android:contentDescription="@null"
                             android:src="@drawable/ic_song_info"
                             app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:singleLine="true"
-                            android:text="@string/player_action_info"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="@dimen/player_action_label_text_size" />
                     </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </LinearLayout>
@@ -418,7 +383,7 @@
             android:paddingBottom="@dimen/player_pane_padding_top" />
     </LinearLayout>
 
-    <!-- L4 顶栏 64dp：左 ☰ / 全屏歌词返回箭头，右 播放队列 + 更多 -->
+    <!-- L4 顶栏 64dp：左 ☰ / 全屏歌词返回箭头，右「更多」 -->
     <FrameLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -459,17 +424,6 @@
             android:layout_gravity="end|center_vertical"
             android:gravity="center_vertical"
             android:orientation="horizontal">
-
-            <ImageButton
-                android:id="@+id/btnTopQueue"
-                android:layout_width="@dimen/player_topbar_button"
-                android:layout_height="@dimen/player_topbar_button"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/player_queue"
-                android:padding="18dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_queue_music"
-                app:tint="?attr/colorOnSurface" />
 
             <ImageButton
                 android:id="@+id/btnMore"

@@ -77,10 +77,20 @@
          播放页中轴（design/05 §3.1，方案 D）—— 四档按屏高分
 
          | 档位 | 适用 | 可用高度 | 该档总高 |
-         | 本文件（紧凑） | 屏高 < 480dp | 360 − 64 − 48 = 248 | 248 |
+         | 本文件（紧凑） | 屏高 < 480dp | 360 − 64 − 48 = 248 | 246 |
          | values-h480dp | 480 ~ 599dp | 540 − 64 − 48 = 428 | 419 |
          | values-h600dp | 600 ~ 719dp | 600 − 64 − 48 = 488 | 478 |
          | values-h720dp | ≥ 720dp | 720 − 64 − 48 = 608 | 583 |
+
+         5.5.0 车机整改对四档的同一处结构改动（四档等比例执行，不是只改这一档）：
+         ① 功能行 5 个文字标签全删 → `player_action_row_height` 各减 2 ~ 12dp；
+         ② 省出的高度全部让给进度带：`player_progress_height` 8/10/10/10 → 22/24/26/28，
+            同时 `player_time_width` 32/38/38/38 → 40/46/46/46。
+            进度带原先只有 8 ~ 10dp，比 13dp 的滑块还矮，滑块上下被父容器裁掉一半，
+            时间文字也贴着行边裁字（`includeFontPadding` 关掉后才勉强不裁）；
+         ③ 功能行图标反而放大（16/22/22/22 → 22/28/30/32）：去掉文字后每格只剩图标，
+            格子不变宽，图标可以吃满。
+         高度预算仍然「先算总高、再填数值」，每档的算式写在档位注释里。
 
          为什么必须分档：§10 验收第 2 条要求「根布局 canScrollVertically 恒为 false」，
          而 §3.1 的 292dp 中轴 + 64dp 顶栏在 600dp 高的屏上物理溢出 47dp，两条自相矛盾。
@@ -95,33 +105,34 @@
          h480dp 档必须按 **540dp** 算而不是按 600dp：1920×1080 的面板若按 320dpi 上报
          （车机很常见），dp 高度就是 540，此时 `-h600dp` 不匹配，会落进 h480dp 这一档。
 
-         紧凑档是唯一同时缩字号的一档：屏高只剩 248dp，唱片缩到 88dp 已近「看清封面」的
-         下限，剩下的高度只能从字上让，故 songTitle 26sp / songArtist 13sp、功能行
-         图标 16dp / 文字 11sp。h480dp 及以上三档**不动歌名 42dp / 歌手 20dp 行高**：
-         用户要的是大字，宁可缩唱片也不缩字。
+         紧凑档是唯一同时缩字号的一档：屏高只剩 248dp，去掉文字标签后唱片已缩到 82dp
+         （近「看清封面」的下限），剩下的高度只能从字上让，故 songTitle 26sp / songArtist 13sp。
+         h480dp 及以上三档**不动歌名 / 歌手字号**：用户要的是大字，宁可缩唱片也不缩字。
 
-         行高按项目既有口径计：歌名行 32dp（26sp × 约 1.2）、歌手行 18dp（13sp × 约 1.4）。
+         行高按项目既有口径计：歌名行 32dp（26sp × 约 1.2）、歌手行 18dp（13sp × 约 1.4）；
+         h480dp 及以上歌名行 42dp（35sp × 1.2）、歌手行 20dp（16sp × 1.25）。
          ========================================================= -->
     <dimen name="player_axis_width">300dp</dimen>
     <dimen name="player_axis_offset">8dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
-    <!-- 88 + 8 + 32 + 2 + 18 + 6 + 8 + 2 + 44 + 2 + 38 = 248 ≤ 248 ✓ -->
-    <dimen name="vinyl_size">92dp</dimen>
-    <!-- 封面直径 = 唱片 × 0.664（§4.1 L4）：88 × 0.664 ≈ 58，取 60 保比例手感 -->
-    <dimen name="vinyl_art">66dp</dimen>
+    <!-- 82 + 4 + 32 + 2 + 18 + 4 + 22 + 2 + 44 + 2 + 34 = 246 ≤ 248 ✓ -->
+    <dimen name="vinyl_size">82dp</dimen>
+    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：82 × 0.70 ≈ 58 -->
+    <dimen name="vinyl_art">58dp</dimen>
     <dimen name="player_gap_vinyl_title">4dp</dimen>
     <dimen name="player_gap_title_artist">2dp</dimen>
-    <dimen name="player_gap_artist_progress">6dp</dimen>
+    <dimen name="player_gap_artist_progress">4dp</dimen>
     <dimen name="player_gap_progress_transport">2dp</dimen>
     <dimen name="player_gap_transport_actions">2dp</dimen>
     <dimen name="player_transport_size">44dp</dimen>
     <dimen name="player_transport_btn">40dp</dimen>
-    <!-- 34 → 38：功能行是「图标 16 + 间距 5 + 文字 11sp」，11sp 一行的实测高约 15 ~ 16dp，
-         16 + 5 + 16 = 37，34 会把文字裁掉 3dp。多出的 4dp 从唱片上扣（92 → 88）。 -->
-    <dimen name="player_action_row_height">38dp</dimen>
-    <dimen name="player_action_cell_width">54dp</dimen>
-    <dimen name="player_time_width">32dp</dimen>
-    <dimen name="player_progress_height">8dp</dimen>
+    <!-- 5.5.0：文字标签删除后功能行只需容纳 22dp 图标（38 → 34），
+         让出的 4dp 进进度带；每格仍横跨 1/5 轴宽（60dp × 34dp）远大于图标本体。 -->
+    <dimen name="player_action_row_height">34dp</dimen>
+    <!-- 40dp 容得下「10:00」；再长的时长（`120:00`）会被 singleLine 裁尾，属已知取舍 -->
+    <dimen name="player_time_width">40dp</dimen>
+    <!-- 22dp ≥ 13dp 滑块直径 + 上下各 4dp 余量：滑块不再被父容器裁掉一半 -->
+    <dimen name="player_progress_height">22dp</dimen>
     <dimen name="player_vinyl_hole">8dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
@@ -142,10 +153,11 @@
     <dimen name="player_slider_thumb_radius">6.5dp</dimen>
     <dimen name="player_slider_thumb_radius_active">8dp</dimen>
 
-    <!-- 左栏文字与功能行字号（布局里不再写字面值）。紧凑档是本档；h480dp 及以上
-         三档在各自目录里显式给出 35sp / 16sp / 22dp / 14sp，与改动前完全一致。 -->
+    <!-- 左栏文字与功能行图标（布局里不再写字面值）。紧凑档是本档；h480dp 及以上
+         三档在各自目录里显式给出 35sp / 16sp / 28~32dp。功能行已无文字标签，
+         所以 `player_action_label_text_size` 与未再被引用的 `player_action_cell_width`
+         于 5.5.0 一并删除（四档都没有这个 key 了）。 -->
     <dimen name="player_title_text_size">26sp</dimen>
     <dimen name="player_artist_text_size">13sp</dimen>
-    <dimen name="player_action_icon_size">16dp</dimen>
-    <dimen name="player_action_label_text_size">11sp</dimen>
+    <dimen name="player_action_icon_size">22dp</dimen>
 </resources>

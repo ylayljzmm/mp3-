@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.suisheng.player.R
@@ -18,7 +17,7 @@ import com.suisheng.player.model.Song
 import com.suisheng.player.playback.PlaybackStateHolder
 
 /**
- * 播放队列面板（`design/05 §3.4` 传输行第 5 位 / 顶栏队列按钮）。
+ * 播放队列面板（`design/05 §3.4` 功能行第 4 格）。
  *
  * 与 [SpeedPanel] 同一个模式：`object` + `BottomSheetDialog` + ViewBinding，面板**不持有业务逻辑**：
  * - 点行 → [onJump] 传「队列内索引」给宿主，宿主自己发 `queue_jump`；
@@ -44,9 +43,10 @@ object QueuePanel {
         onClear: () -> Unit,
     ) {
         val binding = PanelQueueBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
-        capListHeight(context, binding)
+        // 队列面板里本身有一个会滚的 RecyclerView，绝不能让 [PanelHost] 再套 NestedScrollView
+        // （那会一次性 measure 全部 item，几百首队列直接卡死），所以传 scrollable = false，
+        // 改用 capFixedListHeight 按屏高反算列表高度。
+        val dialog = PanelHost.build(context, binding.root, scrollable = false)
 
         val adapter = QueueAdapter(
             items = PlaybackStateHolder.songs.toMutableList(),
@@ -80,6 +80,12 @@ object QueuePanel {
         }
 
         refreshHeader(context, binding, adapter.itemCount)
+        PanelHost.capFixedListHeight(
+            context,
+            list = binding.queueList,
+            header = binding.queueHeader,
+            sheetRoot = binding.root,
+        )
         dialog.show()
     }
 
@@ -92,23 +98,6 @@ object QueuePanel {
         binding.btnClearQueue.isEnabled = !empty
         binding.btnClearQueue.alpha = if (empty) 0.5f else 1f
     }
-
-    /**
-     * 列表高度兜底：XML 里给的是 360dp，这里再按屏高压一次（<= 屏高 55%），
-     * 保证小屏 / 横屏车机上面板不会顶出屏幕（BottomSheet 不会帮你裁 wrap_content 内容）。
-     */
-    private fun capListHeight(context: Context, binding: PanelQueueBinding) {
-        val screenPx = context.resources.displayMetrics.heightPixels
-        val capPx = (screenPx * MAX_LIST_HEIGHT_RATIO).toInt()
-        val params = binding.queueList.layoutParams
-        if (params.height > capPx) {
-            params.height = capPx
-            binding.queueList.layoutParams = params
-        }
-    }
-
-    /** 列表 360dp 与屏高 55% 取小。 */
-    private const val MAX_LIST_HEIGHT_RATIO = 0.55f
 
     /**
      * 队列行适配器。

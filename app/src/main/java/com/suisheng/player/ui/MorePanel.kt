@@ -3,7 +3,6 @@ package com.suisheng.player.ui
 import android.content.Context
 import android.view.LayoutInflater
 import androidx.core.view.isVisible
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.suisheng.player.R
 import com.suisheng.player.databinding.PanelMoreBinding
@@ -42,8 +41,8 @@ object MorePanel {
         onRemoveFromQueue: () -> Unit,
     ) {
         val binding = PanelMoreBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
+        // 三行按钮不高，但小屏 + 大字体时仍可能超屏高：交给 PanelHost 套一层滚动容器
+        val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         binding.moreFavorite.text = context.getString(
             if (isFavorite) R.string.favorite_remove else R.string.favorite_add

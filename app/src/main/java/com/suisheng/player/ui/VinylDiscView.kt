@@ -2,11 +2,10 @@ package com.suisheng.player.ui
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.RectF
 import android.graphics.Shader
-import android.graphics.SweepGradient
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -19,13 +18,27 @@ import kotlin.math.min
  * 而封面上还要盖中心孔。FrameLayout 的 `onDraw` 永远早于子 View，
  * 所以「盘体 + 纹路 + 高光」只能是子 View 里的第一个。
  *
- * 三层内容：
- *  - L1 盘体：径向渐变（光心 38%,30%），`#333 → #1a1a1a 30% → #0d0d0d 62% → #050505`
- *  - L2 纹路：40 圈等距 1dp 细弧，白色 alpha 0.028，半径 0.42R ~ 0.98R 均分
- *  - L3 高光：一道 40° 宽的柔光带（从 200° 起），`SweepGradient` 近似 `BlendMode.SCREEN`
+ * ## 5.5.0 重绘：为什么干掉两个大范围 shader
  *
- * 关于 `BlendMode.SCREEN`：它是 API 29 才有的，本项目 minSdk 24，
- * 所以用「白色低 alpha + SRC_OVER」近似 —— 黑底上白 alpha 的叠加结果与 SCREEN 极接近。
+ * 旧实现是「一个覆盖整盘的 [RadialGradient] + 一个整盘的 SweepGradient」，
+ * 在车机上肉眼可见**色阶断层**：
+ *  - 25 级亮度摊在 30% 半径上，8bit 输出每 5 ~ 6px 就跳一级；
+ *  - 40 圈 1dp、白色 alpha 0.028 的纹路又把这些台阶强化成摩尔纹。
+ *
+ * 现在改成**纯色分层 + 短弧反光**：大色块用实心圆（无色阶可断），
+ * 唯一保留的渐变只在 `0.92R → 1.0R` 的外沿这一窄圈上（面积小，阶梯不可见）。
+ *
+ * ## 图层
+ *
+ *  - L1   底盘 `#FF131316` 实心圆
+ *  - L1.5 外沿窄渐变（0.92R → 1.0R，3 停点），在 [onSizeChanged] 建好缓存
+ *  - L2   三档分环实体色：0.86R / 0.72R / 0.58R（由大到小覆盖）
+ *  - L3   三组沟槽，每组 3 圈，STROKE 1dp，白 alpha 0.04
+ *  - L4   四段弧形反光（同一环上两段不同宽度做柔边，不用 BlurMaskFilter）
+ *  - L5   边缘收口：1.5dp 外沿 + 0.345R 内圈
+ *
+ * **每帧零分配**：所有 Paint、RectF、Shader 都在 [onSizeChanged] 里建好或复用，
+ * [onDraw] 里只改颜色 / 画圆，不 new 任何对象（30fps 转动下这是硬要求）。
  */
 class VinylDiscView @JvmOverloads constructor(
     context: Context,
@@ -33,22 +46,57 @@ class VinylDiscView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
-    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    /** L1 底盘（实心，无色阶）。 */
+    private val basePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COLOR_BASE }
+
+    /** L1.5 外沿窄渐变；shader 在 onSizeChanged 里换，Paint 本身复用。 */
+    private val outerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /** L2 三档分环：同一个 Paint 改颜色，避免建三个对象。 */
+    private val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /** L3 沟槽纹路。 */
+    private val groovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = dp(1f)
-        color = RING_COLOR
-    }
-    private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = dp(1.5f)
-        color = RIM_COLOR
+        color = COLOR_GROOVE
     }
 
-    private var bodyShader: RadialGradient? = null
-    private var highlightShader: SweepGradient? = null
+    /** L4 四段反光，各自固定颜色与（随半径缩放的）线宽。 */
+    private val arcSoftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_ARC_SOFT
+    }
+    private val arcCorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_ARC_CORE
+    }
+    private val arcRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_ARC_RIM
+    }
+    private val arcFillLightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_ARC_FILL
+    }
+
+    /** L5 边缘收口。 */
+    private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_RIM
+    }
+    private val innerRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = COLOR_INNER_RIM
+    }
+
+    private var outerShader: RadialGradient? = null
     private var radiusPx = 0f
+
+    /** 四段弧的包围盒，随尺寸重建（每帧复用）。 */
+    private val arcSoftRect = RectF()
+    private val arcCoreRect = RectF()
+    private val arcRimRect = RectF()
+    private val arcFillRect = RectF()
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -57,28 +105,28 @@ class VinylDiscView @JvmOverloads constructor(
         val cx = w / 2f
         val cy = h / 2f
 
-        bodyShader = RadialGradient(
-            // 光心偏左上（38%, 30%），让盘面有厚度感而不是一块平黑饼
-            w * 0.38f, h * 0.30f, radiusPx * 1.06f,
-            intArrayOf(0xFF333333.toInt(), 0xFF1A1A1A.toInt(), 0xFF0D0D0D.toInt(), 0xFF050505.toInt()),
-            floatArrayOf(0f, 0.30f, 0.62f, 1f),
+        // L1.5 只在最外 8% 半径上做渐变：面积小，8bit 阶梯看不出来
+        outerShader = RadialGradient(
+            cx, cy, radiusPx,
+            intArrayOf(COLOR_OUTER, COLOR_BASE, COLOR_OUTER_EDGE),
+            floatArrayOf(0.92f, 0.965f, 1f),
             Shader.TileMode.CLAMP,
         )
+        outerPaint.shader = outerShader
 
-        // 40° 柔光带：200° 起。SweepGradient 从 3 点钟方向顺时针，
-        // 位置用「角度 / 360」折算；两端各留一段完全透明，避免接缝。
-        highlightShader = SweepGradient(
-            cx, cy,
-            intArrayOf(
-                Color.TRANSPARENT,
-                HIGHLIGHT_STRONG,   // 200°
-                Color.TRANSPARENT,  // 240°
-                HIGHLIGHT_SOFT,     // 280°
-                Color.TRANSPARENT,  // 320°
-                HIGHLIGHT_TAIL,     // 360°
-            ),
-            floatArrayOf(0f, 200f / 360f, 240f / 360f, 280f / 360f, 320f / 360f, 1f),
-        )
+        // 线宽随半径缩放，全部在这里定好，onDraw 里不再算
+        groovePaint.strokeWidth = dp(1f)
+        arcSoftPaint.strokeWidth = radiusPx * 0.045f
+        arcCorePaint.strokeWidth = radiusPx * 0.018f
+        arcRimPaint.strokeWidth = radiusPx * 0.010f
+        arcFillLightPaint.strokeWidth = radiusPx * 0.008f
+        rimPaint.strokeWidth = dp(1.5f)
+        innerRimPaint.strokeWidth = dp(1f)
+
+        setArcRect(arcSoftRect, cx, cy, radiusPx * 0.90f)
+        setArcRect(arcCoreRect, cx, cy, radiusPx * 0.90f)
+        setArcRect(arcRimRect, cx, cy, radiusPx * 0.985f)
+        setArcRect(arcFillRect, cx, cy, radiusPx * 0.985f)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -88,50 +136,74 @@ class VinylDiscView @JvmOverloads constructor(
         val r = radiusPx
         if (r <= 0f) return
 
-        // L1 盘体
-        bodyShader?.let {
-            bodyPaint.shader = it
-            canvas.drawCircle(cx, cy, r, bodyPaint)
-            bodyPaint.shader = null
-        }
+        // L1 底盘
+        canvas.drawCircle(cx, cy, r, basePaint)
 
-        // L2 40 圈纹路：0.42R ~ 0.98R 均分
-        val inner = r * 0.42f
-        val outer = r * 0.98f
-        val step = (outer - inner) / (RING_COUNT - 1)
-        var radius = inner
-        repeat(RING_COUNT) {
-            canvas.drawCircle(cx, cy, radius, ringPaint)
-            radius += step
-        }
+        // L1.5 外沿窄渐变
+        canvas.drawCircle(cx, cy, r, outerPaint)
 
-        // L3 高光
-        highlightShader?.let {
-            highlightPaint.shader = it
-            canvas.drawCircle(cx, cy, r, highlightPaint)
-            highlightPaint.shader = null
-        }
+        // L2 三档分环（由大到小覆盖，形成同心层次）
+        bandPaint.color = COLOR_BAND_OUTER
+        canvas.drawCircle(cx, cy, r * 0.86f, bandPaint)
+        bandPaint.color = COLOR_BAND_MIDDLE
+        canvas.drawCircle(cx, cy, r * 0.72f, bandPaint)
+        bandPaint.color = COLOR_BAND_INNER
+        canvas.drawCircle(cx, cy, r * 0.58f, bandPaint)
 
-        // 外沿：1.5dp 白色 10% 描边，给盘边一点厚度
+        // L3 三组沟槽，每组 3 圈
+        drawGrooveGroup(canvas, cx, cy, r, 0.94f)
+        drawGrooveGroup(canvas, cx, cy, r, 0.80f)
+        drawGrooveGroup(canvas, cx, cy, r, 0.66f)
+
+        // L4 四段弧形反光：同环两段（宽 + 窄）叠出柔边
+        canvas.drawArc(arcSoftRect, 198f, 30f, false, arcSoftPaint)
+        canvas.drawArc(arcCoreRect, 198f, 12f, false, arcCorePaint)
+        canvas.drawArc(arcRimRect, 150f, 24f, false, arcRimPaint)
+        canvas.drawArc(arcFillRect, 24f, 12f, false, arcFillLightPaint)
+
+        // L5 边缘收口
         canvas.drawCircle(cx, cy, r - rimPaint.strokeWidth / 2f, rimPaint)
+        canvas.drawCircle(cx, cy, r * 0.345f, innerRimPaint)
+    }
+
+    /** 一组 3 圈：`top` 是本组最外圈占半径的比例，向内每圈退 0.04R。 */
+    private fun drawGrooveGroup(canvas: Canvas, cx: Float, cy: Float, r: Float, top: Float) {
+        canvas.drawCircle(cx, cy, r * top, groovePaint)
+        canvas.drawCircle(cx, cy, r * (top - 0.04f), groovePaint)
+        canvas.drawCircle(cx, cy, r * (top - 0.08f), groovePaint)
+    }
+
+    private fun setArcRect(rect: RectF, cx: Float, cy: Float, arcRadius: Float) {
+        rect.set(cx - arcRadius, cy - arcRadius, cx + arcRadius, cy + arcRadius)
     }
 
     private fun dp(value: Float): Float =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics)
 
     private companion object {
-        /** 40 圈（`05 §4.1` L2）。 */
-        const val RING_COUNT = 40
+        /** L1 底盘：与 `bg_vinyl_disc.xml` 的 solid 同色，首帧不跳色。 */
+        val COLOR_BASE = 0xFF131316.toInt()
 
-        /** 白色 alpha 0.028 ≈ 7/255。 */
-        const val RING_COLOR = 0x07FFFFFF
+        /** L1.5 外沿渐变的起止色。 */
+        val COLOR_OUTER = 0xFF1A1A1E.toInt()
+        val COLOR_OUTER_EDGE = 0xFF0F0F12.toInt()
 
-        /** 柔光带三档透明度：0.13 / 0.07 / 0.10。 */
-        const val HIGHLIGHT_STRONG = 0x21FFFFFF
-        const val HIGHLIGHT_SOFT = 0x12FFFFFF
-        const val HIGHLIGHT_TAIL = 0x1AFFFFFF
+        /** L2 三档分环实体色（由外到内逐渐压深）。 */
+        val COLOR_BAND_OUTER = 0xFF17171A.toInt()
+        val COLOR_BAND_MIDDLE = 0xFF111114.toInt()
+        val COLOR_BAND_INNER = 0xFF0C0C0F.toInt()
 
-        /** 外沿 1.5dp 白 10%。 */
-        const val RIM_COLOR = 0x1AFFFFFF
+        /** L3 沟槽：白 alpha 0.04（比原来的 0.028 更实，但因为不再有大渐变，不会起摩尔纹）。 */
+        val COLOR_GROOVE = 0x0AFFFFFF
+
+        /** L4 四段反光的白 alpha：0.125 / 0.18 / 0.086 / 0.055。 */
+        val COLOR_ARC_SOFT = 0x20FFFFFF
+        val COLOR_ARC_CORE = 0x2EFFFFFF
+        val COLOR_ARC_RIM = 0x16FFFFFF
+        val COLOR_ARC_FILL = 0x0EFFFFFF
+
+        /** L5 边缘：外沿白 0.10、内圈白 0.078。 */
+        val COLOR_RIM = 0x1AFFFFFF
+        val COLOR_INNER_RIM = 0x14FFFFFF
     }
 }

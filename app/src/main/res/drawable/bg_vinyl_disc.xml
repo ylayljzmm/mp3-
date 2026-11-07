@@ -2,11 +2,13 @@
 <!--
   盘体兜底底色（design/05 §9.3：`shape oval` + 纯色）。
 
-  原来的 layer-list 里那两圈描边已经移到 VinylDiscView.onDraw 里画（40 圈纹路 +
+  原来的 layer-list 里那两圈描边已经移到 VinylDiscView.onDraw 里画（三组沟槽 +
   外沿），所以这里只留一个纯色底：保证「onDraw 还没跑第一帧」和「系统移除动画」
   时也不是透明白圈。layer-list 叠 40 层会让每帧多 40 次 drawable 合成。
+
+  颜色与 VinylDiscView 的 L1 底盘严格同色（#FF131316）：不同色会在首帧闪一下。
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#FF0D0D0D" />
+    <solid android:color="#FF131316" />
 </shape>

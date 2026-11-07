@@ -3,7 +3,6 @@ package com.suisheng.player.ui
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.slider.Slider
 import com.suisheng.player.R
 import com.suisheng.player.data.EqSettings
@@ -48,8 +47,8 @@ object EqPanel {
         onApply: (EqSettings) -> Unit,
     ) {
         val binding = PanelEqBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
+        // 音效面板整体不高，但小屏 + 大字体时仍可能超屏高：交给 PanelHost 套一层滚动容器
+        val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         // 就地改宿主那份实例：setter 一次完成「内存 + prefs」，回调里不需要再搬一遍
         val state = current

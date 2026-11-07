@@ -19,7 +19,8 @@ enum class LyricThemePreset(
         22f, 18f, 26f
     ),
     NETEASE(
-        "netease", "网易云红",
+        // id 是落盘键（老用户的 prefs 里存着 "netease"），**绝对不能改**；只有展示名可改。
+        "netease", "烈焰红",
         0xFFEC4141.toInt(), 0x99FFFFFF.toInt(), 0xCCFFFFFF.toInt(),
         22f, 18f, 26f
     ),

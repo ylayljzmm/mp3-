@@ -4,8 +4,6 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Outline
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.AttributeSet
@@ -25,14 +23,14 @@ import kotlin.math.min
  * 五层结构在 `view_vinyl_record.xml` 里：盘体 + 纹路 + 高光由一个自绘子 View 画，
  * 封面是 ImageView，中心孔是静态 View。
  *
- * 旋转的三个硬约束：
+ * 旋转的三个硬约束（5.5.0 逐条保留，一个字都没动）：
  *  ① **48 秒 / 圈**，30fps 上限 —— 60fps 让盘面纹路出现摩尔纹，且静止时白烧 GPU；
  *  ② 暂停**不重置角度**（`pause()` / `resume()`，不是 cancel + restart）；
  *  ③ 封面**反向等速**：同一个 animator 的值取负写给封面 `rotation`。
  *     用两个 ObjectAnimator 一定会对不齐（各自有独立的帧时钟）。
  *
- * 交互：单击 → [onTap]；长按 800ms → [onLongPress]。**不做双击**（车机上易误触）。
- * 长按用 [Handler] 自己计时而不是 `GestureDetector.onLongPress` —— 后者固定 500ms。
+ * 交互：5.5.0 起只剩「可点」（无障碍 `performClick`）。原来的单击进全屏歌词、
+ * 长按 800ms 进仅封面态两个回调随两个状态一起删除，所以这里不再有 Handler 计时器。
  */
 class VinylRecordView @JvmOverloads constructor(
     context: Context,
@@ -47,21 +45,6 @@ class VinylRecordView @JvmOverloads constructor(
     private var spinner: ValueAnimator? = null
     private var lastFrameAt = 0L
     private var angle = 0f
-
-    private val longPressHandler = Handler(Looper.getMainLooper())
-    private var longPressFired = false
-
-    /** 单击（进全屏歌词）。 */
-    var onTap: (() -> Unit)? = null
-
-    /** 长按 800ms（切「仅封面」态）。 */
-    var onLongPress: (() -> Unit)? = null
-
-    private val longPressRunnable = Runnable {
-        longPressFired = true
-        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        onLongPress?.invoke()
-    }
 
     init {
         clipChildren = false
@@ -166,25 +149,13 @@ class VinylRecordView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                longPressFired = false
-                longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_MS)
-                return true
-            }
-
             MotionEvent.ACTION_UP -> {
-                longPressHandler.removeCallbacks(longPressRunnable)
-                if (!longPressFired && isInsideDisc(event.x, event.y)) {
-                    performClick()
-                    onTap?.invoke()
-                }
+                // 无障碍点击仍要可用：只在圆盘内算命中，四角透明区不响应
+                if (isInsideDisc(event.x, event.y)) performClick()
                 return true
             }
 
-            MotionEvent.ACTION_CANCEL -> {
-                longPressHandler.removeCallbacks(longPressRunnable)
-                return true
-            }
+            MotionEvent.ACTION_CANCEL -> return true
         }
         return true
     }
@@ -194,7 +165,7 @@ class VinylRecordView @JvmOverloads constructor(
         return true
     }
 
-    /** 只有点在圆盘内才算单击/长按的目标，四角留白不响应（视觉上是透明区）。 */
+    /** 只有点在圆盘内才算点击目标，四角留白不响应（视觉上是透明区）。 */
     private fun isInsideDisc(x: Float, y: Float): Boolean {
         val radius = min(width, height) / 2f
         if (radius <= 0f) return false
@@ -204,7 +175,6 @@ class VinylRecordView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        longPressHandler.removeCallbacks(longPressRunnable)
         spinner?.cancel()
         spinner = null
         super.onDetachedFromWindow()
@@ -216,8 +186,5 @@ class VinylRecordView @JvmOverloads constructor(
 
         /** 30fps 上限 ≈ 33ms 一帧。 */
         const val FRAME_INTERVAL_MS = 33L
-
-        /** 长按判定 800ms（`05 §4.3`，比系统默认的 500ms 长，避免误触）。 */
-        const val LONG_PRESS_MS = 800L
     }
 }

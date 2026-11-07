@@ -2,8 +2,9 @@
 <!--
   播放队列面板（期 4）：标题「播放队列」+ 共 N 首 + 清空，下面是队列列表。
 
-  限高：RecyclerView 固定 360dp 起步，QueuePanel 打开时会按屏幕高度再压一次
-  （<= 屏高 55%），保证小屏 / 车机横屏不会把面板撑出屏幕。
+  限高：列表 XML 里写的是 360dp 起步，QueuePanel 打开时用 PanelHost.capFixedListHeight
+  按「面板上限 − 头部实测高 − 底部内边距」重算一次（下限 160dp），小屏 / 车机横屏不会撑出屏幕。
+  头部 LinearLayout 必须带 id（queueHeader），否则宿主量不到它的高度。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -14,6 +15,7 @@
     android:paddingBottom="16dp">
 
     <LinearLayout
+        android:id="@+id/queueHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
