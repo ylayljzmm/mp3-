@@ -44,6 +44,41 @@ class LibrarySortTest {
     }
 
     @Test
+    fun letterOf_coversEveryAxisLetter() {
+        // 23 个声母各取一级汉字区首字，逐个锁住 —— 只测 4 个样本曾被平台 Collator 差异骗过一次。
+        val samples = "啊芭擦搭蛾发噶哈击喀垃妈拿哦啪期然撒塌挖昔压匝"
+        val letters = "ABCDEFGHJKLMNOPQRSTWXYZ"
+        assertEquals(letters.length, samples.length)
+        samples.forEachIndexed { index, c ->
+            assertEquals(
+                "样本 '$c' 应落在 ${letters[index]}",
+                letters[index],
+                PinyinIndex.letterOf(c.toString()),
+            )
+        }
+        // 轴序号与字母序必须一致（0 = 数字段，# = 27）
+        assertEquals(0, LibrarySort.rankOf("0"))
+        assertEquals(27, LibrarySort.rankOf("#"))
+    }
+
+    @Test
+    fun letterOf_polyphonicFirstCharAlwaysLandsInOneSegment() {
+        // 只校验「同一个字必落同一段」，不校验 chong / zhong 哪个读音更对：
+        // 取字母走的是 GBK 一级汉字区的位置，多音字只能有一个位置，因此天然确定。
+        assertEquals(PinyinIndex.letterOf("重庆"), PinyinIndex.letterOf("重阳"))
+        assertEquals(PinyinIndex.letterOf("长亭外"), PinyinIndex.letterOf("长江之歌"))
+        assertEquals(LibrarySort.rankOf("重庆"), LibrarySort.rankOf("重阳"))
+    }
+
+    @Test
+    fun letterOf_symbolPrefixLandsInHashSegment() {
+        // 符号 / 拉丁之外的不可映射字符都走 '#'，且不依赖 GBK 编码失败路径
+        assertEquals('#', PinyinIndex.letterOf("♪ 夜曲"))
+        assertEquals('#', PinyinIndex.letterOf("★"))
+        assertEquals(PinyinIndex.AXIS.indexOf('#'), LibrarySort.rankOf("♪ 夜曲"))
+    }
+
+    @Test
     fun rankOf_matchesAxisSlot() {
         // rankOf 必须与 AXIS 下标一字不差，否则轴上第 N 格和列表第 N 段对不上
         for (letter in PinyinIndex.AXIS) {
@@ -72,9 +107,9 @@ class LibrarySortTest {
         assertEquals('#', PinyinIndex.letterOf("★"))
         assertEquals('#', PinyinIndex.letterOf("…"))
         assertEquals('#', PinyinIndex.letterOf("《起风了》"))
-        // 已知局限（不在本次改动范围）：`PinyinIndex.letterOf` 按 Char 扫描，
-        // 星平面字符（emoji 等代理对）首字符码位 ≥ 0x4E00，会掉进 chineseLetter 的尾段（Z）。
-        // 这里不做断言，只留说明，避免把既有行为固化成"正确"。
+        // 已知局限（不在本次改动范围）：`PinyinIndex.letterOf` 只看**首字符**，
+        // 星平面字符（emoji 等代理对）不可映射到 GBK，走 `gbkCodeOf` 的 -1 分支落 `#`，
+        // 也就是「以 emoji 开头的歌名」会和符号一起排在最后。这是刻意的降级，不做断言固化。
         val sorted = listOf("葬花吟", "★", "万物不如你").sortedWith(LibrarySort.BY_NAME)
         assertEquals(listOf("万物不如你", "葬花吟", "★"), sorted)
     }
@@ -136,7 +171,8 @@ class LibrarySortTest {
     @Test
     fun byName_agreesWithAxisForPolyphonicCharacters() {
         // 多音字只影响「同一段内部的次序」，绝不能让段不连续 —— 轴上的字母必须仍然成立。
-        // 重庆(chóng/zhòng)、重阳、长亭/长江 都是典型：letterOf 走 Collator，口径与轴一致。
+        // 重庆(chóng/zhòng)、重阳、长亭/长江 都是典型：取字母只认该字在 GBK 一级汉字区的位置，
+        // 多音字也就只能有一个位置，所以段号天然确定、与轴一致。
         val titles = listOf("重庆", "重阳", "长亭外", "长江之歌", "万物不如你")
         for (title in titles) {
             assertEquals(
@@ -153,7 +189,7 @@ class LibrarySortTest {
     @Test
     fun byName_isCaseInsensitiveForRankButDeterministicForOrder() {
         assertEquals(LibrarySort.rankOf("beyond"), LibrarySort.rankOf("Beyond"))
-        // Collator.SECONDARY 把两者判等，由第三键裸字符串决定：'B' 0x42 < 'b' 0x62
+        // 段号相同，第二键（GBK 码位）在大写字母上就已经分出先后：'B' 0x42 < 'b' 0x62
         val sorted = listOf("beyond", "Beyond").sortedWith(LibrarySort.BY_NAME)
         assertEquals(listOf("Beyond", "beyond"), sorted)
         // 大小写混排不会跑到别的段去：主键相同，只在段内分先后
@@ -195,8 +231,8 @@ class LibrarySortTest {
 
     @Test
     fun byName_obeysStrictWeakOrdering() {
-        // 第三键 `compareTo` 存在的唯一理由：Collator 会把 ALPHA / Alpha 判等，
-        // 判等项没有确定次序时 `sortedWith` 会抛
+        // 第三键 `compareTo` 存在的唯一理由：第二键（GBK 码位）会把「互不可映射的两个符号」
+        // 判等（都映射成 -1），判等项没有确定次序时 `sortedWith` 会抛
         // IllegalArgumentException: Comparison method violates its general contract.
         val samples = listOf(
             "万物不如你", "七里香", "Beyond", "beyond", "ALPHA", "Alpha", "alpha",
