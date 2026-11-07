@@ -42,34 +42,47 @@ object CrashLogger {
         }
     }
 
-    fun latestFile(context: Context): File? {
-        val dir = File(context.filesDir, DIR_NAME)
-        return dir.listFiles()
-            ?.filter { it.isFile && it.name.startsWith("crash-") }
-            ?.maxByOrNull { it.name }
-    }
+    fun latestFile(context: Context): File? = allDirs(context)
+        .asSequence()
+        .mapNotNull { dir ->
+            dir.listFiles()
+                ?.filter { it.isFile && it.name.startsWith("crash-") }
+                ?.maxByOrNull { it.name }
+        }
+        .maxByOrNull { it.name }
 
     fun readLatest(context: Context): String? =
         latestFile(context)?.let { runCatching { it.readText() }.getOrNull() }
 
     fun clear(context: Context) {
-        runCatching {
-            File(context.filesDir, DIR_NAME).listFiles()?.forEach { it.delete() }
+        allDirs(context).forEach { dir ->
+            runCatching { dir.listFiles()?.forEach { it.delete() } }
         }
     }
 
+    /** 崩溃目录：内部存储（一定可写）+ 外部私有目录（用户能拿 U 盘 / 文件管理器拷出来）。 */
+    private fun allDirs(context: Context): List<File> = listOfNotNull(
+        File(context.filesDir, DIR_NAME),
+        runCatching { context.getExternalFilesDir(DIR_NAME) }.getOrNull(),
+    )
+
     private fun write(context: Context, thread: Thread, error: Throwable) {
-        val dir = File(context.filesDir, DIR_NAME)
-        if (!dir.exists()) dir.mkdirs()
+        val report = buildReport(thread, error)
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-        val file = File(dir, "crash-$stamp.txt")
-        file.writeText(buildReport(thread, error))
-        // Keep only the newest few so the partition cannot fill up.
-        dir.listFiles()
-            ?.filter { it.isFile }
-            ?.sortedByDescending { it.name }
-            ?.drop(MAX_FILES)
-            ?.forEach { runCatching { it.delete() } }
+        // 双写：内部存储保底（外部存储可能没挂载），外部私有目录给用户一条自己取日志的路。
+        // 任何一侧失败都不影响另一侧 —— 崩溃处理器里不允许再抛。
+        for (dir in allDirs(context)) {
+            runCatching {
+                if (!dir.exists()) dir.mkdirs()
+                File(dir, "crash-$stamp.txt").writeText(report)
+                // Keep only the newest few so the partition cannot fill up.
+                dir.listFiles()
+                    ?.filter { it.isFile }
+                    ?.sortedByDescending { it.name }
+                    ?.drop(MAX_FILES)
+                    ?.forEach { it.delete() }
+            }
+        }
     }
 
     private fun buildReport(thread: Thread, error: Throwable): String = buildString {

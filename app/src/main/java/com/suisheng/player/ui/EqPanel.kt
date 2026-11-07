@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
 /**
  * 音效（均衡器）面板（`design/05 §3.4` 功能行第 4 格）。
  *
- * 与 [SpeedPanel] / [QueuePanel] 同一个模式：`object` + `BottomSheetDialog` + ViewBinding，
+ * 与 [SpeedPanel] / [QueuePanel] 同一个模式：`object` + [PanelHost] + ViewBinding，
  * 面板**不持有播放器**，也不起 Service —— 只做「改值 → 回调」，由宿主
  * （[PlayerFragment]）负责落盘与通知 `MusicPlaybackService`。
  *

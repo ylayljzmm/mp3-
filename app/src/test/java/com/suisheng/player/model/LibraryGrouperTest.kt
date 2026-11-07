@@ -70,7 +70,9 @@ class LibraryGrouperTest {
         )
         val groups = LibraryGrouper.byArtist(songs, unknownLabel = "未知艺术家")
 
-        assertEquals(listOf("Alpha", "ALPHA", "beta"), groups.map { it.title })
+        // 5.5.0 起按拼音口径排序：Collator.SECONDARY 把 Alpha / ALPHA 判为同分，
+        // 由第三键裸字符串 `compareTo` 决定次序（'L' 0x4C < 'l' 0x6C），所以 ALPHA 在前。
+        assertEquals(listOf("ALPHA", "Alpha", "beta"), groups.map { it.title })
     }
 
     @Test

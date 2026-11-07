@@ -57,21 +57,35 @@ class SettingsFragment : Fragment() {
     private var pendingUpdateApk: File? = null
     private var availableUpdate: AppUpdateInfo? = null
 
+    /**
+     * 系统「悬浮窗权限」页的回调。
+     *
+     * 车机上点「去授权」会跳到系统设置再回来，页面完全可能在回来之前被回收，
+     * 所以这里**不能**用 `_binding!!`：拿不到视图就整段跳过，重建时 onViewCreated 会重读设置。
+     */
     private val overlayPermission = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        binding.switchOverlay.isChecked = settings.overlayEnabled && Settings.canDrawOverlays(requireContext())
+        val views = _binding ?: return@registerForActivityResult
+        val ctx = context ?: return@registerForActivityResult
+        views.switchOverlay.isChecked = settings.overlayEnabled && Settings.canDrawOverlays(ctx)
     }
 
+    /**
+     * 选文件夹（SAF）的回调，同样可能在页面销毁后到达；`requireContext()` 在这个时机
+     * 会抛 `IllegalStateException`，因此返回的 Context 也必须走可空分支。
+     */
     private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@registerForActivityResult
+        val views = _binding ?: return@registerForActivityResult
+        val ctx = context ?: return@registerForActivityResult
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
         runCatching {
-            requireContext().contentResolver.takePersistableUriPermission(uri, flags)
+            ctx.contentResolver.takePersistableUriPermission(uri, flags)
         }
         settings.addScanTreeUri(uri.toString())
-        refreshScanPathsUi()
-        Toast.makeText(requireContext(), R.string.folder_added, Toast.LENGTH_SHORT).show()
+        refreshScanPathsUi(views)
+        Toast.makeText(ctx, R.string.folder_added, Toast.LENGTH_SHORT).show()
     }
 
     private val installPermission = registerForActivityResult(
@@ -128,7 +142,7 @@ class SettingsFragment : Fragment() {
 
         setupLyricThemeChips()
         setupLyricFontChips()
-        refreshScanPathsUi()
+        refreshScanPathsUi(binding)
         setupOnlineSettings()
         setupHiddenFolders()
 
@@ -137,14 +151,19 @@ class SettingsFragment : Fragment() {
         binding.btnAddDownload.setOnClickListener { addPresetPath("下载目录") }
 
         binding.btnScan.setOnClickListener {
-            binding.btnScan.isEnabled = false
-            binding.btnScan.text = getString(R.string.scanning)
+            val views = _binding ?: return@setOnClickListener
+            views.btnScan.isEnabled = false
+            views.btnScan.text = getString(R.string.scanning)
+            // 扫描是异步的（有 U 盘时可达数十秒），期间切页 / 返回都会让视图销毁，
+            // 所以回调里一律重新取 _binding，拿不到就静默放弃恢复按钮状态。
             (activity as? MainHost)?.scanMusic { musicCount ->
-                binding.btnScan.isEnabled = true
-                binding.btnScan.text = getString(R.string.settings_scan)
+                val current = _binding ?: return@scanMusic
+                val ctx = current.root.context
+                current.btnScan.isEnabled = true
+                current.btnScan.text = ctx.getString(R.string.settings_scan)
                 Toast.makeText(
-                    requireContext(),
-                    getString(R.string.scan_done, musicCount),
+                    ctx,
+                    ctx.getString(R.string.scan_done, musicCount),
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -175,11 +194,6 @@ class SettingsFragment : Fragment() {
             (activity as? MainHost)?.openTheme()
         }
         binding.rowAdvancedLyrics.setOnClickListener { toggleAdvancedLyrics() }
-        binding.rowUiLyricsEntry.setOnClickListener {
-            if (binding.lyricAdvancedContent.visibility != View.VISIBLE) toggleAdvancedLyrics()
-            val scroll = binding.root as? ScrollView
-            scroll?.post { scroll.smoothScrollTo(0, binding.cardLyrics.top) }
-        }
 
         binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
             if (checked && !Settings.canDrawOverlays(requireContext())) {
@@ -545,29 +559,38 @@ class SettingsFragment : Fragment() {
     }
 
     private fun addPresetPath(label: String) {
+        val views = _binding ?: return
         val path = ScanPathHelper.presetPaths().firstOrNull { it.first == label }?.second ?: return
         settings.addScanPath(path)
-        refreshScanPathsUi()
-        Toast.makeText(requireContext(), getString(R.string.folder_added), Toast.LENGTH_SHORT).show()
+        refreshScanPathsUi(views)
+        Toast.makeText(views.root.context, R.string.folder_added, Toast.LENGTH_SHORT).show()
     }
 
-    private fun refreshScanPathsUi() {
-        binding.scanPathsChipGroup.removeAllViews()
+    /**
+     * 重建「曲库范围」的 chip 列表。
+     *
+     * 显式收一个 binding 参数而不是用 `_binding!!`：调用方之一是 SAF 回调，
+     * 那里已经判过空，把非空引用传下来就不会在函数内部二次踩空。
+     */
+    private fun refreshScanPathsUi(views: FragmentSettingsBinding) {
+        views.scanPathsChipGroup.removeAllViews()
         val entries = settings.allScanEntries()
+        val ctx = views.root.context
         if (entries.isEmpty()) {
-            binding.scanPathsEmpty.visibility = View.VISIBLE
+            views.scanPathsEmpty.visibility = View.VISIBLE
         } else {
-            binding.scanPathsEmpty.visibility = View.GONE
+            views.scanPathsEmpty.visibility = View.GONE
             entries.forEach { entry ->
-                val chip = Chip(requireContext()).apply {
-                    text = ScanPathHelper.displayName(requireContext(), entry)
+                val chip = Chip(ctx).apply {
+                    text = ScanPathHelper.displayName(ctx, entry)
                     isCloseIconVisible = true
                     setOnCloseIconClickListener {
                         settings.removeScanEntry(entry)
-                        refreshScanPathsUi()
+                        // chip 的 × 是异步回调（动画结束才派发），同样要重新取 binding
+                        _binding?.let { refreshScanPathsUi(it) }
                     }
                 }
-                binding.scanPathsChipGroup.addView(chip)
+                views.scanPathsChipGroup.addView(chip)
             }
         }
     }

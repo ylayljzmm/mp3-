@@ -22,6 +22,7 @@ import com.suisheng.player.data.FavoriteStore
 import com.suisheng.player.databinding.FragmentLocalPlaylistBinding
 import com.suisheng.player.model.ArtistGroup
 import com.suisheng.player.model.LibraryKind
+import com.suisheng.player.model.LibrarySort
 import com.suisheng.player.model.PlaylistSortOrder
 import com.suisheng.player.model.PlaylistViewMode
 import com.suisheng.player.model.Song
@@ -387,8 +388,9 @@ class LocalPlaylistFragment : Fragment(), PlaybackStateHolder.Listener, PageBack
     }
 
     private fun sortSongs(list: List<Song>): List<Song> = when (sortOrder) {
-        PlaylistSortOrder.TITLE -> list.sortedBy { it.title.lowercase() }
-        PlaylistSortOrder.TITLE_DESC -> list.sortedByDescending { it.title.lowercase() }
+        // 标题排序必须与索引轴同一套口径（拼音首字母 → Collator），否则「按轴跳转」会落到错误位置
+        PlaylistSortOrder.TITLE -> list.sortedWith(LibrarySort.BY_SONG_TITLE)
+        PlaylistSortOrder.TITLE_DESC -> list.sortedWith(LibrarySort.BY_SONG_TITLE.reversed())
         PlaylistSortOrder.ARTIST -> list.sortedWith(
             compareBy<Song> { it.artist.lowercase() }.thenBy { it.title.lowercase() }
         )

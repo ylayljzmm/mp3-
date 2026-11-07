@@ -73,184 +73,6 @@
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="22sp" />
                 </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/rowUiLyricsEntry"
-                    android:layout_width="match_parent"
-                    android:layout_height="64dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/settings_ui_lyrics"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="16sp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/settings_ui_lyrics_summary"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="›"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="22sp" />
-                </LinearLayout>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            app:cardCornerRadius="18dp"
-            app:cardElevation="0dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_group_local"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/settings_scan_paths"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/scanPathsEmpty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/no_scan_paths"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/scanPathsChipGroup"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    app:chipSpacingHorizontal="8dp"
-                    app:chipSpacingVertical="4dp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnPickFolder"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/pick_folder" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnAddMusic"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="@string/add_music_folder" />
-                </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnAddDownload"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/add_download_folder" />
-
-                <!-- 已隐藏的文件夹：属于「曲库范围」的事，所以放在扫描卡片里而不是外观卡片。
-                     行骨架 = 标题 + 副标题 + 计数 + ›，点击弹 BottomSheet 逐个恢复。
-                     文案在 res/values/strings_library.xml。 -->
-                <LinearLayout
-                    android:id="@+id/rowHiddenFolders"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="56dp"
-                    android:orientation="horizontal">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/hidden_folder_settings_entry"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="16sp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/hidden_folder_settings_summary"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/hiddenFolderCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:text="›"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="22sp" />
-                </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnScan"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/settings_scan" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -515,6 +337,147 @@
                         android:textColor="?attr/colorOnSurface" />
                 </RadioGroup>
                 </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_group_local"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/settings_scan_paths"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/scanPathsEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/no_scan_paths"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/scanPathsChipGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    app:chipSpacingHorizontal="8dp"
+                    app:chipSpacingVertical="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPickFolder"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/pick_folder" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddMusic"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="@string/add_music_folder" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddDownload"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/add_download_folder" />
+
+                <!-- 已隐藏的文件夹：属于「曲库范围」的事，所以放在扫描卡片里而不是外观卡片。
+                     行骨架 = 标题 + 副标题 + 计数 + ›，点击弹 BottomSheet 逐个恢复。
+                     文案在 res/values/strings_library.xml。 -->
+                <LinearLayout
+                    android:id="@+id/rowHiddenFolders"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:minHeight="56dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/hidden_folder_settings_entry"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/hidden_folder_settings_summary"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/hiddenFolderCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="›"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="22sp" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnScan"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/settings_scan" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

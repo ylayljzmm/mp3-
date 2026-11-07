@@ -4,6 +4,11 @@
 
   与 strings_nav.xml 同样的约定：刻意单独开文件，不往并行修改中的 strings*.xml 里加，
   避免同一时刻的合并冲突（Android 允许多个 values 文件并存）。
+
+  5.5.0：`settings_ui_lyrics` / `settings_ui_lyrics_summary` 随「用户界面」卡片里的
+  「歌词界面设置」整行一起删除（歌词配色/字体/字号全在下面的「歌词」分组里，
+  这一行只是滚动跳转，车机上点它会闪退）。副标题文案迁到
+  `settings_advanced_lyrics_summary`，保持「这一折里有什么」的信息不丢。
 -->
 <resources>
     <string name="settings_group_ui">用户界面</string>
@@ -13,8 +18,6 @@
     <string name="settings_group_about">关于</string>
 
     <string name="settings_ui_theme">外观与主题</string>
-    <string name="settings_ui_lyrics">歌词界面设置</string>
-    <string name="settings_ui_lyrics_summary">配色、字体、字号与悬浮位置</string>
     <string name="settings_advanced_lyrics">高级歌词设置</string>
-    <string name="settings_advanced_lyrics_summary">展开后保留全部 20+ 项原有设置</string>
+    <string name="settings_advanced_lyrics_summary">配色、字体、字号与悬浮位置</string>
 </resources>

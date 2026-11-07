@@ -19,7 +19,7 @@ import com.suisheng.player.playback.PlaybackStateHolder
 /**
  * 播放队列面板（`design/05 §3.4` 功能行第 4 格）。
  *
- * 与 [SpeedPanel] 同一个模式：`object` + `BottomSheetDialog` + ViewBinding，面板**不持有业务逻辑**：
+ * 与 [SpeedPanel] 同一个模式：`object` + [PanelHost] + ViewBinding，面板**不持有业务逻辑**：
  * - 点行 → [onJump] 传「队列内索引」给宿主，宿主自己发 `queue_jump`；
  * - 点 ×→ 本地先移除该行（不 dismiss，方便连续删），再 [onRemove] 通知宿主；
  * - 点「清空」→ 二次确认后 [onClear] 并关闭面板。

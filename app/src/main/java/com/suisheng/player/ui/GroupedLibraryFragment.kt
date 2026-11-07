@@ -146,10 +146,13 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
         renderHeader(songs, groups)
     }
 
-    /** 按专辑名拼音首字母建立「字母 -> 组首 position」，与歌曲页共用 PinyinIndex。 */
+    /** 按专辑名拼音首字母建立「字母 -> 组首 position」，与歌曲页共用 [PinyinIndex]。 */
     private fun rebuildAlbumIndex(groups: List<LibraryGroup>) {
         val positions = LinkedHashMap<Char, Int>()
         groups.forEachIndexed { index, group ->
+            // 「未知专辑」在列表末尾，但它的名字本身会被 letterOf 算成 W；
+            // 若不过滤，会出现「W 的下标在 Z 之后」的非单调映射，点 W 直接落到未知专辑。
+            if (group.key == LibraryGrouper.UNKNOWN_KEY) return@forEachIndexed
             val c = PinyinIndex.letterOf(group.title)
             if (!positions.containsKey(c)) positions[c] = index
         }

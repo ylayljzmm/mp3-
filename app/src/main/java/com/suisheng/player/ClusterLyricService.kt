@@ -30,6 +30,9 @@ class ClusterLyricService : Service(), PlaybackStateHolder.Listener {
             return START_NOT_STICKY
         }
         showPresentationIfPossible()
+        // onStartCommand 每次 start() 都会来一遍（切歌时 SettingsFragment / 播放服务都可能再发），
+        // 不先去重就会累积同一份 listener，一次进度回调被投递 N 次。
+        PlaybackStateHolder.removeListener(this)
         PlaybackStateHolder.addListener(this)
         onPlaybackChanged(
             PlaybackStateHolder.currentSong,

@@ -137,8 +137,8 @@ object LibraryGrouper {
                     songs = list,
                 )
             }
-            // 未识别的一律沉到最后，正常专辑/歌手按名字不区分大小写升序
-            .sortedWith(compareBy({ it.key == UNKNOWN_KEY }, { it.title.lowercase() }))
+            // 未识别的一律沉到最后，正常专辑/歌手按**拼音**升序（与索引轴同一套口径）
+            .sortedWith(LibrarySort.BY_GROUP)
     }
 
     /** 歌曲所在目录；不是真实文件路径（含 `://`）就返回 null。 */

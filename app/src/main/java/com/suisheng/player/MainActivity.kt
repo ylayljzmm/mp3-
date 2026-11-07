@@ -531,7 +531,11 @@ class MainActivity : AppCompatActivity(), MainHost {
             }
             drawer.setScanning(false)
             drawer.updateLibrary(musicSongs)
-            onDone?.invoke(musicCount)
+            // onDone 是设置页传进来的闭包，它内部会碰 Fragment 的 binding。
+            // 扫描期间用户可能已经切页 / 退出，那个闭包就会抛 IllegalStateException；
+            // 扫描本身已经成功了，不能因为「回报失败」把整个 Activity 带崩。
+            runCatching { onDone?.invoke(musicCount) }
+                .onFailure { android.util.Log.w("MainActivity", "scan callback failed", it) }
         }
     }
 

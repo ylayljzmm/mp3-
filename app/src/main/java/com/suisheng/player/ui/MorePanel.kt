@@ -12,7 +12,7 @@ import com.suisheng.player.util.TimeFormat
 /**
  * 「更多」面板（`design/05` 顶栏 `btnMore`）。
  *
- * 与 [SpeedPanel] / [QueuePanel] 同模式：`object` + `BottomSheetDialog` + ViewBinding，
+ * 与 [SpeedPanel] / [QueuePanel] 同模式：`object` + [PanelHost] + ViewBinding，
  * 面板只负责「把运行时状态渲染成 4 个条目 + 回调宿主」，不碰播放器也不碰存储。
  *
  * 条目：

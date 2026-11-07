@@ -105,10 +105,12 @@ class VinylDiscView @JvmOverloads constructor(
         val cx = w / 2f
         val cy = h / 2f
 
-        // L1.5 只在最外 8% 半径上做渐变：面积小，8bit 阶梯看不出来
+        // L1.5 只在最外 8% 半径上做渐变：面积小，8bit 阶梯看不出来。
+        // 第一个停点必须是「同色但全透明」，否则整盘会被这一层涂成 COLOR_OUTER，
+        // 下面的 L1 底盘与 L2 分环就全被盖住了。
         outerShader = RadialGradient(
             cx, cy, radiusPx,
-            intArrayOf(COLOR_OUTER, COLOR_BASE, COLOR_OUTER_EDGE),
+            intArrayOf(COLOR_OUTER_CLEAR, COLOR_OUTER, COLOR_OUTER_EDGE),
             floatArrayOf(0.92f, 0.965f, 1f),
             Shader.TileMode.CLAMP,
         )
@@ -184,7 +186,8 @@ class VinylDiscView @JvmOverloads constructor(
         /** L1 底盘：与 `bg_vinyl_disc.xml` 的 solid 同色，首帧不跳色。 */
         val COLOR_BASE = 0xFF131316.toInt()
 
-        /** L1.5 外沿渐变的起止色。 */
+        /** L1.5 外沿渐变的起止色；`COLOR_OUTER_CLEAR` 是「同色全透明」，用于让内侧透出底盘。 */
+        val COLOR_OUTER_CLEAR = 0x001A1A1E
         val COLOR_OUTER = 0xFF1A1A1E.toInt()
         val COLOR_OUTER_EDGE = 0xFF0F0F12.toInt()
 
