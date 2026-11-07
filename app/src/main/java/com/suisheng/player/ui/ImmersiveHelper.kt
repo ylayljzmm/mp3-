@@ -108,7 +108,9 @@ object ImmersiveHelper {
         runCatching {
             WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply {
                 isAppearanceLightStatusBars = lightBackground
-                isAppearanceLightNavigationBar = lightBackground
+                // 注意是 NavigationBar**s**（复数）：androidx 的 setter 叫
+                // setAppearanceLightNavigationBars，少写一个 s 编译不过。
+                isAppearanceLightNavigationBars = lightBackground
             }
         }
     }

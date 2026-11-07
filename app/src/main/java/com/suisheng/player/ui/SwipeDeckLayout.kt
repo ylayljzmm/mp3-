@@ -11,6 +11,7 @@ import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import androidx.annotation.IdRes
+import com.suisheng.player.R
 import kotlin.math.abs
 
 /**
