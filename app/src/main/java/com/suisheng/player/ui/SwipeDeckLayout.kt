@@ -4,9 +4,12 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
+import android.os.Parcel
+import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.VelocityTracker
+import android.view.View.BaseSavedState
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
@@ -72,18 +75,53 @@ class SwipeDeckLayout @JvmOverloads constructor(
     private var dragging = false
     private var progressAtDown = 0f
 
+    /**
+     * 从 `onRestoreInstanceState` 恢复出来的目标页；`-1` 表示没有存档。
+     *
+     * 单独存一份而不是直接写 `currentIndex`：恢复可能早于或晚于 `post{}` 里的首次定位，
+     * 两条路径都要能算出同一个结果，所以两边统一走幂等的 [applyInitialPage]。
+     */
+    private var restoredIndex: Int = -1
+
     // ---------------------------------------------------------------- 初始页
 
     override fun onFinishInflate() {
         super.onFinishInflate()
-        // 初始页 = 封面那一页（播放页打开时应该看到唱片）。
+        // 初始页 = 封面那一页（播放页打开时应该看到唱片），除非有旋转前的存档。
         // 用 post 而不是直接调：此时 width 还是 0，applyOffsets() 会直接返回，
         // 等到第一次 layout 结束再定位才不会出现"第一页闪一下"。
-        post {
-            val cover = indexOfPage(R.id.pageCover)
-            val initial = if (cover >= 0) cover else childCount / 2
-            setCurrent(initial, animate = false)
+        post { applyInitialPage() }
+    }
+
+    /**
+     * 把「该停在哪一页」算出来并立即落位。
+     *
+     * 幂等：`setCurrent(..., animate = false)` 内部走 `commitIndex`，索引相同就直接 return，
+     * 不会重复触发 [onPageChanged]。所以 `post{}` 与 `onRestoreInstanceState` 可以都调它。
+     */
+    private fun applyInitialPage() {
+        if (childCount == 0) return
+        val initial = if (restoredIndex in 0 until childCount) {
+            restoredIndex
+        } else {
+            indexOfPage(R.id.pageCover).takeIf { it >= 0 } ?: (childCount / 2)
         }
+        setCurrent(initial, animate = false)
+    }
+
+    override fun onSaveInstanceState(): Parcelable =
+        SavedState(super.onSaveInstanceState(), currentIndex)
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state !is SavedState) {
+            super.onRestoreInstanceState(state)
+            return
+        }
+        super.onRestoreInstanceState(state.superState)
+        restoredIndex = state.index
+        // post{} 可能已经跑过（恢复晚于首帧），这里再定位一次纠正；
+        // applyInitialPage 是幂等的：commitIndex 在索引相同时直接 return，不会重复回调
+        applyInitialPage()
     }
 
     // ---------------------------------------------------------------- 布局
@@ -242,8 +280,11 @@ class SwipeDeckLayout @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP -> {
                 if (!dragging) {
+                    // DOWN 已经被本容器消费，UP 必须同样消费，否则 click 流程断裂、
+                    // 无障碍的 performClick 不会触发。这里没有点击业务，调一次即可。
+                    performClick()
                     recycleVelocityTracker()
-                    return false
+                    return true
                 }
                 tracker?.computeCurrentVelocity(1000)
                 val velocityX = tracker?.xVelocity ?: 0f
@@ -343,6 +384,48 @@ class SwipeDeckLayout @JvmOverloads constructor(
         stopSettleAnimation()
         recycleVelocityTracker()
         super.onDetachedFromWindow()
+    }
+
+    // ---------------------------------------------------------------- 状态保存
+
+    /**
+     * 只存一个「停在第几页」。
+     *
+     * 用 [BaseSavedState] 而不是 `androidx.customview.view.AbsSavedState`：
+     * 目的只是跨旋转把页码带回来，为此多引一个库不划算；`BaseSavedState` 从 API 1 就有，
+     * 而且它本身就实现了「superState 为空 / 非空」两种 Parcelable 容器语义。
+     *
+     * 类本身**不能是 private**：`Parcel` 反序列化时是在 `android.os` 包里用反射
+     * `getField("CREATOR")` + `get(null)` 取这个字段，public 字段声明在 private 类上
+     * 依然过不了访问检查，进程被回收后恢复会抛 `BadParcelableException`。
+     * `internal` 在字节码里就是 public（只是 Kotlin 层限定模块可见），正好两头都满足。
+     *
+     * `CREATOR` 必须 `@JvmField`：Parcelable 是通过反射拿这个静态字段的，
+     * 加了 `@JvmField` 才会生成成真正的 static 字段而不是伴生对象里的 getter。
+     */
+    internal class SavedState : BaseSavedState {
+        val index: Int
+
+        constructor(superState: Parcelable?, index: Int) : super(superState) {
+            this.index = index
+        }
+
+        private constructor(source: Parcel) : super(source) {
+            index = source.readInt()
+        }
+
+        override fun writeToParcel(out: Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeInt(index)
+        }
+
+        companion object {
+            @JvmField
+            val CREATOR: Parcelable.Creator<SavedState> = object : Parcelable.Creator<SavedState> {
+                override fun createFromParcel(source: Parcel) = SavedState(source)
+                override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
+            }
+        }
     }
 
     private companion object {

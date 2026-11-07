@@ -87,14 +87,21 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private var favoriteUiKey: String? = null
 
     /**
-     * 歌曲信息页最近一次「读进界面」的曲目路径。
+     * 歌曲信息页**已经读进界面**的曲目路径。
      *
      * `MediaMetadataRetriever.setDataSource` 要开文件、解容器头，车机上 U 盘里的 FLAC
-     * 一次几十毫秒 —— 不能跟着 8Hz 的播放回调跑。所以用它做去重：
-     * 路径没变就直接返回；路径变了但用户不在信息页时也先不读，
-     * 等切回信息页由 `onPageChanged` 补一次。
+     * 一次几十毫秒 —— 不能跟着 8Hz 的播放回调跑。所以用它做去重：路径没变就直接返回；
+     * 路径变了但用户不在信息页时也先不读，等切回信息页由 `onPageChanged` 补一次。
+     *
+     * 注意这是**完成态**：只在 `bind()` 真的画上去之后才写（见 [loadSongInfo]）。
+     * 早先是在起协程之前就写，一旦协程被 `lifecycleScope` 取消（转屏、立刻滑走），
+     * 这个键就已经落下，之后再滑到信息页会命中 `return` 而**永远不再重试**，
+     * 那一页就一直显示「—」。在途状态单独用 [songInfoLoading] 表达。
      */
     private var songInfoKey: String? = null
+
+    /** 正在读取中的路径（在途去重）：防止同一首歌连点两次滑页各起一个协程。 */
+    private var songInfoLoading: String? = null
 
     // ---------------------------------------------------------------- 生命周期
 
@@ -165,6 +172,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         favoriteUiKey = null
         // 同理：视图重建后歌曲信息页是空白 XML，下一次滑到它要重新读一遍
         songInfoKey = null
+        // 在途键也一起清：viewLifecycleOwner 的协程此刻正在被取消，别让它挡住下一次读取
+        songInfoLoading = null
         super.onDestroyView()
     }
 
@@ -245,19 +254,18 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 页数从 [SwipeDeckLayout.pageCount]（= 子 View 数）读：竖屏 3 页、横屏 2 页，
      * 两个布局共用一份 ViewBinding，写死数字必然在另一侧越界。
      *
-     * 初始页固定到 `pageCover`：打开播放页第一眼要看唱片，而不是参数表。
-     * 用 `post` 是因为此时 deck 的 `width` 还是 0，`translationX` 无从算起。
+     * **初始页不在这里定**：`SwipeDeckLayout` 自己会在 `onFinishInflate` 的 `post{}` 里
+     * 定位（没有存档 → `pageCover`；有存档 → 旋转前停的那一页）。这里如果也 setCurrent
+     * 一次，就会把刚恢复出来的页码覆盖回封面页 —— 转屏后从歌词页跳回封面就是这么来的。
      */
     private fun setupSwipeDeck() {
         binding.swipeDeck.onPageChanged = { index ->
             updateDots()
             if (index == infoPageIndex()) loadSongInfo()
         }
+        // 圆点数量要等 deck 的子 View 就位才知道，所以同样推迟到 post
         binding.swipeDeck.post {
             if (_binding == null) return@post
-            val cover = binding.swipeDeck.indexOfPage(R.id.pageCover)
-            val initial = if (cover >= 0) cover else binding.swipeDeck.pageCount / 2
-            binding.swipeDeck.setCurrent(initial, animate = false)
             rebuildDots()
             updateDots()
         }
@@ -375,7 +383,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     /**
-     * 读当前曲目的技术参数 + 封面。路径没变直接返回（详见 [songInfoKey] 的注释）。
+     * 读当前曲目的技术参数 + 封面。已完成 / 在途两个键都命中时直接返回
+     * （详见 [songInfoKey] 与 [songInfoLoading] 的注释）。
      *
      * `MediaMetadataRetriever` 与封面解码都必须离开主线程；`bind()` 只做
      * setText / setImageBitmap，所以整段是「IO 读 → 主线程写」两段，
@@ -384,22 +393,31 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private fun loadSongInfo() {
         val song = PlaybackStateHolder.currentSong
         val key = song?.path
-        if (key == songInfoKey) return
-        songInfoKey = key
+        if (key == songInfoKey || key == songInfoLoading) return
         if (song == null) {
+            songInfoKey = null
             binding.songInfoPage.bind(null, null, null)
             return
         }
         val hasLyrics = PlaybackStateHolder.lrcLines.isNotEmpty()
         val onlineLyrics = settings.onlineLyricsEnabled
         val appContext = requireContext().applicationContext
+        songInfoLoading = key
         viewLifecycleOwner.lifecycleScope.launch {
-            val payload = withContext(Dispatchers.IO) {
-                SongInfoLoader.load(appContext, song, hasLyrics, onlineLyrics) to
-                    loadInfoCover(appContext, song)
+            try {
+                val payload = withContext(Dispatchers.IO) {
+                    SongInfoLoader.load(appContext, song, hasLyrics, onlineLyrics) to
+                        loadInfoCover(appContext, song)
+                }
+                if (_binding == null) return@launch
+                binding.songInfoPage.bind(song, payload.first, payload.second)
+                // 只有真的画上去了才算"读过"。协程被取消时（旋转/切页）这一行不会执行，
+                // 下次滑到信息页会重新读一遍，而不是永远停在空白。
+                songInfoKey = key
+            } finally {
+                // 取消也会走到这里，所以在途键不会卡死；只清自己那一把，别误删别人的
+                if (songInfoLoading == key) songInfoLoading = null
             }
-            if (_binding == null) return@launch
-            binding.songInfoPage.bind(song, payload.first, payload.second)
         }
     }
 
