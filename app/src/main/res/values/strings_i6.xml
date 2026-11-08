@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  I6 新增文案。
+
+  单独成文件而不是塞进 strings_player_v6.xml：这批文案对应「歌词版面」这一块新能力，
+  按版本分文件便于回退与检索（与 strings_i2b / strings_i3a 的历史做法一致）。
+-->
+<resources>
+
+    <!-- 歌词设置第 4 张卡片：歌词版面 -->
+    <string name="lyric_settings_section_layout">歌词版面</string>
+    <string name="lyric_pane_gap">左右栏间距</string>
+    <string name="lyric_pane_gap_value">当前 %1$d dp</string>
+    <string name="lyric_pane_gap_hint">仅横屏 / 车机双栏生效。竖屏歌词页的左右留白由页面自身控制，不受此项影响。</string>
+
+</resources>

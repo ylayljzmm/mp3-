@@ -384,7 +384,7 @@
             android:layout_gravity="start|center_vertical"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/menu"
-            android:padding="18dp"
+            android:padding="@dimen/player_topbar_button_padding"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_menu_drawer"
             app:tint="?attr/colorOnSurface" />
@@ -403,7 +403,7 @@
                 android:layout_height="@dimen/player_topbar_button"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/player_more"
-                android:padding="18dp"
+                android:padding="@dimen/player_topbar_button_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_more_vert"
                 app:tint="?attr/colorOnSurface" />

@@ -135,13 +135,16 @@
     <dimen name="player_vinyl_hole">8dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
+    <dimen name="player_topbar_button_padding">18dp</dimen>
+    <dimen name="player_topbar_icon_size">24dp</dimen>
+    <dimen name="lyric_render_inset">0dp</dimen>
     <!-- 播放页两栏共享的上下边界（方案 I）：两栏同源于 stageRow 的 paddingTop
          与这里的 paddingBottom，歌词栏上下内边距也引用 player_pane_padding_top。
          不要再给任何一栏单独写 top / bottom 数值。 -->
     <dimen name="player_pane_padding_top">8dp</dimen>
     <dimen name="player_pane_padding_bottom">14dp</dimen>
 
-    <dimen name="player_lyrics_padding_start">16dp</dimen>
+    <dimen name="player_lyrics_padding_start">8dp</dimen>
     <dimen name="player_lyrics_padding_end">32dp</dimen>
 
     <!-- 主键内边距：保证图标恒为 (按钮 − 2×padding) = 44 − 16 = 28dp（§3.3 的等比缩小）。

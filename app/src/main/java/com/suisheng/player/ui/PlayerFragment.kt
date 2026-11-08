@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.color.MaterialColors
@@ -130,6 +131,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         setupSwipeDeck()
         setupCoverSizing()
         setupSongInfo()
+        applyLyricPaneGap()
 
         binding.scrollLyricView.setFadeColor(
             MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
@@ -367,6 +369,37 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    // ---------------------------------------------------------------- 栏间距
+
+    /**
+     * 横屏双栏的「左右栏间距」落地：只改右栏歌词 View 的 `paddingStart`，
+     * `paddingTop` / `paddingEnd` / `paddingBottom` 一律保留原值。
+     *
+     * 口径：XML 里的 `@dimen/player_lyrics_padding_start` 只是默认值，运行时以
+     * 设置项 [SettingsRepository.lyricPaneGapDp] 为准；`paddingEnd`（歌词区右边界留白）
+     * 和上下边界不吃这个值，所以两栏顶边/底边不会位移。
+     *
+     * 竖屏是三页 deck、没有右栏，歌词页两侧由 `player_side_padding` 自己管，
+     * 这里整段跳过 —— 否则会把竖屏歌词页的左右留白也一起改窄。
+     */
+    private fun applyLyricPaneGap() {
+        // 判形态用「父容器类型」而不是 `Configuration.orientation`：横屏布局里歌词挂在
+        // 两栏 LinearLayout 的右栏，竖屏挂在 SwipeDeckLayout（FrameLayout）的歌词页里。
+        // `configChanges` 声明了 orientation 不重建 Activity，转屏时布局未必重新 inflate，
+        // 那一刻 orientation 已经变了、视图层级却还是旧的 —— 按父容器判就不会改错地方。
+        if (!isDualPane()) return
+        val view = binding.scrollLyricView
+        ViewCompat.setPaddingRelative(
+            view,
+            dp(settings.lyricPaneGapDp),
+            view.paddingTop,
+            view.paddingEnd,
+            view.paddingBottom,
+        )
+    }
+
+    private fun isDualPane(): Boolean = binding.scrollLyricView.parent is LinearLayout
 
     // ---------------------------------------------------------------- 歌曲信息
 
@@ -804,8 +837,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         }
     }
 
-    /** 由 `MainActivity.notifyLyricStyleChanged()` 调用（歌词字号/配色变了要重排）。 */
+    /** 由 `MainActivity.notifyLyricStyleChanged()` 调用（歌词字号/配色/栏距变了要重排）。 */
     fun refreshLyricStyle() {
+        applyLyricPaneGap()
         binding.scrollLyricView.refreshStyle()
         binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
     }

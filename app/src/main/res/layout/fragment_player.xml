@@ -390,7 +390,8 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- 右栏 flex：歌词左对齐，左右内边距 16 / 64 -->
+        <!-- 右栏 flex：歌词左对齐。paddingStart 是「左右栏间距」的默认值（运行时可调，
+             见 PlayerFragment.applyLyricPaneGap），paddingEnd 是歌词区右边界留白，两者不对称。 -->
         <com.suisheng.player.ui.ScrollLyricView
             android:id="@+id/scrollLyricView"
             android:layout_width="0dp"
@@ -418,7 +419,7 @@
             android:layout_gravity="start|center_vertical"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/menu"
-            android:padding="18dp"
+            android:padding="@dimen/player_topbar_button_padding"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_menu_drawer"
             app:tint="?attr/colorOnSurface" />
@@ -437,7 +438,7 @@
                 android:layout_height="@dimen/player_topbar_button"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/player_more"
-                android:padding="18dp"
+                android:padding="@dimen/player_topbar_button_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_more_vert"
                 app:tint="?attr/colorOnSurface" />

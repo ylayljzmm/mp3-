@@ -40,7 +40,8 @@
     <dimen name="player_vinyl_hole">12dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
-    <dimen name="player_lyrics_padding_start">16dp</dimen>
+    <dimen name="player_topbar_button_padding">18dp</dimen>
+    <dimen name="player_lyrics_padding_start">8dp</dimen>
     <dimen name="player_lyrics_padding_end">64dp</dimen>
 
     <!-- 主键内边距：保证图标恒为 (按钮 − 2×padding) ≈ 34dp（§3.3「图标 34dp」）。

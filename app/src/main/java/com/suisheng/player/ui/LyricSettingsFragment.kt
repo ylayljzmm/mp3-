@@ -65,6 +65,7 @@ class LyricSettingsFragment : Fragment() {
         bindPlayerLyricCard()
         bindStyleCard()
         bindOverlayCard()
+        bindLayoutCard()
     }
 
     override fun onDestroyView() {
@@ -248,6 +249,31 @@ class LyricSettingsFragment : Fragment() {
             }
             LyricsOverlayService.refresh(requireContext())
         }
+    }
+
+    // ------------------------------------------------------------ 卡片 4
+
+    /**
+     * 歌词版面：左右栏间距。
+     *
+     * 这个值只作用于横屏双栏右栏歌词的 `paddingStart`（中轴右边界到歌词文本起点那段空白），
+     * `paddingEnd` 与上下边界不吃它；竖屏是三页 deck、没有右栏，写进来的值不会改到竖屏歌词页。
+     *
+     * 存量值同样可能越界（旧版本没有这一项，默认 8 恒在 0~32 内），仍统一走 [SliderBinding]。
+     */
+    private fun bindLayoutCard() {
+        updatePaneGapLabel(settings.lyricPaneGapDp)
+        SliderBinding.bind(binding.lyricPaneGapSlider, settings.lyricPaneGapDp.toFloat()) { value ->
+            settings.lyricPaneGapDp = value.toInt()
+            updatePaneGapLabel(settings.lyricPaneGapDp)
+            notifyLyricStyleChanged()
+        }
+    }
+
+    /** 标题后面挂当前值：不显示数值的话，用户没法判断这首歌到底还剩多少间距。 */
+    private fun updatePaneGapLabel(gapDp: Int) {
+        binding.lyricPaneGapLabel.text = getString(R.string.lyric_pane_gap) + " · " +
+            getString(R.string.lyric_pane_gap_value, gapDp)
     }
 
     // ------------------------------------------------------------ 公共

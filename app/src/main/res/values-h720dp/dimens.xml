@@ -38,4 +38,6 @@
     <dimen name="player_topbar">56dp</dimen>
     <dimen name="player_topbar_button">48dp</dimen>
     <dimen name="player_topbar_padding">8dp</dimen>
+    <dimen name="player_topbar_button_padding">12dp</dimen>
+    <dimen name="player_lyrics_padding_start">8dp</dimen>
 </resources>

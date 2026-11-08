@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.annotation.ColorInt
 import androidx.core.view.GestureDetectorCompat
+import com.suisheng.player.R
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.model.LrcLine
 import kotlin.math.abs
@@ -37,6 +38,10 @@ class ScrollLyricView @JvmOverloads constructor(
     private var layoutWidth = -1
     private var layoutIndex = -2
     private var layoutKey = -1f
+
+    /** 每侧水平内缩（px）：换行测量与绘制共用，见 [renderInsetPx] */
+    private var cachedInsetPx = 0f
+    private var renderInsetResolved = false
 
     /**
      * 是否启用「按行渐隐」。5.5.0 起不再用色块遮罩，只把颜色当作开关：
@@ -174,8 +179,24 @@ class ScrollLyricView @JvmOverloads constructor(
     }
 
     private fun currentStyle(): LyricRenderer.Style = LyricRenderer.styleFrom(
-        context, settings, resources.displayMetrics.scaledDensity, forPlayer = true
+        context, settings, resources.displayMetrics.scaledDensity, forPlayer = true,
+        insetPx = renderInsetPx()
     )
+
+    /**
+     * 换行与绘制共用的每侧水平内缩（px）。
+     *
+     * 以前渲染层写死 `24f`、换行层只减 `paddingLeft/Right`，两个出口口径不一致，
+     * 超长行会出现「测量两行、只画一行」。现在两边都走 `maxTextWidth − 2 × insetPx`，
+     * 内缩值由布局令牌 `@dimen/lyric_render_inset` 给（本期为 0dp，只打通注入链路）。
+     */
+    private fun renderInsetPx(): Float {
+        if (!renderInsetResolved) {
+            cachedInsetPx = resources.getDimension(R.dimen.lyric_render_inset)
+            renderInsetResolved = true
+        }
+        return cachedInsetPx
+    }
 
     /**
      * 传 `Color.TRANSPARENT` 关闭按行渐隐，其余颜色开启（`05 §6`）。
@@ -208,7 +229,8 @@ class ScrollLyricView @JvmOverloads constructor(
             style.nextSizePx * 17.3f +
             style.otherSizePx * 11.9f +
             style.lineSpacing * 7.7f +
-            style.maxVisualLines * 3.1f
+            style.maxVisualLines * 3.1f +
+            style.insetPx * 5.3f
         if (viewWidth == layoutWidth && idx == layoutIndex && key == layoutKey &&
             lineTops.size == lines.size
         ) {
@@ -225,7 +247,9 @@ class ScrollLyricView @JvmOverloads constructor(
         }
 
         measurePaint.typeface = style.typeface
-        val maxTextWidth = (viewWidth - textPaddingPx()).coerceAtLeast(dp(48f))
+        // 换行宽度与 LyricRenderer 的绘制宽度必须是同一口径：两边都减 `2 × insetPx`。
+        val maxTextWidth = (viewWidth - textPaddingPx() - 2 * style.insetPx)
+            .coerceAtLeast(dp(48f))
         val gapRatio = (style.lineSpacing - ROW_RATIO).coerceAtLeast(0f)
         var y = 0f
         for (i in lines.indices) {

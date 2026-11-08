@@ -38,6 +38,19 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat(KEY_PLAYER_LINE_SPACING, 2.4f).coerceIn(1.4f, 4.0f)
         set(value) = prefs.edit { putFloat(KEY_PLAYER_LINE_SPACING, value.coerceIn(1.4f, 4.0f)) }
 
+    /**
+     * 横屏双栏的「左右栏间距」（dp，范围 0~32，默认 8）。
+     *
+     * 管的是**中轴（黑胶 + 控件行）右边界到歌词文本起点**这段空白，映射到右栏
+     * 歌词 View 的 `paddingStart`；`paddingEnd`（歌词区右边界留白）与上下边界
+     * 不吃这个值。竖屏没有右栏，本项不生效。
+     */
+    var lyricPaneGapDp: Int
+        get() = prefs.getInt(KEY_LYRIC_PANE_GAP, 8).coerceIn(MIN_LYRIC_PANE_GAP, MAX_LYRIC_PANE_GAP)
+        set(value) = prefs.edit {
+            putInt(KEY_LYRIC_PANE_GAP, value.coerceIn(MIN_LYRIC_PANE_GAP, MAX_LYRIC_PANE_GAP))
+        }
+
     var currentLineScale: Float
         get() = prefs.getFloat(KEY_CURRENT_SCALE, 1.05f)
         set(value) = prefs.edit { putFloat(KEY_CURRENT_SCALE, value) }
@@ -420,6 +433,11 @@ class SettingsRepository(context: Context) {
         const val KEY_PLAYER_FONT_SIZE = "player_font_size"
         const val KEY_PLAYER_NEXT_FONT_SIZE = "player_next_font_size"
         const val KEY_PLAYER_LINE_SPACING = "player_line_spacing"
+        /** 横屏双栏的左右栏间距（dp），见 [lyricPaneGapDp]。 */
+        const val KEY_LYRIC_PANE_GAP = "lyric_pane_gap_dp"
+        /** [lyricPaneGapDp] 的取值区间：0 是骨架留白决定的下限，32 是上限（再大会回到旧的过宽观感）。 */
+        const val MIN_LYRIC_PANE_GAP = 0
+        const val MAX_LYRIC_PANE_GAP = 32
         const val KEY_CURRENT_SCALE = "current_line_scale"
         const val KEY_NEXT_SCALE = "next_line_scale"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"

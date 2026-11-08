@@ -4,6 +4,8 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Outline
+import android.os.Parcel
+import android.os.Parcelable
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.AttributeSet
@@ -47,7 +49,19 @@ class VinylRecordView @JvmOverloads constructor(
 
     private var spinner: ValueAnimator? = null
     private var lastFrameAt = 0L
+
+    /** 当前写入两个 View 的**绝对**角度（0~360）。 */
     private var angle = 0f
+
+    /**
+     * 相位基准：本次 animator 的 0° 对应哪个绝对角度。
+     *
+     * animator 每次都从 `0f` 起跑到 `360f`，如果直接把它当绝对角度写进去，
+     * 那么**每次重建 animator 都会跳回 0°** —— 视图被 detach 再 attach
+     * （切页、转屏、进出后台）以及进程/Activity 重建都属于这种情况。
+     * 记住「这次从哪个角度起步」再相加，重建后就能接着原来的相位继续转。
+     */
+    private var phaseOffset = 0f
 
     init {
         clipChildren = false
@@ -111,7 +125,7 @@ class VinylRecordView @JvmOverloads constructor(
     fun startSpin() {
         if (animationsDisabled()) {
             // 系统「移除动画」：完全静态展示（`05 §4.2` 降级档）
-            applyAngle(angle)
+            setAbsoluteAngle(angle)
             return
         }
         val existing = spinner
@@ -119,6 +133,10 @@ class VinylRecordView @JvmOverloads constructor(
             if (existing.isPaused) existing.resume() else if (!existing.isStarted) existing.start()
             return
         }
+        // 新建 animator 前先记相位：下面第一帧的 animatedValue 是 0f，
+        // 加完 phaseOffset 正好等于当前角度，不跳变。
+        phaseOffset = angle
+        lastFrameAt = 0L
         val animator = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = ROTATION_DURATION_MS
             interpolator = LinearInterpolator()
@@ -155,11 +173,25 @@ class VinylRecordView @JvmOverloads constructor(
         if (playing) startSpin() else pauseSpin()
     }
 
-    /** 同一个值写给盘（+angle）和封面（−angle），保证两者严格等速反向。 */
+    /**
+     * animator 帧回调：[value] 是本次循环的 0~360，加上相位基准才是绝对角度。
+     */
     private fun applyAngle(value: Float) {
-        angle = value
-        rotateGroup.rotation = value
-        coverView.rotation = -value
+        setAbsoluteAngle(phaseOffset + value)
+    }
+
+    /**
+     * 同**一个**值写给盘（+deg）和封面（−deg），保证两者严格等速反向。
+     *
+     * 规格约束（`05 §4.2`，不要改）：盘与封面的反向等速关系、48s/圈、30fps 上限。
+     */
+    private fun setAbsoluteAngle(deg: Float) {
+        // 归一到 0~360：不做归一也能正常显示（旋转矩阵本就按 360 取模），
+        // 但长时间播放后数值会一路涨到几万度，调试时看不出当前相位。
+        val normalized = ((deg % 360f) + 360f) % 360f
+        angle = normalized
+        rotateGroup.rotation = normalized
+        coverView.rotation = -normalized
     }
 
     private fun animationsDisabled(): Boolean = runCatching {
@@ -199,10 +231,70 @@ class VinylRecordView @JvmOverloads constructor(
         return dx * dx + dy * dy <= radius * radius
     }
 
+    /**
+     * 视图离屏：停掉 animator，但**保留 `angle`**。
+     *
+     * 之前这里只 cancel + 置空 spinner，angle 其实没被清；问题出在重新 attach 后
+     * [startSpin] 新建的 animator 又从 0f 起步，直接覆盖成 0°。现在 [startSpin]
+     * 会用 `phaseOffset = angle` 记住起点，所以这里什么都不用改角度。
+     */
     override fun onDetachedFromWindow() {
         spinner?.cancel()
         spinner = null
         super.onDetachedFromWindow()
+    }
+
+    // ------------------------------------------------------------------ 状态保存
+
+    /**
+     * 存下当前角度：Activity / 进程重建后唱片接着原来的相位转，而不是归零。
+     *
+     * 角度是纯 View 的 UI 状态，所以存在 View 自己的 `BaseSavedState` 里，
+     * 不往 `PlaybackStateHolder` 那种进程内单例塞 —— 那个单例在进程被杀后本来也会重置。
+     * 也没有每秒写 SharedPreferences：48 秒才转一圈，落盘收益远小于成本。
+     */
+    override fun onSaveInstanceState(): Parcelable {
+        val superState = super.onSaveInstanceState()
+        return SavedState(superState).also { it.angle = angle }
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state !is SavedState) {
+            super.onRestoreInstanceState(state)
+            return
+        }
+        super.onRestoreInstanceState(state.superState)
+        phaseOffset = state.angle
+        setAbsoluteAngle(state.angle)
+    }
+
+    /**
+     * 只装着 [VinylRecordView.angle] 的 View 状态。
+     *
+     * 照 `SwipeDeckLayout.SavedState` 的写法（`internal class` + `@JvmField CREATOR`）：
+     * CREATOR 不是 `@JvmField` 时，Parcel 反序列化会拿不到它并抛 `BadParcelableException`。
+     */
+    internal class SavedState : View.BaseSavedState {
+        var angle: Float = 0f
+
+        constructor(superState: Parcelable?) : super(superState)
+
+        private constructor(source: Parcel) : super(source) {
+            angle = source.readFloat()
+        }
+
+        override fun writeToParcel(out: Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeFloat(angle)
+        }
+
+        companion object {
+            @JvmField
+            val CREATOR: Parcelable.Creator<SavedState> = object : Parcelable.Creator<SavedState> {
+                override fun createFromParcel(source: Parcel): SavedState = SavedState(source)
+                override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
+            }
+        }
     }
 
     private companion object {

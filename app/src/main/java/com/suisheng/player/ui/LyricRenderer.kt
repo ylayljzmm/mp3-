@@ -61,14 +61,23 @@ object LyricRenderer {
         val outline: Boolean,
         val strokeWidthPx: Float,
         /** 行距系数：单行占用的垂直空间为字号的多少倍 */
-        val lineSpacing: Float
+        val lineSpacing: Float,
+        /**
+         * 换行与绘制共用的水平内缩（**每侧**，px）。
+         *
+         * 以前这里是写死的 24f，与 `ScrollLyricView` 的换行口径（`viewWidth − padding`）
+         * 各算各的，长行会出现「测量两行、画一行」的错位。现在由调用方从
+         * `@dimen/lyric_render_inset` 算好后注入；宽度统一为 `maxWidth − 2 × insetPx`。
+         */
+        val insetPx: Float
     )
 
     fun styleFrom(
         context: Context,
         settings: SettingsRepository,
         density: Float,
-        forPlayer: Boolean
+        forPlayer: Boolean,
+        insetPx: Float = 0f
     ): Style {
         val overlaySize = settings.fontSizeSp
         val baseCurrent = if (forPlayer) settings.playerFontSizeSp else overlaySize
@@ -113,7 +122,8 @@ object LyricRenderer {
             bold = bold,
             outline = !forPlayer && settings.overlayStrokeEnabled,
             strokeWidthPx = strokeWidthPx,
-            lineSpacing = if (forPlayer) settings.playerLyricLineSpacing else 2.2f
+            lineSpacing = if (forPlayer) settings.playerLyricLineSpacing else 2.2f,
+            insetPx = insetPx
         )
     }
 
@@ -193,12 +203,15 @@ object LyricRenderer {
         sungPaint.textSize = style.currentSizePx
         pendingPaint.textSize = style.currentSizePx
 
-        val rows = layoutKaraokeRows(line, pendingPaint, maxWidth - padding(style), style.maxVisualLines)
+        val rows = layoutKaraokeRows(
+            line, pendingPaint,
+            maxWidth - 2 * style.insetPx, style.maxVisualLines
+        )
         if (rows.isEmpty()) return 0f
 
         val totalHeight = rows.size * style.currentSizePx * 1.35f
         var topY = centerY - totalHeight / 2f + style.currentSizePx
-        val padX = padding(style) / 2f
+        val padX = style.insetPx
         var charGlobalIndex = 0
 
         for (row in rows) {
@@ -358,11 +371,11 @@ object LyricRenderer {
         // 否则描边选色会随行透明度一起漂移。
         paint.color = ColorUtils.setAlphaComponent(color, alpha)
         paint.textSize = sizePx
-        val lines = wrapText(text, paint, maxWidth - padding(style), maxLines)
+        val lines = wrapText(text, paint, maxWidth - 2 * style.insetPx, maxLines)
         val lineHeight = sizePx * 1.3f
         val totalH = lines.size * lineHeight
         var y = centerY - totalH / 2f + sizePx
-        val pad = padding(style) / 2f
+        val pad = style.insetPx
         for (line in lines) {
             val w = paint.measureText(line)
             val lineX = max(pad, (maxWidth - w) / 2f)
@@ -430,8 +443,6 @@ object LyricRenderer {
             )
         }
     }
-
-    private fun padding(style: Style) = 24f
 
     private fun drawText(canvas: Canvas, text: String, x: Float, y: Float, paint: Paint, style: Style) {
         if (!style.outline) {
