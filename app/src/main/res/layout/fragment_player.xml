@@ -97,15 +97,24 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
 
-                        <!-- 初始 120dp 只是布局阶段的兜底值：真实边长由
-                             `PlayerFragment.setupCoverSizing()` 按格子大小动态写回
-                             （最小 120dp、最大 420dp）。 -->
-                        <com.suisheng.player.ui.VinylRecordView
-                            android:id="@+id/vinylRecord"
-                            android:layout_width="120dp"
-                            android:layout_height="120dp"
-                            android:layout_gravity="center"
-                            android:contentDescription="@string/player_cover_action" />
+                        <!-- 黑胶的可用格子。横屏时它等于整页，竖屏时是「控件行以上」的那块；
+                             两种形态下 setupCoverSizing() 都监听它，代码只有一条路径。
+                             这个 id 必须两个布局都有 —— 同一份 ViewBinding 只能有一套 id。 -->
+                        <FrameLayout
+                            android:id="@+id/coverSlot"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent">
+
+                            <!-- 初始 120dp 只是布局阶段的兜底值：真实边长由
+                                 `PlayerFragment.setupCoverSizing()` 按格子大小动态写回
+                                 （最小 120dp、最大 420dp）。 -->
+                            <com.suisheng.player.ui.VinylRecordView
+                                android:id="@+id/vinylRecord"
+                                android:layout_width="120dp"
+                                android:layout_height="120dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/player_cover_action" />
+                        </FrameLayout>
                     </FrameLayout>
                 </com.suisheng.player.ui.SwipeDeckLayout>
 

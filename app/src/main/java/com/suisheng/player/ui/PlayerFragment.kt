@@ -67,7 +67,7 @@ import kotlinx.coroutines.withContext
  * - 主题在 inflate 前套 overlay（`04 §6`），所以下面的 `?attr/` 按播放页分控色解析；
  * - 收藏图标的去重键、队列空时队列键置灰、长按歌词搜歌词 —— 全部保留。
  */
-class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
+class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler {
 
     private var _binding: FragmentPlayerBinding? = null
     private val binding get() = _binding!!
@@ -87,6 +87,15 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /** 上一帧渲染的状态关键字，挡住每秒 8 次的进度回调。 */
     private var renderedStateKey: String? = null
+
+    /**
+     * deck 当前跟随的曲目路径（切歌回黑胶页用）。
+     *
+     * 必须是「上一次的值」而不是「当前曲目」：`onPlaybackChanged` 每秒来 8 次，
+     * 用当前曲目和自己比永远相等，永远触发不了。进页面时先与当前曲目对齐，
+     * 这样首次回调（以及转屏后重建出来的首次回调）不会把恢复出来的页码打回封面。
+     */
+    private var deckSongPath: String? = null
 
     /** 收藏图标的去重关键字（`Song.path|是否已收藏`），View 重建时置空。 */
     private var favoriteUiKey: String? = null
@@ -158,6 +167,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         )
         renderCover(PlaybackStateHolder.coverArtPath)
         updateProgressUi(PlaybackStateHolder.positionMs, PlaybackStateHolder.durationMs)
+        // 与当前曲目对齐：首次回调不应该被当成「切歌」，否则 deck 恢复出来的页码会被打回封面
+        deckSongPath = PlaybackStateHolder.currentSong?.path
     }
 
     override fun onStart() {
@@ -230,10 +241,15 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
                 slider.thumbRadius = thumbActivePx
                 binding.timeCurrent.setTextColor(activeTextColor)
                 binding.timeTotal.setTextColor(activeTextColor)
+                // 竖屏把进度行搬进了黑胶页（需求 6），它现在躺在 deck 里：
+                // 横向拖动进度条和「横向翻页」是同一个手势方向，不在这里挡住，
+                // 拖到一半整页就翻走了。按下即挡住，松手立刻放开。
+                binding.swipeDeck.requestDisallowInterceptTouchEvent(true)
             }
 
             override fun onStopTrackingTouch(slider: Slider) {
                 userSeeking = false
+                binding.swipeDeck.requestDisallowInterceptTouchEvent(false)
                 slider.thumbRadius = thumbIdlePx
                 binding.timeCurrent.setTextColor(idleTextColor)
                 binding.timeTotal.setTextColor(idleTextColor)
@@ -283,6 +299,45 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     private fun currentPageIsInfo(): Boolean {
         val index = infoPageIndex()
         return index >= 0 && binding.swipeDeck.currentIndex == index
+    }
+
+    // ---------------------------------------------------------------- 三页归位（需求 6）
+
+    /**
+     * 当前停在哪一页就该不该回封面：非封面页返回封面页下标，已经在封面页返回 null。
+     *
+     * 返回 `null` 同时也是「这个形态没有封面页」的答案 —— 两个布局里 `pageCover`
+     * 都存在，但用 `indexOfPage` 查而不是写死下标，转屏换布局时不会指错页。
+     */
+    private fun coverReturnTarget(): Int? {
+        val deck = _binding?.swipeDeck ?: return null
+        val cover = deck.indexOfPage(R.id.pageCover)
+        if (cover < 0) return null
+        return if (deck.currentIndex == cover) null else cover
+    }
+
+    /** 切歌时回到黑胶页：歌词页/信息页都是「看这一首」的上下文，换歌还停在那儿会让人以为没刷新。 */
+    private fun returnToCoverOnSongChange(songPath: String?) {
+        val previous = deckSongPath
+        deckSongPath = songPath
+        if (songPath == null || previous == null || previous == songPath) return
+        val target = coverReturnTarget() ?: return
+        binding.swipeDeck.setCurrent(target, animate = false)
+    }
+
+    override fun hasInnerLevel(): Boolean = coverReturnTarget() != null
+
+    /**
+     * 返回键的第三级：播放器内部从歌词页 / 信息页退回黑胶页。
+     *
+     * 顺序由 `MainActivity.goBack()` 决定（抽屉 → 页面内层 → 目的地栈）。放在这里
+     * 是因为歌词页全页化之后没有任何可见的「返回」控件，只能靠侧滑；不接管返回键
+     * 的话用户按一下就直接退出 App 了。
+     */
+    override fun handlePageBack(): Boolean {
+        val target = coverReturnTarget() ?: return false
+        binding.swipeDeck.setCurrent(target, animate = true)
+        return true
     }
 
     /** 按页数生成圆点；点本身没有 id（数量随布局变，ViewBinding 里也不该有）。 */
@@ -352,7 +407,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
      * 该容器的 layout，不做去重就是「layout → 监听 → layout」的死循环。
      */
     private fun setupCoverSizing() {
-        binding.pageCover.addOnLayoutChangeListener { view, _, _, right, bottom, _, _, _, _ ->
+        // 监听 coverSlot 而不是 pageCover：竖屏把控件行搬进黑胶页之后，整页高度包含了
+        // 歌名 / 进度 / 播放键 / 功能行，按整页算出来的正方形会盖住这些控件。
+        // coverSlot 是「控件行以上那块空地」，横屏时它等于整页，两种形态一条路径。
+        binding.coverSlot.addOnLayoutChangeListener { view, _, _, right, bottom, _, _, _, _ ->
             val width = right - view.left
             val height = bottom - view.top
             if (width > 0 && height > 0) {
@@ -522,6 +580,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         if (!userSeeking) updateProgressUi(positionMs, PlaybackStateHolder.durationMs)
         // 切歌 / 恢复播放后收藏图标要跟着当前曲目走（收藏是按 Song.path 记的）
         updateFavoriteUi(song)
+        // 换歌先把 deck 拉回黑胶页，再决定要不要重读信息页（页面变了 onPageChanged 会补）
+        returnToCoverOnSongChange(song?.path)
         // 只在信息页可见时重读参数：停在封面页就让它保持旧值，
         // 切回信息页时 `onPageChanged` 会补一次（那边同样走 songInfoKey 去重）。
         if (currentPageIsInfo()) loadSongInfo()
