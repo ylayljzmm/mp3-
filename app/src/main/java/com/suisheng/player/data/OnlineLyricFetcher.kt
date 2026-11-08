@@ -1,92 +1,91 @@
 package com.suisheng.player.data
 
 import com.suisheng.player.lrc.LrcParser
-import com.suisheng.player.model.LrcLine
+import com.suisheng.player.lrc.LyricDocument
+import com.suisheng.player.lrc.LyricProviderConfig
+import com.suisheng.player.lrc.LyricProviders
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
+/** 一次联网取词的结果：文档 + 哪个渠道给的（UI 显示来源、「换一个渠道」也靠它）。 */
+data class LyricFetchOutcome(
+    val document: LyricDocument,
+    val providerId: String,
+)
+
+/**
+ * 联网歌词取词器。
+ *
+ * ## 渠道是注册表驱动的
+ *
+ * 旧实现把 4 个渠道硬编码成一个 `listOf({...})`，用户无法关掉某个源、也无法调整尝试顺序，
+ * 遇到某个源抽风时只能整个关掉联网歌词。现在渠道 id、顺序、开关都由
+ * [LyricProviderConfig] 决定，这里只负责「按配置依次试」。
+ *
+ * ## 有轴优先于无轴
+ *
+ * 纯文本渠道（[LyricProviders.LYRICS_OVH]）只能给占位时间轴。如果它在顺序里靠前，
+ * 而它的结果直接返回，后面渠道的好时间轴就永远用不上。所以每一轮查询里先收集
+ * 「无轴」结果当兜底，本轮内找到有轴的就直接返回 —— 最多多花一轮查询，不会全量重试。
+ *
+ * ## tlyric 不再被当成正文
+ *
+ * 旧实现把网易云的 `tlyric`（译文轨）作为 `plain` 参数交给 `fromPlainText()`，
+ * 于是「译文」被当成「正文」并且被塞了一条 5 秒一行的假时间轴 ——
+ * 表现为歌词能显示、但和歌完全对不上。现在译文走 [LrcParser.mergeTranslation]，
+ * 按时间戳挂到原文行上，对不上的行留空。
+ */
 class OnlineLyricFetcher {
-    fun fetch(title: String, artist: String): List<LrcLine>? {
-        val queries = buildSearchQueries(title, artist)
-        for ((track, singer) in queries) {
-            val providers = listOf(
-                { fetchFromNetease(track, singer) },
-                { fetchFromKugou(track, singer) },
-                { fetchFromQqMusic(track, singer) },
-                { fetchFromLrcLib(track, singer) }
-            )
-            for (provider in providers) {
-                val lines = runCatching { provider() }.getOrNull()
-                if (!lines.isNullOrEmpty()) return lines
+
+    fun fetch(
+        title: String,
+        artist: String,
+        config: LyricProviderConfig = LyricProviderConfig(),
+        onlyProviderId: String? = null,
+    ): LyricFetchOutcome? {
+        val providerIds = onlyProviderId
+            ?.takeIf { LyricProviders.isKnown(it) }
+            ?.let { listOf(it) }
+            ?: config.enabledOrder()
+        if (providerIds.isEmpty()) return null
+
+        for ((track, singer) in buildSearchQueries(title, artist)) {
+            var weak: LyricFetchOutcome? = null
+            for (id in providerIds) {
+                val result = runCatching { fetchFrom(id, track, singer) }.getOrNull() ?: continue
+                if (result.document.lines.isEmpty()) continue
+                val outcome = LyricFetchOutcome(result.document, id)
+                if (result.timed) return outcome
+                if (weak == null) weak = outcome
             }
+            // 这一轮所有渠道都只给了无轴文本：有词总比没词强，收下它，不再换查询词重试。
+            if (weak != null) return weak
         }
         return null
     }
 
-    private fun buildSearchQueries(title: String, artist: String): List<Pair<String, String>> {
-        val cleanTitle = title.trim()
-        val cleanArtist = artist.trim()
-        val validArtist = isUsefulArtist(cleanArtist)
-        return listOfNotNull(
-            cleanTitle to cleanArtist,
-            cleanTitle to "",
-            if (validArtist) cleanTitle to cleanArtist.substringBefore(" feat") else null,
-            normalizeTitle(cleanTitle) to if (validArtist) cleanArtist else ""
-        ).distinct()
+    // ---------------------------------------------------------------- 渠道分发
+
+    /** 单次渠道结果。[timed] = 是否带真实时间轴（纯文本渠道为 false）。 */
+    private data class ProviderResult(val document: LyricDocument, val timed: Boolean)
+
+    private fun fetchFrom(id: String, title: String, artist: String): ProviderResult? = when (id) {
+        LyricProviders.NETEASE -> fetchFromNetease(title, artist)
+        LyricProviders.LRCLIB -> fetchFromLrcLib(title, artist)
+        LyricProviders.KUGOU -> fetchFromKugou(title, artist)
+        LyricProviders.QQ -> fetchFromQqMusic(title, artist)
+        LyricProviders.TEXTYL -> fetchFromTextyl(title, artist)
+        LyricProviders.LYRICS_OVH -> fetchFromLyricsOvh(title, artist)
+        else -> null
     }
 
-    private fun fetchFromLrcLib(title: String, artist: String): List<LrcLine>? {
-        fetchLrcLibGet(title, artist)?.let { return it }
-        val array = searchLrcLib(title, artist) ?: return null
-        if (array.length() == 0) return null
+    // ---------------------------------------------------------------- 网易云
 
-        var bestScore = -1
-        var bestSynced: String? = null
-        var bestPlain: String? = null
-
-        for (i in 0 until array.length()) {
-            val item = array.optJSONObject(i) ?: continue
-            val score = scoreLrcLibResult(item, title, artist)
-            if (score <= bestScore) continue
-            bestScore = score
-            bestSynced = item.optString("syncedLyrics").takeIf { it.isNotBlank() }
-            bestPlain = item.optString("plainLyrics").takeIf { it.isNotBlank() }
-        }
-
-        return parseLyricText(bestSynced, bestPlain)
-    }
-
-    private fun fetchLrcLibGet(title: String, artist: String): List<LrcLine>? {
-        val url = buildString {
-            append("https://lrclib.net/api/get?track_name=").append(encode(title))
-            if (isUsefulArtist(artist)) {
-                append("&artist_name=").append(encode(artist))
-            }
-        }
-        val body = httpGetText(url) ?: return null
-        val item = runCatching { JSONObject(body) }.getOrNull() ?: return null
-        if (item.optInt("code", 0) == 404) return null
-        return parseLyricText(
-            item.optString("syncedLyrics").takeIf { it.isNotBlank() },
-            item.optString("plainLyrics").takeIf { it.isNotBlank() }
-        )
-    }
-
-    private fun searchLrcLib(title: String, artist: String): JSONArray? {
-        val url = buildString {
-            append("https://lrclib.net/api/search?track_name=").append(encode(title))
-            if (isUsefulArtist(artist)) {
-                append("&artist_name=").append(encode(artist))
-            }
-        }
-        val body = httpGetText(url) ?: return null
-        return runCatching { JSONArray(body) }.getOrNull()
-    }
-
-    private fun fetchFromNetease(title: String, artist: String): List<LrcLine>? {
+    private fun fetchFromNetease(title: String, artist: String): ProviderResult? {
         val keyword = if (isUsefulArtist(artist)) "$title $artist" else title
         val searchUrl =
             "https://music.163.com/api/search/get/web?s=${encode(keyword)}&type=1&offset=0&limit=12"
@@ -115,15 +114,76 @@ class OnlineLyricFetcher {
         }
         if (bestId <= 0L || bestScore < 3) return null
 
-        val lyricUrl = "https://music.163.com/api/song/lyric?id=$bestId&lv=1&kv=1&tv=-1"
+        // lv=1 原文轨，tv=-1 译文轨，rv=-1 罗马音（注音）轨。
+        val lyricUrl = "https://music.163.com/api/song/lyric?id=$bestId&lv=1&kv=1&tv=-1&rv=-1"
         val lyricJson = httpGetText(lyricUrl, headers)?.let { runCatching { JSONObject(it) }.getOrNull() }
             ?: return null
         val synced = lyricJson.optJSONObject("lrc")?.optString("lyric")?.takeIf { it.isNotBlank() }
-        val plain = lyricJson.optJSONObject("tlyric")?.optString("lyric")?.takeIf { it.isNotBlank() }
-        return parseLyricText(synced, plain)
+            ?: return null
+
+        val base = docFromLrc(synced, LyricProviders.NETEASE) ?: return null
+        val translation = lyricJson.optJSONObject("tlyric")?.optString("lyric")
+        val phonetic = lyricJson.optJSONObject("romalrc")?.optString("lyric")
+        val merged = LrcParser.mergePhonetic(
+            LrcParser.mergeTranslation(base.document, translation),
+            phonetic,
+        )
+        return base.copy(document = merged)
     }
 
-    private fun fetchFromKugou(title: String, artist: String): List<LrcLine>? {
+    // ---------------------------------------------------------------- LRCLIB
+
+    private fun fetchFromLrcLib(title: String, artist: String): ProviderResult? {
+        val direct = fetchLrcLibGet(title, artist)
+        if (direct?.timed == true) return direct
+
+        val array = searchLrcLib(title, artist)
+        if (array != null && array.length() > 0) {
+            var bestScore = -1
+            var bestSynced: String? = null
+            var bestPlain: String? = null
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val score = scoreLrcLibResult(item, title, artist)
+                if (score <= bestScore) continue
+                bestScore = score
+                bestSynced = item.optString("syncedLyrics").takeIf { it.isNotBlank() }
+                bestPlain = item.optString("plainLyrics").takeIf { it.isNotBlank() }
+            }
+            docFromLrc(bestSynced, LyricProviders.LRCLIB)?.let { return it }
+            docFromPlain(bestPlain, LyricProviders.LRCLIB)?.let { return it }
+        }
+        return direct
+    }
+
+    private fun fetchLrcLibGet(title: String, artist: String): ProviderResult? {
+        val url = buildString {
+            append("https://lrclib.net/api/get?track_name=").append(encode(title))
+            if (isUsefulArtist(artist)) {
+                append("&artist_name=").append(encode(artist))
+            }
+        }
+        val body = httpGetText(url) ?: return null
+        val item = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        if (item.optInt("code", 0) == 404) return null
+        docFromLrc(item.optString("syncedLyrics"), LyricProviders.LRCLIB)?.let { return it }
+        return docFromPlain(item.optString("plainLyrics"), LyricProviders.LRCLIB)
+    }
+
+    private fun searchLrcLib(title: String, artist: String): JSONArray? {
+        val url = buildString {
+            append("https://lrclib.net/api/search?track_name=").append(encode(title))
+            if (isUsefulArtist(artist)) {
+                append("&artist_name=").append(encode(artist))
+            }
+        }
+        val body = httpGetText(url) ?: return null
+        return runCatching { JSONArray(body) }.getOrNull()
+    }
+
+    // ---------------------------------------------------------------- 酷狗
+
+    private fun fetchFromKugou(title: String, artist: String): ProviderResult? {
         val keyword = if (isUsefulArtist(artist)) "$title $artist" else title
         val searchUrl =
             "https://mobilecdn.kugou.com/api/v3/search/song?format=json&keyword=${encode(keyword)}&page=1&pagesize=8&showtype=1"
@@ -167,10 +227,12 @@ class OnlineLyricFetcher {
         val decoded = runCatching {
             String(android.util.Base64.decode(content, android.util.Base64.DEFAULT), Charsets.UTF_8)
         }.getOrDefault(content)
-        return LrcParser.parseContent(decoded).takeIf { it.isNotEmpty() }
+        return docFromLrc(decoded, LyricProviders.KUGOU)
     }
 
-    private fun fetchFromQqMusic(title: String, artist: String): List<LrcLine>? {
+    // ---------------------------------------------------------------- QQ 音乐
+
+    private fun fetchFromQqMusic(title: String, artist: String): ProviderResult? {
         val keyword = if (isUsefulArtist(artist)) "$title $artist" else title
         val searchUrl = buildString {
             append("https://c.y.qq.com/soso/fcgi-bin/client_search_cp?")
@@ -210,30 +272,86 @@ class OnlineLyricFetcher {
         val lyricUrl =
             "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?format=json&nobase64=1&songtype=0&musicid=$bestSongId"
         val lyricJson = httpGetText(lyricUrl, headers)?.let { parseJsonBody(it) } ?: return null
-        val lyricText = lyricJson.optString("lyric").takeIf { it.isNotBlank() } ?: return null
-        return LrcParser.parseContent(lyricText).takeIf { it.isNotEmpty() }
+        // QQ 的歌词正文里常把换行、冒号写成 `&#10;` / `&#58;` 这样的数字实体，
+        // 不解码就会得到一条根本解析不出时间戳的单行。
+        val lyricText = unescapeNumericEntities(lyricJson.optString("lyric")).takeIf { it.isNotBlank() }
+            ?: return null
+        val base = docFromLrc(lyricText, LyricProviders.QQ) ?: return null
+        val trans = unescapeNumericEntities(lyricJson.optString("trans")).takeIf { it.isNotBlank() }
+        return base.copy(document = LrcParser.mergeTranslation(base.document, trans))
     }
 
-    private fun fetchFromLyricsOvh(title: String, artist: String): List<LrcLine>? {
+    // ---------------------------------------------------------------- textyl
+
+    /**
+     * `api.textyl.co`：免鉴权，返回 `[{"seconds":12,"lyrics":"..."}]`。
+     *
+     * 精度只到秒，但无需搜索、无需 cookie，作为「前几个渠道都空手」时的补充很合适。
+     */
+    private fun fetchFromTextyl(title: String, artist: String): ProviderResult? {
+        val query = if (isUsefulArtist(artist)) "$artist $title" else title
+        val body = httpGetText("https://api.textyl.co/api/lyrics?q=${encode(query)}") ?: return null
+        val array = runCatching { JSONArray(body) }.getOrNull() ?: return null
+        if (array.length() == 0) return null
+
+        val entries = buildList {
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val seconds = item.optDouble("seconds", -1.0)
+                val text = item.optString("lyrics").trim()
+                if (seconds >= 0.0 && text.isNotEmpty()) {
+                    add((seconds * 1000).toLong() to text)
+                }
+            }
+        }.sortedBy { it.first }
+        if (entries.isEmpty()) return null
+
+        // 借用标准 LRC 走一次解析，直接复用「行尾时间 = 下一行起点」的既有逻辑。
+        val lrcText = entries.joinToString("\n") { (ms, text) -> "[${timestamp(ms)}]$text" }
+        return docFromLrc(lrcText, LyricProviders.TEXTYL)
+    }
+
+    // ---------------------------------------------------------------- lyrics.ovh（仅纯文本）
+
+    private fun fetchFromLyricsOvh(title: String, artist: String): ProviderResult? {
         if (!isUsefulArtist(artist)) return null
-        val url =
-            "https://api.lyrics.ovh/v1/${encodePath(artist)}/${encodePath(title)}"
+        val url = "https://api.lyrics.ovh/v1/${encodePath(artist)}/${encodePath(title)}"
         val body = httpGetText(url) ?: return null
         val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
-        val lyrics = json.optString("lyrics").takeIf { it.isNotBlank() } ?: return null
-        return LrcParser.fromPlainText(lyrics).takeIf { it.isNotEmpty() }
+        return docFromPlain(json.optString("lyrics"), LyricProviders.LYRICS_OVH)
     }
 
-    private fun parseLyricText(synced: String?, plain: String?): List<LrcLine>? {
-        synced?.let { text ->
-            val lines = LrcParser.parseContent(text)
-            if (lines.isNotEmpty()) return lines
-        }
-        plain?.let { text ->
-            val lines = LrcParser.fromPlainText(text)
-            if (lines.isNotEmpty()) return lines
-        }
-        return null
+    // ---------------------------------------------------------------- 结果包装
+
+    private fun docFromLrc(text: String?, providerId: String): ProviderResult? {
+        if (text.isNullOrBlank()) return null
+        val document = LrcParser.parseDocument(text)
+        if (document.lines.isEmpty()) return null
+        return ProviderResult(document.copy(sourceProviderId = providerId), timed = true)
+    }
+
+    private fun docFromPlain(text: String?, providerId: String): ProviderResult? {
+        if (text.isNullOrBlank()) return null
+        val lines = LrcParser.fromPlainText(text)
+        if (lines.isEmpty()) return null
+        return ProviderResult(
+            LyricDocument.singleTrack(lines).copy(sourceProviderId = providerId),
+            timed = false,
+        )
+    }
+
+    // ---------------------------------------------------------------- 查询词
+
+    private fun buildSearchQueries(title: String, artist: String): List<Pair<String, String>> {
+        val cleanTitle = title.trim()
+        val cleanArtist = artist.trim()
+        val validArtist = isUsefulArtist(cleanArtist)
+        return listOfNotNull(
+            cleanTitle to cleanArtist,
+            cleanTitle to "",
+            if (validArtist) cleanTitle to cleanArtist.substringBefore(" feat") else null,
+            normalizeTitle(cleanTitle) to if (validArtist) cleanArtist else ""
+        ).distinct()
     }
 
     private fun scoreLrcLibResult(item: JSONObject, title: String, artist: String): Int {
@@ -245,6 +363,49 @@ class OnlineLyricFetcher {
         }
         if (item.optString("syncedLyrics").isNotBlank()) score += 5
         return score
+    }
+
+    // ---------------------------------------------------------------- 工具
+
+    /** `[mm:ss.xx]` 里的时间部分，显式 Locale 以免某些区域写出非 ASCII 数字。 */
+    private fun timestamp(ms: Long): String {
+        val centis = ms.coerceAtLeast(0L) / 10L
+        return String.format(
+            Locale.US,
+            "%02d:%02d.%02d",
+            centis / 6000L,
+            (centis / 100L) % 60L,
+            centis % 100L,
+        )
+    }
+
+    private fun unescapeNumericEntities(text: String): String {
+        if (text.isEmpty() || !text.contains('&')) return text
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            val ch = text[i]
+            if (ch == '&') {
+                val semi = text.indexOf(';', i)
+                if (semi in (i + 1)..(i + 9)) {
+                    val bodyText = text.substring(i + 1, semi)
+                    val code = when {
+                        bodyText.startsWith("#x") || bodyText.startsWith("#X") ->
+                            bodyText.substring(2).toIntOrNull(16)
+                        bodyText.startsWith("#") -> bodyText.substring(1).toIntOrNull()
+                        else -> null
+                    }
+                    if (code != null && code > 0) {
+                        sb.append(code.toChar())
+                        i = semi + 1
+                        continue
+                    }
+                }
+            }
+            sb.append(ch)
+            i++
+        }
+        return sb.toString()
     }
 
     private fun parseJsonBody(body: String): JSONObject? {

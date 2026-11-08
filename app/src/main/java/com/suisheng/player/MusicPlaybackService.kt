@@ -727,9 +727,13 @@ class MusicPlaybackService : MediaSessionService() {
                 }
             }
 
-            val localLines = metadataLoader.readLocalLyrics(song)
-            val result = if (!localLines.isNullOrEmpty()) {
-                SongMetadataLoader.LyricLoadResult(localLines, song.lrcPath)
+            val localDocument = metadataLoader.readLocalDocument(song)
+            val result = if (!localDocument?.lines.isNullOrEmpty()) {
+                SongMetadataLoader.LyricLoadResult(
+                    localDocument!!.lines,
+                    song.lrcPath,
+                    localDocument,
+                )
             } else {
                 metadataLoader.loadLyrics(song)
             } ?: return@launch
@@ -739,6 +743,9 @@ class MusicPlaybackService : MediaSessionService() {
             currentLines = result.lines
             withContext(Dispatchers.Main) {
                 val p = exoPlayer
+                // 先写文档（行列表 + 文件内偏移），再写进度：update() 只换行列表、
+                // 不清偏移，顺序反了偏移会在本帧被覆盖成 0。
+                PlaybackStateHolder.setLyricDocument(result.document)
                 PlaybackStateHolder.update(
                     song,
                     p?.isPlaying == true,
@@ -987,6 +994,7 @@ class MusicPlaybackService : MediaSessionService() {
             currentLines = result.lines
             withContext(Dispatchers.Main) {
                 val p = exoPlayer
+                PlaybackStateHolder.setLyricDocument(result.document)
                 PlaybackStateHolder.update(
                     song,
                     p?.isPlaying == true,

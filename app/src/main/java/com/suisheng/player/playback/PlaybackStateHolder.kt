@@ -1,5 +1,6 @@
 package com.suisheng.player.playback
 
+import com.suisheng.player.lrc.LyricDocument
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.LyricState
@@ -32,8 +33,17 @@ object PlaybackStateHolder {
     val currentSong: Song?
         get() = songs.getOrNull(currentIndex)
 
+    /**
+     * 歌词时间轴换算（偏移的唯一注入点）。
+     *
+     * 四条歌词链里「按行取状态」的（悬浮歌词、媒体会话元数据）从这里拿；
+     * 直接吃原始进度的两条（播放页滚动歌词、仪表投屏）在读的时候取
+     * [LyricTimebase.effectivePositionMs]，不要自己在外面加偏移。
+     */
+    val timebase = LyricTimebase()
+
     val lyricState: LyricState
-        get() = com.suisheng.player.lrc.LrcParser.findState(lrcLines, positionMs)
+        get() = timebase.lyricState
 
     interface Listener {
         fun onPlaybackChanged(song: Song?, playing: Boolean, positionMs: Long, lines: List<LrcLine>)
@@ -108,6 +118,17 @@ object PlaybackStateHolder {
         listeners.forEach { it.onPlayModeChanged(mode) }
     }
 
+    /**
+     * 歌词加载完成时由加载链路调用：写入多轨文档（行列表 + 文件内偏移）。
+     *
+     * 与 [update] 的分工：这里负责「换了一份歌词」，[update] 只负责「进度走到了哪」。
+     */
+    fun setLyricDocument(document: LyricDocument) {
+        timebase.setDocument(document)
+        lrcLines = document.lines
+        notify()
+    }
+
     fun updateSongLrcPath(songPath: String, lrcPath: String) {
         val idx = songs.indexOfFirst { it.path == songPath }
         if (idx < 0) return
@@ -130,7 +151,13 @@ object PlaybackStateHolder {
     fun update(song: Song?, playing: Boolean, positionMs: Long, lines: List<LrcLine>, durationMs: Long = this.durationMs) {
         isPlaying = playing
         this.positionMs = positionMs
-        lrcLines = lines
+        // 时间轴只换行列表、保留文件偏移（偏移由 setLyricDocument 单独写）；
+        // 引用没变就不动，避免每帧都做一次列表赋值。
+        if (lines !== lrcLines) {
+            lrcLines = lines
+            timebase.setLines(lines)
+        }
+        timebase.onRawPosition(positionMs)
         if (durationMs > 0) this.durationMs = durationMs
         // This runs ~8 times per second. Scanning the whole library here (the old
         // behaviour) is O(n) per tick — with a few thousand songs that is tens of

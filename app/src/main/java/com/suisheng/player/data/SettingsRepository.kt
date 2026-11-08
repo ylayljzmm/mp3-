@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import androidx.annotation.StyleRes
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
+import com.suisheng.player.lrc.LyricProviderConfig
+import com.suisheng.player.lrc.LyricProviders
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
@@ -130,6 +132,39 @@ class SettingsRepository(context: Context) {
     var onlineLyricsEnabled: Boolean
         get() = prefs.getBoolean(KEY_ONLINE_LYRICS, true)
         set(value) = prefs.edit { putBoolean(KEY_ONLINE_LYRICS, value) }
+
+    /**
+     * 联网歌词渠道的顺序（逗号分隔的 id，见 [LyricProviderConfig]）。
+     *
+     * 存成字符串而不是序列化对象，是为了让「旧版本写进去的顺序」在升级后仍能解析 ——
+     * 新版本多出来的渠道由 [LyricProviderConfig.parse] 自动补到末尾。
+     */
+    var lyricProviderOrderCsv: String
+        get() = prefs.getString(KEY_LYRIC_PROVIDER_ORDER, "") ?: ""
+        set(value) = prefs.edit { putString(KEY_LYRIC_PROVIDER_ORDER, value) }
+
+    /**
+     * 关掉的渠道 id（逗号分隔）。
+     *
+     * `null` 表示用户从没动过开关，此时按 [LyricProviders.defaultDisabled] 走；
+     * 一旦写过（哪怕是空串）就以写入的内容为准，否则用户「把默认关的打开」下次启动会被打回去。
+     */
+    var lyricProviderDisabledCsv: String?
+        get() = prefs.getString(KEY_LYRIC_PROVIDER_DISABLED, null)
+        set(value) = prefs.edit {
+            if (value == null) remove(KEY_LYRIC_PROVIDER_DISABLED)
+            else putString(KEY_LYRIC_PROVIDER_DISABLED, value)
+        }
+
+    fun lyricProviderConfig(): LyricProviderConfig =
+        LyricProviderConfig.parse(lyricProviderOrderCsv, lyricProviderDisabledCsv)
+
+    fun saveLyricProviderConfig(config: LyricProviderConfig) {
+        prefs.edit {
+            putString(KEY_LYRIC_PROVIDER_ORDER, config.orderCsv())
+            putString(KEY_LYRIC_PROVIDER_DISABLED, config.disabledCsv())
+        }
+    }
 
     var onlineCoverEnabled: Boolean
         get() = prefs.getBoolean(KEY_ONLINE_COVER, true)
@@ -486,6 +521,10 @@ class SettingsRepository(context: Context) {
         const val KEY_SCAN_PATHS = "scan_paths"
         const val KEY_SCAN_TREE_URIS = "scan_tree_uris"
         const val KEY_ONLINE_LYRICS = "online_lyrics"
+        /** 联网歌词渠道顺序（逗号分隔 id），见 [lyricProviderOrderCsv]。 */
+        const val KEY_LYRIC_PROVIDER_ORDER = "lyric_provider_order"
+        /** 关掉的联网歌词渠道（逗号分隔 id），见 [lyricProviderDisabledCsv]。 */
+        const val KEY_LYRIC_PROVIDER_DISABLED = "lyric_provider_disabled"
         const val KEY_ONLINE_COVER = "online_cover"
         const val KEY_SKIP_VIP = "skip_unplayable_vip"
         const val KEY_PODCAST_DESC = "podcast_show_desc"
