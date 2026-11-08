@@ -34,6 +34,18 @@ class ScrollLyricView @JvmOverloads constructor(
     /** 每行歌词在内容中的起始偏移与高度：按实际换行数累计，行距由设置系数控制 */
     private var lineTops = FloatArray(0)
     private var lineHeights = FloatArray(0)
+
+    /**
+     * 每行**正文**部分的高度（不含译注行）。
+     *
+     * 与 [lineHeights] 分开存是因为绘制时要算正文的中心点：`drawKaraokeLine` /
+     * `drawWrappedStaticLine` 都是「按中心 Y 居中画」，一个块里既有正文又有译注时，
+     * 用整块的中心去画正文会让正文整体下移半行。
+     */
+    private var mainHeights = FloatArray(0)
+
+    /** [ensureLayout] 算出的换行宽度，绘制译注行时复用（两处必须同口径）。 */
+    private var layoutMaxWidth = 0f
     private var totalHeightPx = 0f
     private var layoutWidth = -1
     private var layoutIndex = -2
@@ -230,7 +242,9 @@ class ScrollLyricView @JvmOverloads constructor(
             style.otherSizePx * 11.9f +
             style.lineSpacing * 7.7f +
             style.maxVisualLines * 3.1f +
-            style.insetPx * 5.3f
+            style.insetPx * 5.3f +
+            // 译文 / 注音开关一变，每行占的高度就变了，必须重排
+            subLineFlags() * 1.7f
         if (viewWidth == layoutWidth && idx == layoutIndex && key == layoutKey &&
             lineTops.size == lines.size
         ) {
@@ -241,6 +255,7 @@ class ScrollLyricView @JvmOverloads constructor(
         layoutKey = key
         lineTops = FloatArray(lines.size)
         lineHeights = FloatArray(lines.size)
+        mainHeights = FloatArray(lines.size)
         if (lines.isEmpty()) {
             totalHeightPx = 0f
             return
@@ -250,6 +265,7 @@ class ScrollLyricView @JvmOverloads constructor(
         // 换行宽度与 LyricRenderer 的绘制宽度必须是同一口径：两边都减 `2 × insetPx`。
         val maxTextWidth = (viewWidth - textPaddingPx() - 2 * style.insetPx)
             .coerceAtLeast(dp(48f))
+        layoutMaxWidth = maxTextWidth
         val gapRatio = (style.lineSpacing - ROW_RATIO).coerceAtLeast(0f)
         var y = 0f
         for (i in lines.indices) {
@@ -259,13 +275,51 @@ class ScrollLyricView @JvmOverloads constructor(
                 else -> style.otherSizePx
             }
             measurePaint.textSize = size
-            val rows = countRows(lines[i].text, maxTextWidth, style.maxVisualLines)
-            val height = rows * size * ROW_RATIO + size * gapRatio
+            val mainRows = countRows(lines[i].text, maxTextWidth, style.maxVisualLines)
+            val mainHeight = mainRows * size * ROW_RATIO
+            val subHeight = subLinesHeight(lines[i], size, maxTextWidth)
+            val height = mainHeight + subHeight + size * gapRatio
             lineTops[i] = y
             lineHeights[i] = height
+            mainHeights[i] = mainHeight
             y += height
         }
         totalHeightPx = y
+    }
+
+    /** 译文 / 注音两个开关的位掩码；参与 [layoutKey]，任一翻转都要重排。 */
+    private fun subLineFlags(): Int {
+        var flags = 0
+        if (settings.lyricShowPhonetic) flags = flags or 1
+        if (settings.lyricShowTranslation) flags = flags or 2
+        return flags
+    }
+
+    /**
+     * 一行要额外画出来的译注行，顺序固定 **注音 → 译文**。
+     *
+     * 与 [LrcLine.displayLines] 的顺序一致（那边是 原文 → 注音 → 译文，原文由调用方
+     * 自己先画）。没有数据就不产生空行，行高也就不会多算。
+     */
+    private fun subTexts(line: LrcLine): List<String> {
+        val out = ArrayList<String>(2)
+        if (settings.lyricShowPhonetic) line.phonetic?.takeIf { it.isNotBlank() }?.let(out::add)
+        if (settings.lyricShowTranslation) line.translation?.takeIf { it.isNotBlank() }?.let(out::add)
+        return out
+    }
+
+    /** 译注行占的总高度（可能被折成多行）。测量用的 textSize 会在调用方之后再设回去。 */
+    private fun subLinesHeight(line: LrcLine, mainSize: Float, maxWidth: Float): Float {
+        val subs = subTexts(line)
+        if (subs.isEmpty()) return 0f
+        val subSize = mainSize * SUB_TEXT_RATIO
+        measurePaint.textSize = subSize
+        var sum = 0f
+        for (text in subs) {
+            val rows = countRows(text, maxWidth, SUB_MAX_ROWS)
+            sum += rows * subSize * SUB_ROW_RATIO
+        }
+        return sum
     }
 
     private fun countRows(text: String, maxWidth: Float, maxRows: Int): Int {
@@ -327,28 +381,51 @@ class ScrollLyricView @JvmOverloads constructor(
         val idx = findIndex(displayPositionMs.toLong())
         ensureLayout(style, idx, width)
         val scrollY = effectiveScrollY()
+        val maxTextWidth = layoutMaxWidth
 
         for (i in lines.indices) {
             val blockTop = height / 2f - scrollY + lineTops[i]
-            val lineCenterY = blockTop + lineHeights[i] / 2f
-            if (lineCenterY < -lineHeights[i] || lineCenterY > height + lineHeights[i]) continue
+            val blockCenterY = blockTop + lineHeights[i] / 2f
+            if (blockCenterY < -lineHeights[i] || blockCenterY > height + lineHeights[i]) continue
 
-            val alpha = lineAlpha(lineCenterY)
+            val alpha = lineAlpha(blockCenterY)
+            // 正文按**正文自己**的中心画，不是整块的中心：有译注行时整块更高，
+            // 用整块中心会让正文整体下移半行。
+            val mainCenterY = blockTop + mainHeights[i] / 2f
+            val size = when {
+                i == idx -> style.currentSizePx
+                abs(i - idx) == 1 -> style.nextSizePx
+                else -> style.otherSizePx
+            }
+            val baseColor = if (i < idx) style.nextLineColor else style.pendingColor
             if (i == idx) {
                 LyricRenderer.drawKaraokeLine(
-                    canvas, lines[i], displayPositionMs, lineCenterY,
+                    canvas, lines[i], displayPositionMs, mainCenterY,
                     style, width.toFloat(), sungPaint, pendingPaint, alpha
                 )
             } else {
-                val size = when (abs(i - idx)) {
-                    1 -> style.nextSizePx
-                    else -> style.otherSizePx
-                }
-                val color = if (i < idx) style.nextLineColor else style.pendingColor
                 LyricRenderer.drawWrappedStaticLine(
-                    canvas, lines[i].text, lineCenterY, nextPaint, style,
-                    width.toFloat(), color, size, style.maxVisualLines, alpha
+                    canvas, lines[i].text, mainCenterY, nextPaint, style,
+                    width.toFloat(), baseColor, size, style.maxVisualLines, alpha
                 )
+            }
+
+            // 译注行：正文下方依次排，不参与卡拉 OK 擦除（译文跟着逐字擦会很怪）。
+            val subs = subTexts(lines[i])
+            if (subs.isEmpty()) continue
+            val subSize = size * SUB_TEXT_RATIO
+            val subColor = baseColor
+            val subAlpha = (alpha * SUB_ALPHA_RATIO).toInt().coerceIn(0, 255)
+            var y = blockTop + mainHeights[i]
+            for (text in subs) {
+                measurePaint.textSize = subSize
+                val rows = countRows(text, maxTextWidth, SUB_MAX_ROWS)
+                val subHeight = rows * subSize * SUB_ROW_RATIO
+                LyricRenderer.drawWrappedStaticLine(
+                    canvas, text, y + subHeight / 2f, pendingPaint, style,
+                    width.toFloat(), subColor, subSize, SUB_MAX_ROWS, subAlpha
+                )
+                y += subHeight
             }
         }
     }
@@ -397,6 +474,23 @@ class ScrollLyricView @JvmOverloads constructor(
          * 字号只由用户的「歌词设置」决定，不再有第二种来源。
          */
         const val ROW_RATIO = 1.35f
+
+        /**
+         * 译注行（译文 / 注音）相对正文的**字号**比例。
+         *
+         * 0.62 是「一眼看出是附属信息、但又不用凑近看」的折中：再小（0.5 以下）在车机
+         * 1080p 屏上会糊，再大（0.75 以上）就和正文抢焦点，与「原文是主角」的排版意图冲突。
+         */
+        const val SUB_TEXT_RATIO = 0.62f
+
+        /** 译注行的行距倍率：附属信息不需要正文那么松，0.62 × 1.25 ≈ 0.78 倍正文字号。 */
+        const val SUB_ROW_RATIO = 1.25f
+
+        /** 译注行最多折几行：再多就不像「一行译注」了，宁可截断。 */
+        const val SUB_MAX_ROWS = 2
+
+        /** 译注行的透明度相对正文的折扣，让它在视觉上退后一层。 */
+        const val SUB_ALPHA_RATIO = 0.78f
 
         /** 视口中心 ±(height/2 × 0.42) 的行完全不透明，也就是中间 84% 是阅读区。 */
         const val FADE_SOLID_RATIO = 0.42f
