@@ -18,8 +18,9 @@ import com.suisheng.player.util.TimeFormat
  * 条目：
  * 1. 收藏 / 取消收藏（文案由调用方按 [isFavorite] 决定）；
  * 2. 从播放队列移除（仅当当前曲目确实在队列里且队列长度 > 1）；
- * 3. 歌曲信息（弹 `MaterialAlertDialogBuilder` 逐行列字段）；
- * 4. 取消。
+ * 3. 歌词调节（快慢 / 翻译 / 注音，见 [LyricAdjustPanel]）；
+ * 4. 歌曲信息（弹 `MaterialAlertDialogBuilder` 逐行列字段）；
+ * 5. 取消。
  */
 object MorePanel {
 
@@ -31,6 +32,7 @@ object MorePanel {
      * @param canRemoveFromQueue 是否显示「从播放队列移除」
      * @param onToggleFavorite 点了收藏 / 取消收藏（面板随后关闭）
      * @param onRemoveFromQueue 点了从队列移除（面板随后关闭）
+     * @param onLyricAdjust 点了歌词调节（面板随后关闭）
      */
     fun show(
         context: Context,
@@ -39,9 +41,10 @@ object MorePanel {
         canRemoveFromQueue: Boolean,
         onToggleFavorite: () -> Unit,
         onRemoveFromQueue: () -> Unit,
+        onLyricAdjust: () -> Unit = {},
     ) {
         val binding = PanelMoreBinding.inflate(LayoutInflater.from(context))
-        // 三行按钮不高，但小屏 + 大字体时仍可能超屏高：交给 PanelHost 套一层滚动容器
+        // 条目不高，但小屏 + 大字体时仍可能超屏高：交给 PanelHost 套一层滚动容器
         val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         binding.moreFavorite.text = context.getString(
@@ -56,6 +59,10 @@ object MorePanel {
         binding.moreRemove.setOnClickListener {
             dialog.dismiss()
             onRemoveFromQueue()
+        }
+        binding.moreLyricAdjust.setOnClickListener {
+            dialog.dismiss()
+            onLyricAdjust()
         }
         binding.moreInfo.setOnClickListener {
             dialog.dismiss()

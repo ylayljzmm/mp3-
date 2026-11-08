@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌词调节面板里的快捷档按钮（-1.0 / -0.5 / +0.5 / +1.0 / 重置）。
+
+  与 [Player.SpeedOption] 的区别：这是**横排**的窄按钮（每格等宽靠 weight 分配），
+  所以宽度交给布局、只用样式管高度与居中，避免面板里再写一遍重复属性。
+-->
+<resources>
+    <style name="Player.AdjustChip" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+</resources>

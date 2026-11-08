@@ -119,11 +119,22 @@ object PlaybackStateHolder {
     }
 
     /**
+     * 当前正在显示的歌词文档（含附加轨与文件内偏移）。
+     *
+     * 歌词调节面板要读 `hasTranslation` / `hasPhonetic` / `sourceProviderId`，
+     * 这些都**不在** `lrcLines` 里，所以文档本身得留一份。四条消费链仍然只用
+     * [lrcLines] + [timebase]，不要从文档里另取行列表，否则下标可能对不上。
+     */
+    var lyricDocument: LyricDocument? = null
+        private set
+
+    /**
      * 歌词加载完成时由加载链路调用：写入多轨文档（行列表 + 文件内偏移）。
      *
      * 与 [update] 的分工：这里负责「换了一份歌词」，[update] 只负责「进度走到了哪」。
      */
     fun setLyricDocument(document: LyricDocument) {
+        lyricDocument = document
         timebase.setDocument(document)
         lrcLines = document.lines
         notify()

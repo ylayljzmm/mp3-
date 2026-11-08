@@ -16,6 +16,8 @@ import com.suisheng.player.LyricsOverlayService
 import com.suisheng.player.R
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentLyricSettingsBinding
+import com.suisheng.player.databinding.ItemLyricProviderBinding
+import com.suisheng.player.lrc.LyricProviders
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
 
@@ -66,6 +68,7 @@ class LyricSettingsFragment : Fragment() {
         bindStyleCard()
         bindOverlayCard()
         bindLayoutCard()
+        bindProviderCard()
     }
 
     override fun onDestroyView() {
@@ -274,6 +277,78 @@ class LyricSettingsFragment : Fragment() {
     private fun updatePaneGapLabel(gapDp: Int) {
         binding.lyricPaneGapLabel.text = getString(R.string.lyric_pane_gap) + " · " +
             getString(R.string.lyric_pane_gap_value, gapDp)
+    }
+
+    // ------------------------------------------------------------ 卡片 5
+
+    /**
+     * 联网歌词渠道：顺序 + 开关。
+     *
+     * 行是**按注册表动态生成**的，不写死在 XML 里 —— 渠道集合来自 [LyricProviders]，
+     * 写死就等于把注册表抄了一遍，以后加渠道必然漏改一处。
+     */
+    private fun bindProviderCard() {
+        renderProviderRows()
+        binding.lyricProviderReset.setOnClickListener {
+            settings.saveLyricProviderConfig(settings.lyricProviderConfig().reset())
+            renderProviderRows()
+        }
+    }
+
+    private fun renderProviderRows() {
+        val views = _binding ?: return
+        val container = views.lyricProviderList
+        container.removeAllViews()
+        val config = settings.lyricProviderConfig()
+        config.order.forEach { id ->
+            val row = ItemLyricProviderBinding.inflate(layoutInflater, container, false)
+            row.providerSwitch.text = providerLabelText(id)
+            // 先赋初值再挂监听：否则绑定监听时会被当成一次用户操作，把设置写脏。
+            row.providerSwitch.isChecked = config.isEnabled(id)
+            row.providerSwitch.setOnCheckedChangeListener { _, checked ->
+                val current = settings.lyricProviderConfig()
+                val next = current.withEnabled(id, checked)
+                if (next == current) {
+                    // 被拒绝（例如想把最后一个开着的渠道也关掉）：整段重建，开关回到原位。
+                    scheduleProviderRender()
+                } else {
+                    settings.saveLyricProviderConfig(next)
+                }
+            }
+            row.providerUp.setOnClickListener { moveProvider(id, up = true) }
+            row.providerDown.setOnClickListener { moveProvider(id, up = false) }
+            container.addView(row.root)
+        }
+    }
+
+    /**
+     * 延到下一帧再重建。
+     *
+     * 直接在开关 / 按钮自己的回调里 `removeAllViews()` 会把正在派发点击事件的 View 抽掉，
+     * 部分 ROM 上表现为 `NullPointerException` 或点完没反应。
+     */
+    private fun scheduleProviderRender() {
+        val container = _binding?.lyricProviderList ?: return
+        container.post {
+            if (_binding != null && isAdded) renderProviderRows()
+        }
+    }
+
+    private fun moveProvider(id: String, up: Boolean) {
+        val current = settings.lyricProviderConfig()
+        val next = current.moved(id, up)
+        if (next != current) settings.saveLyricProviderConfig(next)
+        scheduleProviderRender()
+    }
+
+    /** 纯文本渠道（拿不到时间轴）在开关文案后加一句警告，避免用户以为是自己调错了。 */
+    private fun providerLabelText(id: String): String {
+        val label = LyricAdjustPanel.providerLabel(requireContext(), id)
+        return if (id in LyricProviders.defaultDisabled) {
+            label + " · " + getString(R.string.lyric_provider_plain_warning)
+        } else {
+            label
+        }
     }
 
     // ------------------------------------------------------------ 公共

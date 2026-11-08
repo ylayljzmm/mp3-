@@ -108,9 +108,22 @@ class LrcParserDocumentTest {
         val first = LrcParser.serialize(LrcParser.parseDocument(multiTrack))
         val second = LrcParser.serialize(LrcParser.parseDocument(first))
 
-        // 序列化末尾固定带一个换行，fixture 用 trimIndent() 不带，比较时去掉
-        assertEquals(multiTrack, first.trimEnd('\n'))
+        // 第一遍**不等于** fixture 原文，这是设计如此：附加轨的时间戳会被归一成它所
+        // 挂靠的原文行的时间（fixture 里 `#@t 00:17.14` 与原文 00:17.02 差 120ms，
+        // 落在容差内被配上，写出时按原文行的 00:17.02）。改这里之前先想清楚：
+        // 「保住平台轨的原始毫秒」和「让文件可反复重写不出漂移」只能选一个。
         assertEquals(first, second)
+
+        // 归一之后语义一点都不能丢，否则每次重搜歌词都会丢一层译文。
+        val restored = LrcParser.parseDocument(first)
+        assertEquals(2, restored.lines.size)
+        assertEquals(listOf("原文一", "原文二"), restored.lines.map { it.text })
+        assertEquals("translation one", restored.lines[0].translation)
+        assertEquals("translation two", restored.lines[1].translation)
+        assertEquals(500L, restored.fileOffsetMs)
+        assertEquals("netease", restored.sourceProviderId)
+        assertEquals("zh-Hans", restored.translationLang)
+        assertTrue(restored.isMultiTrack)
     }
 
     @Test

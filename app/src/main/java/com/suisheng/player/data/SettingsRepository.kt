@@ -61,6 +61,26 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat(KEY_NEXT_SCALE, 0.92f)
         set(value) = prefs.edit { putFloat(KEY_NEXT_SCALE, value) }
 
+    /**
+     * 是否显示歌词翻译（全局偏好，**默认开**）。
+     *
+     * 默认开是需求 4 的原话「默认汉语」：拿到译文就该显示，不该让用户先去翻开关。
+     * 关掉之后译文仍留在文档里（`.lrcx` 的 `#@t` 轨），只是不画出来。
+     */
+    var lyricShowTranslation: Boolean
+        get() = prefs.getBoolean(KEY_LYRIC_SHOW_TRANSLATION, true)
+        set(value) = prefs.edit { putBoolean(KEY_LYRIC_SHOW_TRANSLATION, value) }
+
+    /**
+     * 是否显示注音（全局偏好，**默认关**）。
+     *
+     * 注音是给「听不懂方言/外语」的人用的辅助行，对大多数人只是多占一行高度，
+     * 所以默认不显示；有注音轨时歌词调节面板里的开关会亮起。
+     */
+    var lyricShowPhonetic: Boolean
+        get() = prefs.getBoolean(KEY_LYRIC_SHOW_PHONETIC, false)
+        set(value) = prefs.edit { putBoolean(KEY_LYRIC_SHOW_PHONETIC, value) }
+
     var maxLyricVisualLines: Int
         get() = prefs.getInt(KEY_MAX_VISUAL_LINES, 2).coerceIn(1, 4)
         set(value) = prefs.edit { putInt(KEY_MAX_VISUAL_LINES, value.coerceIn(1, 4)) }
@@ -475,6 +495,10 @@ class SettingsRepository(context: Context) {
         const val MAX_LYRIC_PANE_GAP = 32
         const val KEY_CURRENT_SCALE = "current_line_scale"
         const val KEY_NEXT_SCALE = "next_line_scale"
+        /** 是否显示歌词翻译（默认开），见 [lyricShowTranslation]。 */
+        const val KEY_LYRIC_SHOW_TRANSLATION = "lyric_show_translation"
+        /** 是否显示注音（默认关），见 [lyricShowPhonetic]。 */
+        const val KEY_LYRIC_SHOW_PHONETIC = "lyric_show_phonetic"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"
         const val KEY_SMOOTH_LYRICS = "smooth_lyrics"
         const val KEY_HIGHLIGHT = "highlight_color"

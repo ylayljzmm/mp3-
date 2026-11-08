@@ -26,6 +26,7 @@ import com.suisheng.player.R
 import com.suisheng.player.data.CoverArtFetcher
 import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.FavoriteStore
+import com.suisheng.player.data.PerSongLyricPrefs
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.data.SongInfoLoader
 import com.suisheng.player.databinding.DialogLyricSearchBinding
@@ -78,6 +79,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
 
     /** 音效（均衡器）设置（独立 prefs 文件 `eq_settings`），同样懒创建。 */
     private val eqSettings by lazy { EqSettings(requireContext()) }
+
+    /** 每首歌的歌词偏好（偏移 / 注音语种 / 指定渠道），同样懒创建。 */
+    private val perSongLyric by lazy { PerSongLyricPrefs(requireContext()) }
 
     private var userSeeking = false
 
@@ -147,9 +151,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         renderState()
         // renderState() 只画标题 / 播放键 / 黑胶这类低频状态，歌词这一帧得单独补：
         // 进页面时还没有任何 onPlaybackChanged 回调，不补就是一片空白歌词。
+        // 位置取叠加后的时间轴（文件内偏移 + 用户偏移），与 onPlaybackChanged 同口径。
         binding.scrollLyricView.update(
             PlaybackStateHolder.lrcLines,
-            PlaybackStateHolder.positionMs,
+            PlaybackStateHolder.timebase.effectivePositionMs,
         )
         renderCover(PlaybackStateHolder.coverArtPath)
         updateProgressUi(PlaybackStateHolder.positionMs, PlaybackStateHolder.durationMs)
@@ -511,7 +516,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
         lines: List<LrcLine>,
     ) {
         renderState()
-        binding.scrollLyricView.update(lines, positionMs)
+        // 歌词吃叠加后的时间轴（文件内偏移 + 用户偏移），进度条吃原始进度。
+        // 这两个值必须分开取：调偏移只该让歌词动，不能把播放位置也挪走。
+        binding.scrollLyricView.update(lines, PlaybackStateHolder.timebase.effectivePositionMs)
         if (!userSeeking) updateProgressUi(positionMs, PlaybackStateHolder.durationMs)
         // 切歌 / 恢复播放后收藏图标要跟着当前曲目走（收藏是按 Song.path 记的）
         updateFavoriteUi(song)
@@ -662,7 +669,73 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
             canRemoveFromQueue = queue.size > 1 && queue.any { it.path == song.path },
             onToggleFavorite = ::toggleFavorite,
             onRemoveFromQueue = ::removeCurrentFromQueue,
+            onLyricAdjust = ::openLyricAdjustPanel,
         )
+    }
+
+    /**
+     * 歌词调节面板（需求 4）：快慢 / 翻译 / 注音 / 来源。
+     *
+     * 三个开关都**立即生效**：
+     *  - 偏移写 `PerSongLyricPrefs` 并推进 [PlaybackStateHolder.timebase]，随后重排一次歌词；
+     *  - 译文 / 注音是全局偏好，写完直接重排，不需要重新取词。
+     * 重排统一走 [refreshLyricStyle]，避免这里和「歌词设置页」两套刷新路径。
+     */
+    private fun openLyricAdjustPanel() {
+        val song = PlaybackStateHolder.currentSong ?: return
+        val document = PlaybackStateHolder.lyricDocument
+        LyricAdjustPanel.show(
+            requireContext(),
+            LyricAdjustPanel.State(
+                offsetMs = PlaybackStateHolder.timebase.userOffsetMs,
+                showTranslation = settings.lyricShowTranslation,
+                showPhonetic = settings.lyricShowPhonetic,
+                hasTranslation = document?.hasTranslation == true,
+                hasPhonetic = document?.hasPhonetic == true,
+                providerId = document?.sourceProviderId,
+            ),
+            LyricAdjustPanel.Callbacks(
+                onOffsetChanged = { offsetMs ->
+                    perSongLyric.setOffsetMs(song, offsetMs)
+                    PlaybackStateHolder.timebase.setUserOffset(offsetMs)
+                    refreshLyricStyle()
+                },
+                onOffsetReset = {
+                    perSongLyric.resetOffset(song)
+                    PlaybackStateHolder.timebase.resetUserOffset()
+                    refreshLyricStyle()
+                },
+                onShowTranslationChanged = { enabled ->
+                    settings.lyricShowTranslation = enabled
+                    refreshLyricStyle()
+                },
+                onShowPhoneticChanged = { enabled ->
+                    settings.lyricShowPhonetic = enabled
+                    refreshLyricStyle()
+                },
+                onRefetch = { refetchFromNextProvider(song) },
+            ),
+        )
+    }
+
+    /**
+     * 「换个渠道重新获取」：按当前渠道在启用顺序里的**下一位**重取。
+     *
+     * 直接重取同一个渠道多半还是同一份歌词，用户点这个按钮的意图就是「这份不对，换一家」。
+     * 选中的渠道写进 `PerSongLyricPrefs`（`SongMetadataLoader` 会先试它，失败再按全局顺序兜底）。
+     */
+    private fun refetchFromNextProvider(song: Song) {
+        val order = settings.lyricProviderConfig().enabledOrder()
+        if (order.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.lyric_adjust_source_unknown, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val currentId = PlaybackStateHolder.lyricDocument?.sourceProviderId
+        val index = order.indexOf(currentId)
+        val nextId = if (index < 0) order.first() else order[(index + 1) % order.size]
+        perSongLyric.setProviderOverride(song, nextId)
+        sendAction(MusicPlaybackService.ACTION_RELOAD_LYRICS)
+        Toast.makeText(requireContext(), R.string.lyric_searching, Toast.LENGTH_SHORT).show()
     }
 
     /** 功能行第 2 格：切换当前曲目的收藏状态（立即落盘 + 立即换图标）。 */
@@ -841,7 +914,10 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener {
     fun refreshLyricStyle() {
         applyLyricPaneGap()
         binding.scrollLyricView.refreshStyle()
-        binding.scrollLyricView.update(PlaybackStateHolder.lrcLines, PlaybackStateHolder.positionMs)
+        binding.scrollLyricView.update(
+            PlaybackStateHolder.lrcLines,
+            PlaybackStateHolder.timebase.effectivePositionMs,
+        )
     }
 
     private fun showLyricSearchDialog() {

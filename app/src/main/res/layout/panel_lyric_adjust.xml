@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌词调节面板（需求 4：快慢 / 翻译 / 注音）。
+
+  为什么是底部面板而不是设置页：这三项**按每首歌单独生效**，用户是在听歌、
+  发现歌词对不上时才会去调；跑到设置页找一圈再回来，歌早就过去了。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="4dp"
+        android:text="@string/lyric_adjust_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- ============ 歌词快慢 ============ -->
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_section_offset"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/lyricAdjustOffsetValue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="14sp" />
+
+    <com.google.android.material.slider.Slider
+        android:id="@+id/lyricAdjustOffsetSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:stepSize="100"
+        android:valueFrom="-5000"
+        android:valueTo="5000" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <TextView
+            android:id="@+id/lyricAdjustBack1000"
+            style="@style/Player.AdjustChip"
+            android:text="-1.0" />
+
+        <TextView
+            android:id="@+id/lyricAdjustBack500"
+            style="@style/Player.AdjustChip"
+            android:text="-0.5" />
+
+        <TextView
+            android:id="@+id/lyricAdjustForward500"
+            style="@style/Player.AdjustChip"
+            android:text="+0.5" />
+
+        <TextView
+            android:id="@+id/lyricAdjustForward1000"
+            style="@style/Player.AdjustChip"
+            android:text="+1.0" />
+
+        <TextView
+            android:id="@+id/lyricAdjustReset"
+            style="@style/Player.AdjustChip"
+            android:text="@string/lyric_adjust_reset" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_offset_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <!-- ============ 附加内容 ============ -->
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_section_track"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/lyricAdjustTranslationSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_show_translation"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lyricAdjustTranslationHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/lyricAdjustPhoneticSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_show_phonetic"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lyricAdjustPhoneticHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <!-- ============ 歌词来源 ============ -->
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_adjust_section_source"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/lyricAdjustSourceValue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lyricAdjustRefetch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="?attr/selectableItemBackground"
+        android:paddingStart="24dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="12dp"
+        android:text="@string/lyric_adjust_refetch"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lyricAdjustClose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:text="@string/lyric_adjust_close"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+</LinearLayout>

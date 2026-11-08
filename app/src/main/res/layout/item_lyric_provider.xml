@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  联网歌词渠道列表的一行：开关 + 上移 + 下移。
+
+  用行内两个字符按钮而不是长按拖拽排序：车机上拖拽的命中率和误触都不可控，
+  上下移按钮点一次只动一位，出错了再点回去就行。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="48dp"
+    android:orientation="horizontal">
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/providerSwitch"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="48dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/providerUp"
+        android:layout_width="44dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:contentDescription="@string/lyric_provider_move_up"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="↑"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/providerDown"
+        android:layout_width="44dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:contentDescription="@string/lyric_provider_move_down"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="↓"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="18sp" />
+
+</LinearLayout>

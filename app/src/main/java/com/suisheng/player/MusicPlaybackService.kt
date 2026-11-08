@@ -28,6 +28,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.MediaStyleNotificationHelper
 import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.OnlineMusicApi
+import com.suisheng.player.data.PerSongLyricPrefs
 import com.suisheng.player.data.PlaylistCache
 import com.suisheng.player.data.RssFeedRepository
 import com.suisheng.player.data.SettingsRepository
@@ -67,6 +68,9 @@ class MusicPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private val handler = Handler(Looper.getMainLooper())
     private val settings by lazy { SettingsRepository(this) }
+
+    /** 每首歌的歌词偏好；切歌时把本曲的偏移灌进时间轴。 */
+    private val perSongLyricPrefs by lazy { PerSongLyricPrefs(this) }
     private var playlist: List<Song> = emptyList()
     private var currentIndex = -1
     private var currentLines = emptyList<com.suisheng.player.model.LrcLine>()
@@ -743,9 +747,10 @@ class MusicPlaybackService : MediaSessionService() {
             currentLines = result.lines
             withContext(Dispatchers.Main) {
                 val p = exoPlayer
-                // 先写文档（行列表 + 文件内偏移），再写进度：update() 只换行列表、
-                // 不清偏移，顺序反了偏移会在本帧被覆盖成 0。
+                // 先写文档（行列表 + 文件内偏移），再灌本曲的用户偏移，最后才报进度：
+                // update() 只换行列表、不清偏移，顺序反了偏移会在本帧被覆盖成 0。
                 PlaybackStateHolder.setLyricDocument(result.document)
+                PlaybackStateHolder.timebase.setUserOffset(perSongLyricPrefs.offsetMs(song))
                 PlaybackStateHolder.update(
                     song,
                     p?.isPlaying == true,
@@ -995,6 +1000,7 @@ class MusicPlaybackService : MediaSessionService() {
             withContext(Dispatchers.Main) {
                 val p = exoPlayer
                 PlaybackStateHolder.setLyricDocument(result.document)
+                PlaybackStateHolder.timebase.setUserOffset(perSongLyricPrefs.offsetMs(song))
                 PlaybackStateHolder.update(
                     song,
                     p?.isPlaying == true,
