@@ -83,14 +83,25 @@ object ImmersiveHelper {
      *
      * 会**覆盖**root 原有的 padding（两个 root 原本都没有 padding），
      * 所以不要拿它去处理自带内边距的业务 View。
+     *
+     * @param extraTopPaddingPx 车机专用兜底：隐藏系统状态栏之后，部分车机 ROM 的
+     *   `getInsets(statusBars()).top` 会返回 0，但那条系统条仍是系统 overlay、
+     *   **物理占在屏幕顶端**。此时从 y=0 起绘的抽屉第一项会被压住裁切。
+     *   传入一个最小顶部留白，取 `max(真实 inset, 该值)`；只在车机形态下生效，
+     *   手机状态栏正常显示、inset 准确，不受影响。
      */
-    fun applyInsets(vararg roots: View) {
+    fun applyInsets(vararg roots: View, extraTopPaddingPx: Int = 0) {
         roots.forEach { root ->
             ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
                 val bars = insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
                 )
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                val top = if (extraTopPaddingPx > 0 && isCarUi(view.context)) {
+                    maxOf(bars.top, extraTopPaddingPx)
+                } else {
+                    bars.top
+                }
+                view.setPadding(bars.left, top, bars.right, bars.bottom)
                 WindowInsetsCompat.CONSUMED
             }
             // listener 挂上之后必须主动要一次：窗口已经分发过一轮 inset 时，

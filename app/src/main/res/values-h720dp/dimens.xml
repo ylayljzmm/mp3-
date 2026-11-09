@@ -12,6 +12,9 @@
   只覆盖受屏高约束的那几个尺寸；轴宽 300、主键 52、滑块半径等回落到 `values-h480dp/dimens.xml`。
 -->
 <resources>
+    <!-- 车机左栏整体右移：FrameLayout 的 center_horizontal 会把 margin 平分，
+             所以 48dp margin = 净右移 24dp（约屏宽 1.9%），仍留 27.6dp 骨架留白不黏连。 -->
+    <dimen name="player_axis_shift">48dp</dimen>
     <dimen name="vinyl_size">296dp</dimen>
     <!-- 封面直径 = 唱片 × 0.70（§4.1 L4），296 × 0.70 ≈ 207 -->
     <dimen name="vinyl_art">207dp</dimen>

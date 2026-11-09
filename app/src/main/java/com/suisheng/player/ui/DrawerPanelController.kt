@@ -10,7 +10,6 @@ import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.color.MaterialColors
-import com.suisheng.player.BuildConfig
 import com.suisheng.player.R
 import com.suisheng.player.databinding.ActivityMainBinding
 import com.suisheng.player.databinding.ItemDrawerEntryBinding
@@ -64,13 +63,9 @@ class DrawerPanelController(
     private var totalSongs = 0
     private var scanning = false
 
-    /** 建面板：背景、头部、9 条条目、底部三格。只应调用一次（Activity 每次重建各调一次）。 */
+    /** 建面板：背景、9 条条目、底部三格。只应调用一次（Activity 每次重建各调一次）。 */
     fun bind() {
         binding.drawerPanelBody.background = panelBackground()
-        binding.drawerHeaderSubtitle.text = activity.getString(
-            R.string.drawer_subtitle,
-            BuildConfig.VERSION_NAME,
-        )
         binding.btnDrawerScan.setOnClickListener { onScan() }
         binding.btnDrawerTheme.setOnClickListener { onTheme() }
 

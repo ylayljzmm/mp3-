@@ -81,6 +81,17 @@ class SettingsRepository(context: Context) {
         get() = prefs.getBoolean(KEY_LYRIC_SHOW_PHONETIC, false)
         set(value) = prefs.edit { putBoolean(KEY_LYRIC_SHOW_PHONETIC, value) }
 
+    /**
+     * 封面是否与黑胶盘一起顺时针旋转（默认 **开**）。
+     *
+     * 5.7.1 之前盘与封面是反向等速（封面保持正立），这一项覆盖了该冻结规格。
+     * 关掉即回到旧行为，所以它是这次改动的回退路径：人像类封面整圈倒转时，
+     * 用户不用等发版就能自己改回去。
+     */
+    var spinCoverWithDisc: Boolean
+        get() = prefs.getBoolean(KEY_SPIN_COVER_WITH_DISC, true)
+        set(value) = prefs.edit { putBoolean(KEY_SPIN_COVER_WITH_DISC, value) }
+
     var maxLyricVisualLines: Int
         get() = prefs.getInt(KEY_MAX_VISUAL_LINES, 2).coerceIn(1, 4)
         set(value) = prefs.edit { putInt(KEY_MAX_VISUAL_LINES, value.coerceIn(1, 4)) }
@@ -499,6 +510,8 @@ class SettingsRepository(context: Context) {
         const val KEY_LYRIC_SHOW_TRANSLATION = "lyric_show_translation"
         /** 是否显示注音（默认关），见 [lyricShowPhonetic]。 */
         const val KEY_LYRIC_SHOW_PHONETIC = "lyric_show_phonetic"
+        /** 封面是否随黑胶盘一起顺时针旋转（默认开），见 [spinCoverWithDisc]。 */
+        const val KEY_SPIN_COVER_WITH_DISC = "spin_cover_with_disc"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"
         const val KEY_SMOOTH_LYRICS = "smooth_lyrics"
         const val KEY_HIGHLIGHT = "highlight_color"

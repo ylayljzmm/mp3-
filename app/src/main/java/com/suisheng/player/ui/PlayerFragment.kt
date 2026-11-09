@@ -174,6 +174,8 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
     override fun onStart() {
         super.onStart()
         PlaybackStateHolder.addListener(this)
+        // 设置页改完开关返回播放页会走这里；避免在每帧 animator 回调里读 SharedPreferences。
+        binding.vinylRecord.coverSpinsWithDisc = settings.spinCoverWithDisc
         if (PlaybackStateHolder.isPlaying) binding.vinylRecord.resumeSpin()
     }
 

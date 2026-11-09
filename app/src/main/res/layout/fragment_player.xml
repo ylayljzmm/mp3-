@@ -72,6 +72,7 @@
                 android:layout_width="@dimen/player_axis_width"
                 android:layout_height="match_parent"
                 android:layout_gravity="center_horizontal"
+                android:layout_marginStart="@dimen/player_axis_shift"
                 android:orientation="vertical">
 
                 <!-- 两页：信息 / 封面。deck 吃掉剩余高度，控件行固定在底部。 -->

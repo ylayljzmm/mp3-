@@ -25,11 +25,20 @@ import kotlin.math.min
  * 五层结构在 `view_vinyl_record.xml` 里：盘体 + 纹路 + 高光由一个自绘子 View 画，
  * 封面是 ImageView，中心孔是静态 View。
  *
- * 旋转的三个硬约束（5.5.0 逐条保留，一个字都没动）：
+ * 旋转的硬约束：
  *  ① **48 秒 / 圈**，30fps 上限 —— 60fps 让盘面纹路出现摩尔纹，且静止时白烧 GPU；
  *  ② 暂停**不重置角度**（`pause()` / `resume()`，不是 cancel + restart）；
- *  ③ 封面**反向等速**：同一个 animator 的值取负写给封面 `rotation`。
- *     用两个 ObjectAnimator 一定会对不齐（各自有独立的帧时钟）。
+ *  ③ 同一个 animator 的值只写一次，盘与封面共用相位（用两个 ObjectAnimator
+ *     一定会对不齐，各自有独立的帧时钟）。
+ *
+ * 5.7.1 起 ③ 的**方向**由 [coverSpinsWithDisc] 决定：
+ *  - 默认 `true`：盘与封面一起顺时针转。封面本来就在 `vinylRotateGroup` 里，
+ *    只要不再给它写反向补偿，它自然继承父组旋转 —— 这不是把某个 View 「挪进组里」。
+ *    切勿写成 `coverView.rotation = normalized`：父子都是 +norm 会叠加成 2 倍速。
+ *  - `false`：保留 5.5.0 的旧行为（给封面写 `-normalized`，封面保持正立）。
+ *
+ * animator 是 `0f → 360f` 递增，Android 的 `View.rotation` 正值即**顺时针**，
+ * 所以「一起转」的方向天然就是顺时针，不需要额外取负。
  *
  * 交互：5.5.0 起只剩「可点」（无障碍 `performClick`）。原来的单击进全屏歌词、
  * 长按 800ms 进仅封面态两个回调随两个状态一起删除，所以这里不再有 Handler 计时器。
@@ -50,8 +59,23 @@ class VinylRecordView @JvmOverloads constructor(
     private var spinner: ValueAnimator? = null
     private var lastFrameAt = 0L
 
-    /** 当前写入两个 View 的**绝对**角度（0~360）。 */
+    /** 当前写入旋转组的**绝对**角度（0~360）。 */
     private var angle = 0f
+
+    /**
+     * 封面是否与黑胶盘一起顺时针旋转。
+     *
+     * 默认 `true`（5.7.1 起的新行为）。设为 `false` 就回到 5.5.0 的「封面保持正立」，
+     * 作为这次覆盖冻结规格的回退路径 —— 人像类封面整圈倒转在车机上确实不好看。
+     * 由宿主按 `SettingsRepository.spinCoverWithDisc` 赋值，不在每帧读 SharedPreferences。
+     */
+    var coverSpinsWithDisc: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            // 立刻按新口径重画当前帧，不用等下一帧 animator（暂停态也能即时生效）。
+            setAbsoluteAngle(angle)
+        }
 
     /**
      * 相位基准：本次 animator 的 0° 对应哪个绝对角度。
@@ -181,9 +205,12 @@ class VinylRecordView @JvmOverloads constructor(
     }
 
     /**
-     * 同**一个**值写给盘（+deg）和封面（−deg），保证两者严格等速反向。
+     * 用**同一个**绝对角度写旋转组，封面只做「要不要抵消父组旋转」这一个决定。
      *
-     * 规格约束（`05 §4.2`，不要改）：盘与封面的反向等速关系、48s/圈、30fps 上限。
+     * - 一起转：封面 rotation 恒 0，父组的 +norm 直接作用于封面 → 同向等速、顺时针；
+     * - 保持正立：封面写 −norm，抵消父组 → 视觉上不转。
+     *
+     * 48s/圈、30fps、暂停不清角度三条保持不变；相位存档也只看 [angle]，与开关无关。
      */
     private fun setAbsoluteAngle(deg: Float) {
         // 归一到 0~360：不做归一也能正常显示（旋转矩阵本就按 360 取模），
@@ -191,7 +218,7 @@ class VinylRecordView @JvmOverloads constructor(
         val normalized = ((deg % 360f) + 360f) % 360f
         angle = normalized
         rotateGroup.rotation = normalized
-        coverView.rotation = -normalized
+        coverView.rotation = if (coverSpinsWithDisc) 0f else -normalized
     }
 
     private fun animationsDisabled(): Boolean = runCatching {

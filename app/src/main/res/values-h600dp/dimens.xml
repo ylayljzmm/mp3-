@@ -13,6 +13,9 @@
   （10 → 26）；时间宽 38 → 46；功能行图标 22 → 30；唱片 236 → 231。
 -->
 <resources>
+    <!-- 车机左栏整体右移：FrameLayout 的 center_horizontal 会把 margin 平分，
+             所以 48dp margin = 净右移 24dp（约屏宽 1.9%），仍留 27.6dp 骨架留白不黏连。 -->
+    <dimen name="player_axis_shift">48dp</dimen>
     <!-- 231 + 14 + 42 + 4 + 20 + 10 + 26 + 8 + 66 + 5 + 52 = 478 ≤ 488 ✓ -->
     <dimen name="vinyl_size">231dp</dimen>
     <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：231 × 0.70 ≈ 162 -->

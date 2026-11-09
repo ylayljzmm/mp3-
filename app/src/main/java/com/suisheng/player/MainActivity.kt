@@ -146,7 +146,14 @@ class MainActivity : AppCompatActivity(), MainHost {
         // 系统栏安全区不再写死 dp（那是「手机被抬高 60dp」的直接原因），
         // 改成把真实的 systemBars / 刘海 inset 变成内容列的 padding。
         // 内容列与抽屉面板各自消费：抽屉是独立一层，没有跟着 DrawerLayout 一起补边。
-        ImmersiveHelper.applyInsets(binding.contentColumn, binding.drawerPanelBody)
+        // 抽屉是独立一层，要自己消费一份 inset。5.7.1 删掉品牌头部之后，
+        // 第一项「媒体库」直接顶到了 y=0，车机隐藏状态栏但系统条仍物理占位，
+        // 所以只给抽屉补一段最小顶部留白；contentColumn 保持原样，避免整页下移。
+        ImmersiveHelper.applyInsets(binding.contentColumn)
+        ImmersiveHelper.applyInsets(
+            binding.drawerPanelBody,
+            extraTopPaddingPx = resources.getDimensionPixelSize(R.dimen.drawer_top_safe_padding),
+        )
 
         setupMiniPlayer()
         // 页头必须先于抽屉建好：抽屉里恢复出来的目的地会立刻走 showDestination()，
@@ -631,11 +638,10 @@ class MainActivity : AppCompatActivity(), MainHost {
         if (needed.isNotEmpty()) {
             storagePermission.launch(needed.toTypedArray())
         } else {
-            scanMusic { count ->
-                if (count > 0) {
-                    Toast.makeText(this, getString(R.string.scan_done, count), Toast.LENGTH_SHORT).show()
-                }
-            }
+            // 5.7.1：冷启动的自动扫描完全静默 —— 用户没有发起这个动作，
+            // 每次进 App 弹一条「扫描完成」只是打扰。抽屉和设置页里
+            // **手动**点「扫描」的回调仍然带完成提示，那边需要操作闭环。
+            scanMusic(null)
         }
     }
 

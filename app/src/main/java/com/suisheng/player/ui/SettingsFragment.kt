@@ -109,6 +109,7 @@ class SettingsFragment : Fragment() {
         binding.switchClusterLyrics.isChecked = settings.clusterLyricsEnabled
         binding.switchOnlineLyrics.isChecked = settings.onlineLyricsEnabled
         binding.switchOnlineCover.isChecked = settings.onlineCoverEnabled
+        binding.switchSpinCover.isChecked = settings.spinCoverWithDisc
 
         refreshScanPathsUi(binding)
         setupOnlineSettings()
@@ -152,6 +153,10 @@ class SettingsFragment : Fragment() {
         }
         binding.switchOnlineCover.setOnCheckedChangeListener { _, checked ->
             settings.onlineCoverEnabled = checked
+        }
+        binding.switchSpinCover.setOnCheckedChangeListener { _, checked ->
+            settings.spinCoverWithDisc = checked
+            // 播放页在返回前台的 onStart() 里重读这个值，不需要跨 Fragment 发通知。
         }
 
         binding.rowThemeEntry.setOnClickListener {

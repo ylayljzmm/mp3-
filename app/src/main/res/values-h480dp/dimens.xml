@@ -19,6 +19,9 @@
 <resources>
     <dimen name="player_axis_width">300dp</dimen>
     <dimen name="player_axis_offset">8dp</dimen>
+    <!-- 车机左栏整体右移：FrameLayout 的 center_horizontal 会把 margin 平分，
+             所以 48dp margin = 净右移 24dp（约屏宽 1.9%），仍留 27.6dp 骨架留白不黏连。 -->
+    <dimen name="player_axis_shift">48dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
     <!-- 195 + 10 + 42 + 4 + 20 + 8 + 24 + 6 + 58 + 4 + 48 = 419 ≤ 428 ✓ -->
     <dimen name="vinyl_size">195dp</dimen>

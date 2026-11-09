@@ -23,6 +23,9 @@
     <!-- 头部 80dp：应用图标 40dp + 两行文字 -->
     <dimen name="drawer_header_height">80dp</dimen>
     <dimen name="drawer_header_icon_size">40dp</dimen>
+    <!-- 5.7.1 品牌头部删除后，抽屉顶部的最小安全留白（车机专用兜底）。
+         车机 ROM 隐藏系统状态栏后 inset 常返回 0，但系统条仍压在屏幕顶端。 -->
+    <dimen name="drawer_top_safe_padding">32dp</dimen>
     <dimen name="drawer_header_icon_corner">12dp</dimen>
     <!-- 分组标题 28dp；条目 60dp（≥ 60dp 触控下限） -->
     <dimen name="drawer_group_title_height">28dp</dimen>
@@ -110,6 +113,8 @@
          ========================================================= -->
     <dimen name="player_axis_width">300dp</dimen>
     <dimen name="player_axis_offset">8dp</dimen>
+    <!-- 手机横屏（屏高 < 480dp）不位移：左栏本来就不贴边，右移会挤压歌词列。 -->
+    <dimen name="player_axis_shift">0dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
     <!-- 82 + 4 + 32 + 2 + 18 + 4 + 22 + 2 + 44 + 2 + 34 = 246 ≤ 248 ✓ -->
     <dimen name="vinyl_size">82dp</dimen>

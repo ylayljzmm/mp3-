@@ -160,54 +160,9 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <!-- ① 头部 80dp：应用图标 40dp（圆角 12dp）+ 两行文字 -->
-            <LinearLayout
-                android:id="@+id/drawerHeader"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/drawer_header_height"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="24dp"
-                android:paddingEnd="16dp">
-
-                <ImageView
-                    android:id="@+id/drawerHeaderIcon"
-                    android:layout_width="@dimen/drawer_header_icon_size"
-                    android:layout_height="@dimen/drawer_header_icon_size"
-                    android:background="@drawable/bg_drawer_header_icon"
-                    android:contentDescription="@string/app_name"
-                    android:scaleType="fitCenter"
-                    android:src="@mipmap/ic_launcher" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/drawerHeaderTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:fontFamily="sans-serif-medium"
-                        android:singleLine="true"
-                        android:text="@string/app_name"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="27sp" />
-
-                    <TextView
-                        android:id="@+id/drawerHeaderSubtitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="17sp" />
-                </LinearLayout>
-            </LinearLayout>
-
+            <!-- 5.7.1 起不再有品牌头部（图标 / App 名 / 版本）：车机的系统状态栏是
+                 系统 overlay，隐藏它之后 inset 仍可能返回 0，导致顶部那一栏被压住裁切。
+                 抽屉第一项直接就是「媒体库」，顶部安全区由 ImmersiveHelper 补。 -->
             <!-- ② 可滚动的条目区：3 组标题 + 8 条条目由代码填 -->
             <ScrollView
                 android:id="@+id/drawerScroll"

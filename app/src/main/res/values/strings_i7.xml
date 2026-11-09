@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  I7 新增文案。与 strings_i6.xml 同样按版本分文件，便于回退与检索。
+-->
+<resources>
+
+    <string name="settings_spin_cover">封面随黑胶一起旋转</string>
+    <string name="settings_spin_cover_hint">开启时唱片与中间封面一起顺时针转；关闭则封面保持正立（人像封面不会倒过来）。</string>
+
+</resources>

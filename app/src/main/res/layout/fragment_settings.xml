@@ -349,6 +349,24 @@
                     android:layout_marginTop="8dp"
                     android:text="@string/online_cover"
                     android:textColor="?attr/colorOnSurface" />
+
+                <!-- 5.7.1：封面与黑胶盘一起顺时针旋转的回退开关（默认开） -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchSpinCover"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/settings_spin_cover"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/settings_spin_cover_hint"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
