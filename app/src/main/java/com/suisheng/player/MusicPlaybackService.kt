@@ -223,6 +223,17 @@ class MusicPlaybackService : MediaSessionService() {
             stopSelfSafely()
             return START_NOT_STICKY
         }
+        // 5.7.1（需求 6 方案 C+A）：冷启动预热。media3 的 MediaSession 只在
+        // Service 起来时才 build()，而 Service 原先要等「Activity → 全库扫描结束」
+        // 才被 startForegroundService 拉起，所以未进 App 时方向盘/蓝牙/语音
+        // 根本没有一个可控制的会话。这里只把落盘队列恢复进内存 + 建会话，
+        // **不播放、不建前台通知**，放在 ensureForeground() 之前早退。
+        // 用户真正点播放时会走正常 action 转前台并常驻，不会多出一条常驻通知。
+        if (action == ACTION_ENSURE_SESSION) {
+            ensureMediaSession()
+            restoreQueueForSession()
+            return START_STICKY
+        }
 
         if (!requiresForeground(action) && playlist.isEmpty() && PlaybackStateHolder.songs.isEmpty()) {
             stopSelfSafely()
@@ -331,6 +342,29 @@ class MusicPlaybackService : MediaSessionService() {
             ACTION_APPLY_EQ -> applyEqualizer()
         }
         return if (playlist.isNotEmpty()) START_STICKY else START_NOT_STICKY
+    }
+
+    /**
+     * 冷启动预热用的「只恢复队列」，与 `ACTION_PLAY_INDEX` 的恢复刻意分开：
+     * 后者会立刻起播，预热绝不能出声（用户 Q7 拍板：恢复位置但不自动播放）。
+     *
+     * 队列来自上次落盘的快照，不触发全库扫描；扫描仍在后台照常跑，
+     * 跑完由 MainActivity 用新列表覆盖，两者不互相阻塞。
+     */
+    private fun restoreQueueForSession() {
+        metadataScope.launch {
+            val library = settings.lastActiveLibrary
+            val cached = runCatching {
+                PlaylistCache.loadQueue(applicationContext, library)
+            }.getOrDefault(emptyList<Song>())
+            if (cached.isEmpty()) return@launch
+            withContext(Dispatchers.Main) {
+                playlist = cached
+                val lastPath = settings.lastSongPath(library)
+                currentIndex = cached.indexOfFirst { it.path == lastPath }.coerceAtLeast(0)
+                PlaybackStateHolder.setPlaylist(cached, currentIndex, library)
+            }
+        }
     }
 
     private fun requiresForeground(action: String?): Boolean {
@@ -1130,6 +1164,11 @@ class MusicPlaybackService : MediaSessionService() {
         /** 音效（均衡器）设置变更：无参数，服务读 `EqSettings` 后重新施加到系统音效。不拉前台。 */
         const val ACTION_APPLY_EQ = "apply_eq"
         const val ACTION_STOP = "stop"
+        /**
+         * 冷启动预热：只恢复落盘队列 + 建媒体会话，不播放、不建前台通知。
+         * 由 `MP3PlayerApp.onCreate()` 发出，让 App 首帧就有可播的内容与可控制的会话。
+         */
+        const val ACTION_ENSURE_SESSION = "ensure_session"
         const val EXTRA_INDEX = "index"
         const val EXTRA_SEEK = "seek"
         const val EXTRA_LIBRARY = "library"
