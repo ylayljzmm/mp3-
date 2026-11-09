@@ -6,8 +6,12 @@ import android.os.Build
 import android.view.LayoutInflater
 import com.google.android.material.color.MaterialColors
 import com.suisheng.player.R
+import com.suisheng.player.data.SettingsRepository
+import com.suisheng.player.data.SongInfoLoader
 import com.suisheng.player.databinding.PanelSongInfoBinding
 import com.suisheng.player.model.Song
+import com.suisheng.player.model.SongInfoDetails
+import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.TimeFormat
 import java.util.Locale
 
@@ -55,6 +59,26 @@ object SongInfoPanel {
             R.string.more_info_lrc, song.lrcPath?.takeIf { it.isNotBlank() } ?: unknown
         )
 
+        // 5.7.1：车机横屏左滑信息页被删掉，原页「音频参数 / 文件」两段的字段并到这里。
+        // SongInfoLoader 会打开容器头（U 盘 FLAC 单次几十毫秒），必须在后台读，
+        // 读完后 post 回主线程填；未读出来之前显示占位，绝不填假数据。
+        val pending = context.getString(R.string.song_info_empty)
+        binding.infoYearTrack.text = context.getString(R.string.song_info_year_track, pending)
+        binding.infoMime.text = context.getString(R.string.song_info_mime_row, pending)
+        binding.infoAudioParams.text = context.getString(R.string.song_info_audio_row, pending)
+        binding.infoSizeLrc.text = context.getString(R.string.song_info_size_row, pending)
+        Thread {
+            val details = runCatching {
+                SongInfoLoader.load(
+                    context.applicationContext,
+                    song,
+                    PlaybackStateHolder.lrcLines.isNotEmpty(),
+                    SettingsRepository(context.applicationContext).onlineLyricsEnabled,
+                )
+            }.getOrNull()
+            binding.root.post { renderTech(context, binding, song, details) }
+        }.start()
+
         val rows = listOf(
             binding.infoSpeedSlowest,
             binding.infoSpeedNormal,
@@ -100,6 +124,48 @@ object SongInfoPanel {
 
         render(currentSpeed)
         dialog.show()
+    }
+
+    /** 把信息页原有的技术字段按同一口径渲染到面板里；取不到就逐项显示「—」。 */
+    private fun renderTech(
+        context: Context,
+        binding: PanelSongInfoBinding,
+        song: Song,
+        details: SongInfoDetails?,
+    ) {
+        val empty = context.getString(R.string.song_info_empty)
+        if (details == null) {
+            binding.infoYearTrack.text = context.getString(R.string.song_info_year_track, empty)
+            binding.infoMime.text = context.getString(R.string.song_info_mime_row, empty)
+            binding.infoAudioParams.text = context.getString(R.string.song_info_audio_row, empty)
+            binding.infoSizeLrc.text = context.getString(R.string.song_info_size_row, empty)
+            return
+        }
+        val year = if (song.year > 0) song.year.toString() else empty
+        val track = details.trackNumber ?: empty
+        binding.infoYearTrack.text = context.getString(
+            R.string.song_info_year_track, "$year / $track"
+        )
+        binding.infoMime.text = context.getString(
+            R.string.song_info_mime_row, details.mimeType ?: details.format ?: empty
+        )
+        val audio = listOfNotNull(
+            details.bitrateKbps?.let { context.getString(R.string.song_info_kbps, it) },
+            details.sampleRateHz?.let { context.getString(R.string.song_info_hz, it.toString()) },
+            details.bitsPerSample?.let { context.getString(R.string.song_info_bits, it) },
+        ).joinToString(" · ").ifBlank { empty }
+        binding.infoAudioParams.text = context.getString(R.string.song_info_audio_row, audio)
+        val size = details.fileSizeBytes?.let { formatSize(it) } ?: empty
+        binding.infoSizeLrc.text = context.getString(
+            R.string.song_info_size_row, "$size / ${details.lrcLabel ?: empty}"
+        )
+    }
+
+    /** 与信息页同一口径：B / KB / MB，保留 1 位小数。 */
+    private fun formatSize(bytes: Long): String = when {
+        bytes >= 1024L * 1024L -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+        bytes >= 1024L -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
+        else -> "$bytes B"
     }
 
     /** 真实格式：优先 MIME，其次扩展名；位深 / 采样率取不到就不显示，不假造。 */

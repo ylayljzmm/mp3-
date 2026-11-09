@@ -85,6 +85,56 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="13sp" />
 
+    <!-- 5.7.1：车机横屏左滑信息页删除后，原页「音频参数 / 文件」两段的字段并入这里。
+         值由 SongInfoLoader 在后台读，未读出来之前显示「…」，绝不放假数据。 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="2dp"
+        android:text="@string/song_info_section_tech"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/infoYearTrack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/infoMime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/infoAudioParams"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/infoSizeLrc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

@@ -284,15 +284,30 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
      * 一次，就会把刚恢复出来的页码覆盖回封面页 —— 转屏后从歌词页跳回封面就是这么来的。
      */
     private fun setupSwipeDeck() {
+        if (isDualPane()) {
+            // 5.7.1（需求 5）：车机横屏的「左滑信息页」与功能行的「歌曲信息」按钮重复，
+            // 且横滑容易误触。这里只在**运行时**把该页从 deck 摘掉：XML 里的 id 全部保留，
+            // 因为 layout/ 与 layout-port/ 两个 fragment_player.xml 的 id 集合必须逐项一致
+            // （ViewBinding 只生成一份 FragmentPlayerBinding）。竖屏三页不受影响。
+            // 原页的 12 行技术字段已并入 SongInfoPanel，不会丢字段。
+            binding.swipeDeck.removeView(binding.pageInfo)
+            val cover = binding.swipeDeck.indexOfPage(R.id.pageCover)
+            if (cover >= 0) binding.swipeDeck.setCurrent(cover, animate = false)
+            // 只剩一页时圆点没有意义（用户已确认「歌词页没有圆点可以」）。
+            binding.pageDots.visibility = View.GONE
+        }
         binding.swipeDeck.onPageChanged = { index ->
             updateDots()
             if (index == infoPageIndex()) loadSongInfo()
         }
-        // 圆点数量要等 deck 的子 View 就位才知道，所以同样推迟到 post
+        // 圆点数量要等 deck 的子 View 就位才知道，所以同样推迟到 post。
+        // 横屏已无圆点，跳过生成；updateDots() 对空容器本来就会直接 return。
         binding.swipeDeck.post {
             if (_binding == null) return@post
-            rebuildDots()
-            updateDots()
+            if (!isDualPane()) {
+                rebuildDots()
+                updateDots()
+            }
         }
     }
 

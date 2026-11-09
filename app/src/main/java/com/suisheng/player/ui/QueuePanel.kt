@@ -46,7 +46,21 @@ object QueuePanel {
         // 队列面板里本身有一个会滚的 RecyclerView，绝不能让 [PanelHost] 再套 NestedScrollView
         // （那会一次性 measure 全部 item，几百首队列直接卡死），所以传 scrollable = false，
         // 改用 capFixedListHeight 按屏高反算列表高度。
-        val dialog = PanelHost.build(context, binding.root, scrollable = false)
+        val dialog = PanelHost.build(
+            context,
+            binding.root,
+            scrollable = false,
+            onShown = {
+                // show 之后头部才真正测量完；此时反算列表高并让 sheet 重排，
+                // 否则车机上会只剩一条「共 N 首」的标题条。
+                PanelHost.capFixedListHeight(
+                    context,
+                    list = binding.queueList,
+                    header = binding.queueHeader,
+                    sheetRoot = binding.root,
+                )
+            },
+        )
 
         val adapter = QueueAdapter(
             items = PlaybackStateHolder.songs.toMutableList(),
@@ -80,12 +94,6 @@ object QueuePanel {
         }
 
         refreshHeader(context, binding, adapter.itemCount)
-        PanelHost.capFixedListHeight(
-            context,
-            list = binding.queueList,
-            header = binding.queueHeader,
-            sheetRoot = binding.root,
-        )
         dialog.show()
     }
 
