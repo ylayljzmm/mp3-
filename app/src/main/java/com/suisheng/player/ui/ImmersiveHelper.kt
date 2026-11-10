@@ -89,19 +89,36 @@ object ImmersiveHelper {
      *   **物理占在屏幕顶端**。此时从 y=0 起绘的抽屉第一项会被压住裁切。
      *   传入一个最小顶部留白，取 `max(真实 inset, 该值)`；只在车机形态下生效，
      *   手机状态栏正常显示、inset 准确，不受影响。
+     * @param extraBottomPaddingPx 车机专用兜底：车机底部的系统 Dock（空调 / 返回 /
+     *   主页那条）同样是 overlay，隐藏状态栏后 `getInsets(...).bottom` 常返回 0，
+     *   抽屉底部固定三格（扫描 / 计数 / 主题）会被 Dock 压住显示不全。
+     *   取 `max(真实 inset, 该值)`，**只在车机形态、且传入该参数的 root 上生效**。
+     *   注意不能像 5.6.0 之前那样在布局里塞一个「底部 60dp 空 View」：那会把
+     *   手机整页一起抬高（见 `values/dimens.xml` 的 `car_dock_safe_area` 记录）。
+     *   这里用 padding + 车机判定，只影响抽屉这一层，contentColumn 不传该参数。
      */
-    fun applyInsets(vararg roots: View, extraTopPaddingPx: Int = 0) {
+    fun applyInsets(
+        vararg roots: View,
+        extraTopPaddingPx: Int = 0,
+        extraBottomPaddingPx: Int = 0,
+    ) {
         roots.forEach { root ->
             ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
                 val bars = insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
                 )
-                val top = if (extraTopPaddingPx > 0 && isCarUi(view.context)) {
+                val car = isCarUi(view.context)
+                val top = if (extraTopPaddingPx > 0 && car) {
                     maxOf(bars.top, extraTopPaddingPx)
                 } else {
                     bars.top
                 }
-                view.setPadding(bars.left, top, bars.right, bars.bottom)
+                val bottom = if (extraBottomPaddingPx > 0 && car) {
+                    maxOf(bars.bottom, extraBottomPaddingPx)
+                } else {
+                    bars.bottom
+                }
+                view.setPadding(bars.left, top, bars.right, bottom)
                 WindowInsetsCompat.CONSUMED
             }
             // listener 挂上之后必须主动要一次：窗口已经分发过一轮 inset 时，

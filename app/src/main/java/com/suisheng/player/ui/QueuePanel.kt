@@ -50,14 +50,16 @@ object QueuePanel {
             context,
             binding.root,
             scrollable = false,
-            onShown = {
-                // show 之后头部才真正测量完；此时反算列表高并让 sheet 重排，
-                // 否则车机上会只剩一条「共 N 首」的标题条。
+            onShown = { availableHeight ->
+                // show 之后头部才真正测量完；用宿主给出的**本面板实际可用高**反算
+                // 列表高，车机居中卡片与手机贴底抽屉各按自己的窗口尺寸收口，
+                // 避免列表比窗口还高、把「清空」和底部内边距挤出屏幕。
                 PanelHost.capFixedListHeight(
                     context,
                     list = binding.queueList,
                     header = binding.queueHeader,
                     sheetRoot = binding.root,
+                    capPx = availableHeight,
                 )
             },
         )

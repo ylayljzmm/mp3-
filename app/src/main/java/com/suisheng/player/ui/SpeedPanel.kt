@@ -2,7 +2,6 @@ package com.suisheng.player.ui
 
 import android.content.Context
 import android.view.LayoutInflater
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.suisheng.player.R
 import com.suisheng.player.databinding.PanelSpeedBinding
@@ -43,8 +42,9 @@ object SpeedPanel {
      */
     fun show(context: Context, current: Float, onPick: (Float) -> Unit) {
         val binding = PanelSpeedBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
+        // 统一走 PanelHost：车机是居中卡片、手机是贴底抽屉，两者都由宿主限高与定宽，
+        // 避免车机上这个自建 BottomSheet 再次出现「只露一行标题」。
+        val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         val rows = listOf(
             binding.speedSlowest,

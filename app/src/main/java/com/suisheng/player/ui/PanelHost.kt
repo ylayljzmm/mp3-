@@ -1,8 +1,13 @@
 package com.suisheng.player.ui
 
+import android.app.Dialog
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.widget.FrameLayout
 import androidx.core.view.doOnLayout
 import androidx.core.widget.NestedScrollView
@@ -10,15 +15,21 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
 /**
- * 底部面板（BottomSheet）的统一骨架。
+ * 播放页各类面板的统一骨架。
  *
  * 抽出来的原因：四个面板（音效 / 歌曲信息 / 更多 / 队列）原来各自
  * `BottomSheetDialog(context).setContentView(binding.root)`，谁都没设上限，
  * 而 `BottomSheetDialog` **不会**帮你裁 `wrap_content` 的内容 ——
  * 车机上屏高只有 540 ~ 600dp，内容一超过屏高，标题和底部按钮同时被顶出屏幕。
  *
+ * **5.7.2 起按形态分流**：车机上 `BottomSheetBehavior` 在 edge-to-edge +
+ * 隐藏状态栏 + 底部系统 Dock 的组合里，首帧测量会把 `expandedOffset` 定死，
+ * show 之后再改高度 / 宽度都来不及（5.7.1 那轮修复在真机上仍只露一行标题）。
+ * 所以车机改用 [Dialog] 居中卡片，window 的宽高完全由这里显式设定，不依赖
+ * Behavior 的测量时序；手机保持原贴底抽屉逻辑，行为不变。
+ *
  * 两条接入方式：
- *  - 内容本身不高、只是"可能超"（音效 / 歌曲信息 / 更多）→ [build] 传 `scrollable = true`，
+ *  - 内容本身不高、只是「可能超」（音效 / 歌曲信息 / 更多）→ [build] 传 `scrollable = true`，
  *    内部套一层 [NestedScrollView]，超了就能滚，不超就正好贴着内容高度；
  *  - 内容里有一个自己会滚的 `RecyclerView`（队列）→ `scrollable = false`，
  *    再用 [capFixedListHeight] 给列表反算高度。**绝不能**给 RecyclerView 套
@@ -46,22 +57,24 @@ internal object PanelHost {
     }
 
     /**
-     * 建一个带高度上限、且**全宽**的 BottomSheet。
+     * 建一个带高度上限的面板。
      *
-     * @param content 面板根布局（ViewBinding 的 root）
+     * 返回 [Dialog]：车机是居中卡片，手机是 [BottomSheetDialog]（后者是 Dialog 的子类）。
+     * 所有调用方只用 `show()` / `dismiss()`，所以放宽返回类型不需要改任何面板代码。
+     *
+     * @param content 面板根布局（ViewBinding 的 root，或调用方自己搭好的滚动容器）
      * @param scrollable 内容是否需要整块可滚（列表型面板传 false）
      * @param onShown show 之后要做的收尾工作（例如反算 RecyclerView 高度）。
-     *   必须在 show 之后做：`BottomSheetDialog` 在首次 measure 时用 `isFitToContents`
-     *   把 expandedOffset 定死，show 之前改子 View 高度不会触发重算 —— 这正是
-     *   车机上「队列面板只剩 35px 标题条」的主因。
+     *   参数是**这个面板实际可用的高度 px**：车机是主动测量出的窗口高度，
+     *   手机是 BottomSheet 的高度上限。回调必须拿这个值去反算列表高度，
+     *   不能自己再调 [maxContentHeightPx]，否则车机上列表会比窗口还高、底部又被裁。
      */
     fun build(
         context: Context,
         content: View,
         scrollable: Boolean,
-        onShown: ((FrameLayout) -> Unit)? = null,
-    ): BottomSheetDialog {
-        val dialog = BottomSheetDialog(context)
+        onShown: ((Int) -> Unit)? = null,
+    ): Dialog {
         val host: View = if (scrollable) {
             NestedScrollView(context).apply {
                 // 内容比上限矮时按内容高度收口，不留一片空白
@@ -78,6 +91,59 @@ internal object PanelHost {
         } else {
             content
         }
+        return if (ImmersiveHelper.isCarUi(context)) {
+            buildCarCard(context, host, onShown)
+        } else {
+            buildBottomSheet(context, host, onShown)
+        }
+    }
+
+    /**
+     * 车机：居中卡片。不用 [BottomSheetDialog]，窗口宽高全部显式设定，
+     * 内容超高时把 window 锁到 [maxContentHeightPx]，让内部的
+     * [NestedScrollView] / ScrollView / RecyclerView 自己滚。
+     */
+    private fun buildCarCard(context: Context, host: View, onShown: ((Int) -> Unit)?): Dialog {
+        val widthPx = (context.resources.displayMetrics.widthPixels * CARD_WIDTH_RATIO).toInt()
+        val cap = maxContentHeightPx(context)
+        val dialog = Dialog(context).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setCanceledOnTouchOutside(true)
+            setContentView(host)
+        }
+        // **主动测量，一次成型**：这里不读 window / Behavior 的首帧结果，
+        // 而是自己按「宽度确定、高度最多 cap」测一遍，直接把窗口设成实测高度。
+        // 5.7.1 之所以失效，就是因为依赖了 BottomSheetBehavior 的 expandedOffset
+        // 与 show 后的 measuredHeight，两者在车机 ROM 上都被首帧定死。
+        host.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(cap, View.MeasureSpec.AT_MOST),
+        )
+        val heightPx = minOf(host.measuredHeight, cap).coerceAtLeast(MIN_CONTENT_PX)
+        dialog.window?.apply {
+            setGravity(Gravity.CENTER)
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(widthPx, heightPx)
+        }
+        dialog.setOnShowListener {
+            // 队列面板在这里按「窗口实测高度」反算列表高度，保证列表 + 头部 +
+            // 内边距刚好装进卡片；此时头部已 attach 且测量完，doOnLayout 立即回调。
+            onShown?.invoke(heightPx)
+            host.requestLayout()
+        }
+        return dialog
+    }
+
+    /**
+     * 手机：保持 5.7.1 的贴底抽屉实现，逐字不改（真机与回归均已验证通过）。
+     * 车机不再走这条分支，所以不需要在这里补 Behavior 状态修复。
+     */
+    private fun buildBottomSheet(
+        context: Context,
+        host: View,
+        onShown: ((Int) -> Unit)?,
+    ): BottomSheetDialog {
+        val dialog = BottomSheetDialog(context)
         dialog.setContentView(host)
         dialog.behavior.apply {
             isFitToContents = true
@@ -88,7 +154,7 @@ internal object PanelHost {
             val sheet = dialog.findViewById<FrameLayout>(
                 com.google.android.material.R.id.design_bottom_sheet
             ) ?: return@setOnShowListener
-            // BottomSheetDialog 的 window 在横屏 / 车机 ROM 上会收敛到内容宽，
+            // BottomSheetDialog 的 window 在横屏 / 大屏 ROM 上会收敛到内容宽，
             // 表现为「面板只有半屏宽」。显式设成 MATCH_PARENT 才与面板 XML 的
             // match_parent 根一致（根本来就是 match_parent，问题出在 window）。
             val params = sheet.layoutParams
@@ -96,8 +162,9 @@ internal object PanelHost {
                 params.width = ViewGroup.LayoutParams.MATCH_PARENT
                 sheet.layoutParams = params
             }
-            dialog.behavior.maxHeight = maxContentHeightPx(context)
-            onShown?.invoke(sheet)
+            val cap = maxContentHeightPx(context)
+            dialog.behavior.maxHeight = cap
+            onShown?.invoke(cap)
             // show 之后改过子 View 高度，必须让 sheet 重新走一遍 measure/layout，
             // 否则 BottomSheetBehavior 还用着首帧算出来的 expandedOffset。
             sheet.requestLayout()
@@ -106,7 +173,7 @@ internal object PanelHost {
     }
 
     /**
-     * 给"固定高度列表"型面板反算列表高度：面板上限 − 头部实测高 − 底部内边距，下限 160dp。
+     * 给「固定高度列表」型面板反算列表高度：面板上限 − 头部实测高 − 底部内边距，下限 160dp。
      *
      * **必须在面板 show 之后调用**（由 [build] 的 `onShown` 钩子承载）。旧实现在
      * `dialog.show()` 之前注册 `doOnLayout`，view 还没 attach、回调延迟到首帧之后；
@@ -114,8 +181,13 @@ internal object PanelHost {
      * 首帧把 expandedOffset 定死，`skipCollapsed` 又不让折叠态重试 —— 回调里再改
      * `layoutParams.height` 也回天乏术，车机上就只剩一条标题。
      */
-    fun capFixedListHeight(context: Context, list: RecyclerView, header: View, sheetRoot: View) {
-        val capPx = maxContentHeightPx(context)
+    fun capFixedListHeight(
+        context: Context,
+        list: RecyclerView,
+        header: View,
+        sheetRoot: View,
+        capPx: Int,
+    ) {
         val minPx = (MIN_LIST_DP * context.resources.displayMetrics.density).toInt()
         header.doOnLayout { head ->
             val available = (capPx - head.height - sheetRoot.paddingBottom).coerceAtLeast(minPx)
@@ -135,9 +207,12 @@ internal object PanelHost {
     /** 面板与屏幕边缘至少留 24dp，避免贴边（车机圆角屏会切到内容）。 */
     private const val MARGIN_DP = 24f
 
-    /** 列表最少给 160dp：大约 3 行，再少就不像"可滚动列表"了。 */
+    /** 列表最少给 160dp：大约 3 行，再少就不像「可滚动列表」了。 */
     private const val MIN_LIST_DP = 160f
 
     /** 面板可用高的绝对下限，避免某些 ROM 报出异常小的 screenHeightDp 把面板压成 0。 */
     private const val MIN_CONTENT_PX = 240
+
+    /** 车机居中卡片宽度占屏宽比例：接近全宽但留出可读的左右边缘。 */
+    private const val CARD_WIDTH_RATIO = 0.88f
 }

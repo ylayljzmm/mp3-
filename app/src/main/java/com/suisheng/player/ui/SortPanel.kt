@@ -2,7 +2,6 @@ package com.suisheng.player.ui
 
 import android.content.Context
 import android.view.LayoutInflater
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.suisheng.player.R
 import com.suisheng.player.databinding.PanelSortBinding
@@ -30,8 +29,8 @@ object SortPanel {
 
     fun show(context: Context, current: PlaylistSortOrder, onPick: (PlaylistSortOrder) -> Unit) {
         val binding = PanelSortBinding.inflate(LayoutInflater.from(context))
-        val dialog = BottomSheetDialog(context)
-        dialog.setContentView(binding.root)
+        // 与 SpeedPanel 同理：交给 PanelHost 统一限高与定宽，车机 / 手机各走各的形态。
+        val dialog = PanelHost.build(context, binding.root, scrollable = true)
 
         val rows = listOf(
             binding.sortTitleAz,

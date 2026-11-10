@@ -17,7 +17,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -408,9 +407,10 @@ class SettingsFragment : Fragment() {
     /**
      * 隐藏文件夹的恢复入口。
      *
-     * 面板用 `BottomSheetDialog` + 代码建行，不新增 XML 布局：这一块的行数随隐藏项变化，
+     * 面板用 [PanelHost] + 代码建行，不新增 XML 布局：这一块的行数随隐藏项变化，
      * 用 XML 只能写死一个空容器再往里塞 view，反而多一层 ViewBinding 改动
-     * （与 `SpeedPanel` 的处理方式保持一致）。
+     * （与 `SpeedPanel` 的处理方式保持一致）。外层 ScrollView 由这里自建，
+     * 交给 PanelHost 时传 `scrollable = false`，避免再套一层滚动容器。
      */
     private fun setupHiddenFolders() {
         binding.rowHiddenFolders.setOnClickListener { showHiddenFoldersPanel() }
@@ -429,7 +429,6 @@ class SettingsFragment : Fragment() {
     private fun showHiddenFoldersPanel() {
         if (!isAdded) return
         val context = requireContext()
-        val dialog = BottomSheetDialog(context)
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(16), dp(20), dp(20))
@@ -437,7 +436,7 @@ class SettingsFragment : Fragment() {
         // 外面套一层 ScrollView：隐藏项多起来时（比如一整个 U 盘的分类目录），
         // 面板不能顶出屏幕，否则底部的「恢复」反而点不到。
         val scroller = ScrollView(context).apply { addView(container) }
-        dialog.setContentView(scroller)
+        val dialog = PanelHost.build(context, scroller, scrollable = false)
         rebuildHiddenFolderRows(container)
         dialog.show()
     }

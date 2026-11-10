@@ -149,10 +149,14 @@ class MainActivity : AppCompatActivity(), MainHost {
         // 抽屉是独立一层，要自己消费一份 inset。5.7.1 删掉品牌头部之后，
         // 第一项「媒体库」直接顶到了 y=0，车机隐藏状态栏但系统条仍物理占位，
         // 所以只给抽屉补一段最小顶部留白；contentColumn 保持原样，避免整页下移。
+        // 5.7.2 补对称的底部兜底：车机底部系统 Dock 同样是 overlay，抽屉底部固定的
+        // 「扫描 / 共 N 首 / 主题」三格会被压住显示不全。两个兜底都只在车机生效、
+        // 且只挂在抽屉 root 上，手机端与 contentColumn 完全不受影响。
         ImmersiveHelper.applyInsets(binding.contentColumn)
         ImmersiveHelper.applyInsets(
             binding.drawerPanelBody,
             extraTopPaddingPx = resources.getDimensionPixelSize(R.dimen.drawer_top_safe_padding),
+            extraBottomPaddingPx = resources.getDimensionPixelSize(R.dimen.drawer_bottom_safe_padding),
         )
 
         setupMiniPlayer()
