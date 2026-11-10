@@ -9,9 +9,9 @@
 
     <!-- 歌词设置第 4 张卡片：歌词版面 -->
     <string name="lyric_settings_section_layout">歌词版面</string>
-    <string name="lyric_pane_gap">左右栏间距</string>
+    <string name="lyric_pane_gap">歌词区左内缩</string>
     <string name="lyric_pane_gap_value">当前 %1$d dp</string>
-    <string name="lyric_pane_gap_hint">仅横屏 / 车机双栏生效。竖屏歌词页的左右留白由页面自身控制，不受此项影响。</string>
+    <string name="lyric_pane_gap_hint">仅横屏 / 车机双栏生效，控制歌词区左侧的额外留白；播放列整体右移由另一项固定值决定，不受此项影响。竖屏歌词页的左右留白由页面自身控制。</string>
 
     <!-- 歌词调节面板（播放页 → 更多 → 歌词调节） -->
     <string name="lyric_adjust_title">歌词调节</string>

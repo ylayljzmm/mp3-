@@ -499,9 +499,13 @@ class SettingsRepository(context: Context) {
         const val KEY_PLAYER_FONT_SIZE = "player_font_size"
         const val KEY_PLAYER_NEXT_FONT_SIZE = "player_next_font_size"
         const val KEY_PLAYER_LINE_SPACING = "player_line_spacing"
-        /** 横屏双栏的左右栏间距（dp），见 [lyricPaneGapDp]。 */
+        /** 歌词区左侧内缩（dp），见 [lyricPaneGapDp]。 */
         const val KEY_LYRIC_PANE_GAP = "lyric_pane_gap_dp"
-        /** [lyricPaneGapDp] 的取值区间：0 是骨架留白决定的下限，32 是上限（再大会回到旧的过宽观感）。 */
+        /**
+         * [lyricPaneGapDp] 的取值区间：0 = 不加额外内缩，32 = 上限（再大会回到旧的过宽观感）。
+         * 播放列整体右移由 `player_axis_shift` 独立控制，与本滑块无关；
+         * I7 右移 24dp 后骨架留白为 27.6dp，本滑块只叠加在歌词区左侧。
+         */
         const val MIN_LYRIC_PANE_GAP = 0
         const val MAX_LYRIC_PANE_GAP = 32
         const val KEY_CURRENT_SCALE = "current_line_scale"

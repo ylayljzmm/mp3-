@@ -9,13 +9,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -284,30 +282,22 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
      * 一次，就会把刚恢复出来的页码覆盖回封面页 —— 转屏后从歌词页跳回封面就是这么来的。
      */
     private fun setupSwipeDeck() {
+        // 5.7.2 起两种形态都不再显示页码圆点：车机横屏本来只剩一页，手机竖屏的
+        // 三个点用户也要求删掉。pageDots 这个 id 在 layout/ 与 layout-port/ 两份
+        // fragment_player.xml 里都保留（ViewBinding 只生成一份 Binding，id 集合必须
+        // 逐项一致），只是永远隐藏、不再往里加任何子 View，也不再响应切页。
+        binding.pageDots.visibility = View.GONE
+
         if (isDualPane()) {
             // 5.7.1（需求 5）：车机横屏的「左滑信息页」与功能行的「歌曲信息」按钮重复，
-            // 且横滑容易误触。这里只在**运行时**把该页从 deck 摘掉：XML 里的 id 全部保留，
-            // 因为 layout/ 与 layout-port/ 两个 fragment_player.xml 的 id 集合必须逐项一致
-            // （ViewBinding 只生成一份 FragmentPlayerBinding）。竖屏三页不受影响。
-            // 原页的 12 行技术字段已并入 SongInfoPanel，不会丢字段。
+            // 且横滑容易误触。这里只在**运行时**把该页从 deck 摘掉：XML 里的 id 全部保留。
+            // 竖屏三页不受影响；原页的 12 行技术字段已并入 SongInfoPanel，不会丢字段。
             binding.swipeDeck.removeView(binding.pageInfo)
             val cover = binding.swipeDeck.indexOfPage(R.id.pageCover)
             if (cover >= 0) binding.swipeDeck.setCurrent(cover, animate = false)
-            // 只剩一页时圆点没有意义（用户已确认「歌词页没有圆点可以」）。
-            binding.pageDots.visibility = View.GONE
         }
         binding.swipeDeck.onPageChanged = { index ->
-            updateDots()
             if (index == infoPageIndex()) loadSongInfo()
-        }
-        // 圆点数量要等 deck 的子 View 就位才知道，所以同样推迟到 post。
-        // 横屏已无圆点，跳过生成；updateDots() 对空容器本来就会直接 return。
-        binding.swipeDeck.post {
-            if (_binding == null) return@post
-            if (!isDualPane()) {
-                rebuildDots()
-                updateDots()
-            }
         }
     }
 
@@ -355,60 +345,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         val target = coverReturnTarget() ?: return false
         binding.swipeDeck.setCurrent(target, animate = true)
         return true
-    }
-
-    /** 按页数生成圆点；点本身没有 id（数量随布局变，ViewBinding 里也不该有）。 */
-    private fun rebuildDots() {
-        val container = binding.pageDots
-        container.removeAllViews()
-        val size = resources.getDimensionPixelSize(R.dimen.player_dot_size)
-        val gap = resources.getDimensionPixelSize(R.dimen.player_dot_gap)
-        for (i in 0 until binding.swipeDeck.pageCount) {
-            val dot = ImageView(requireContext()).apply {
-                layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                    if (i > 0) marginStart = gap
-                }
-                contentDescription = null
-                setBackgroundResource(R.drawable.bg_page_dot_off)
-                setOnClickListener { binding.swipeDeck.setCurrent(i, animate = true) }
-            }
-            container.addView(dot)
-        }
-    }
-
-    /**
-     * 选中态用 `colorPrimary`，其余用 `colorOnSurfaceVariant` 的 35% 透明。
-     *
-     * 两个 drawable 画的是同一个纯白实心圆，颜色全部由 `backgroundTintList` 决定 ——
-     * 这样切主题时不用重新 setBackground（drawable 里的 `?attr/` 不会随运行时换主题更新）。
-     *
-     * **必须是 `backgroundTintList`，不能是 `imageTintList`**：圆点是用
-     * `setBackgroundResource` 画的，从头到尾没设过 `src`，而 `ImageView.imageTintList`
-     * 只对 `src` 的 drawable 上色 —— 写在那里是空操作，点在浅色主题上就是一坨
-     * 看不见的纯白（默认主题 `Theme.Suisheng.Base` 的 `colorSurface` 是浅米色）。
-     */
-    private fun updateDots() {
-        val container = binding.pageDots
-        if (container.childCount == 0) return
-        val active = ColorStateList.valueOf(
-            MaterialColors.getColor(container, com.google.android.material.R.attr.colorPrimary)
-        )
-        val inactiveColor = MaterialColors.getColor(
-            container,
-            com.google.android.material.R.attr.colorOnSurfaceVariant,
-        )
-        val inactive = ColorStateList.valueOf(
-            ColorUtils.setAlphaComponent(inactiveColor, DOT_INACTIVE_ALPHA)
-        )
-        val current = binding.swipeDeck.currentIndex
-        for (i in 0 until container.childCount) {
-            val dot = container.getChildAt(i) as? ImageView ?: continue
-            val selected = i == current
-            dot.setBackgroundResource(
-                if (selected) R.drawable.bg_page_dot_on else R.drawable.bg_page_dot_off
-            )
-            dot.backgroundTintList = if (selected) active else inactive
-        }
     }
 
     // ---------------------------------------------------------------- 封面尺寸
@@ -1045,9 +981,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
 
         /** 队列为空时功能行队列键的透明度（有队列时回到 1f）。 */
         const val QUEUE_EMPTY_ALPHA = 0.5f
-
-        /** 页码点未选中态的 alpha（0.35 × 255 ≈ 89）。 */
-        const val DOT_INACTIVE_ALPHA = 89
 
         /** 封面格子四周留白与尺寸上下限（dp）。 */
         const val COVER_PADDING_DP = 8

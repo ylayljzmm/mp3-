@@ -13,7 +13,8 @@
     <string name="drawer_settings">设置</string>
     <string name="drawer_about">关于</string>
     <string name="drawer_group_library">媒体库</string>
-    <string name="drawer_group_online">在线</string>
+    <!-- 分组标题与同组的「在线」条目区分开：前者概括在线 / 电台 / 播客，后者是具体页面。 -->
+    <string name="drawer_group_online">网络内容</string>
     <string name="drawer_group_system">系统</string>
     <string name="drawer_subtitle">Suisheng · v%1$s</string>
     <string name="drawer_scan">扫描音乐</string>

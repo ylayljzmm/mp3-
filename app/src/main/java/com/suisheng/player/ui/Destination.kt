@@ -7,7 +7,9 @@ import com.suisheng.player.R
 /**
  * 抽屉的三个分组标题（`design/04 §3.5`）。
  *
- * 分组顺序即渲染顺序：媒体库 → 在线 → 系统。
+ * 分组顺序即渲染顺序：媒体库 → 网络内容 → 系统。
+ * [ONLINE] 的标题用「网络内容」与同组的「在线」条目区分：前者是分组名，
+ * 后者是具体的一级页面，避免抽屉里连着出现两个「在线」。
  */
 enum class DrawerGroup(@StringRes val titleRes: Int) {
     LIBRARY(R.string.drawer_group_library),
