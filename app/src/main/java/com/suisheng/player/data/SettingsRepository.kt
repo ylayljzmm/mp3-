@@ -92,6 +92,17 @@ class SettingsRepository(context: Context) {
         get() = prefs.getBoolean(KEY_SPIN_COVER_WITH_DISC, true)
         set(value) = prefs.edit { putBoolean(KEY_SPIN_COVER_WITH_DISC, value) }
 
+    /**
+     * 强制按「车机大屏」布局（默认关，自动判定的最后兜底）。
+     *
+     * 某些深度定制车机 ROM 既不声明 automotive、屏幕参数又异常，几何判定也
+     * 可能不命中。打开后：面板一律用居中卡片、抽屉补顶部/底部安全区。
+     * 面板形态在每次打开时读取，抽屉安全区在下次进 App / 旋转后生效。
+     */
+    var forceCarLayout: Boolean
+        get() = prefs.getBoolean(KEY_FORCE_CAR_LAYOUT, false)
+        set(value) = prefs.edit { putBoolean(KEY_FORCE_CAR_LAYOUT, value) }
+
     var maxLyricVisualLines: Int
         get() = prefs.getInt(KEY_MAX_VISUAL_LINES, 2).coerceIn(1, 4)
         set(value) = prefs.edit { putInt(KEY_MAX_VISUAL_LINES, value.coerceIn(1, 4)) }
@@ -516,6 +527,8 @@ class SettingsRepository(context: Context) {
         const val KEY_LYRIC_SHOW_PHONETIC = "lyric_show_phonetic"
         /** 封面是否随黑胶盘一起顺时针旋转（默认开），见 [spinCoverWithDisc]。 */
         const val KEY_SPIN_COVER_WITH_DISC = "spin_cover_with_disc"
+        /** 强制车机大屏布局（默认关），见 [forceCarLayout]。 */
+        const val KEY_FORCE_CAR_LAYOUT = "force_car_layout"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"
         const val KEY_SMOOTH_LYRICS = "smooth_lyrics"
         const val KEY_HIGHLIGHT = "highlight_color"

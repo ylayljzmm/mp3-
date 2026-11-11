@@ -158,6 +158,20 @@ class MainActivity : AppCompatActivity(), MainHost {
             extraTopPaddingPx = resources.getDimensionPixelSize(R.dimen.drawer_top_safe_padding),
             extraBottomPaddingPx = resources.getDimensionPixelSize(R.dimen.drawer_bottom_safe_padding),
         )
+        // 纯代码初始兜底（不依赖 inset 回调）：某些深度定制车机 ROM 可能连
+        // OnApplyWindowInsetsListener 都不分发，抽屉底部三格就永远拿不到让位。
+        // 这里先给一份最小上下留白；inset 回调真来时会用 max(真实值, 兜底值)
+        // 覆盖成同一口径，不会叠加。手机形态 isCarLikeUi=false，零影响。
+        if (ImmersiveHelper.isCarLikeUi(this)) {
+            val topSafe = resources.getDimensionPixelSize(R.dimen.drawer_top_safe_padding)
+            val bottomSafe = resources.getDimensionPixelSize(R.dimen.drawer_bottom_safe_padding)
+            binding.drawerPanelBody.setPadding(
+                binding.drawerPanelBody.paddingLeft,
+                maxOf(binding.drawerPanelBody.paddingTop, topSafe),
+                binding.drawerPanelBody.paddingRight,
+                maxOf(binding.drawerPanelBody.paddingBottom, bottomSafe),
+            )
+        }
 
         setupMiniPlayer()
         // 页头必须先于抽屉建好：抽屉里恢复出来的目的地会立刻走 showDestination()，

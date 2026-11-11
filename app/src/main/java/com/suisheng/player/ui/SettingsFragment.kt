@@ -15,6 +15,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.chip.Chip
@@ -109,6 +110,15 @@ class SettingsFragment : Fragment() {
         binding.switchOnlineLyrics.isChecked = settings.onlineLyricsEnabled
         binding.switchOnlineCover.isChecked = settings.onlineCoverEnabled
         binding.switchSpinCover.isChecked = settings.spinCoverWithDisc
+        binding.switchForceCarLayout.isChecked = settings.forceCarLayout
+        // 把自动识别结果直接写在开关标题上，用户不用靠猜就知道这台设备是否命中判定。
+        binding.switchForceCarLayout.text = getString(
+            if (ImmersiveHelper.isCarLikeUiAuto(requireContext())) {
+                R.string.settings_force_car_layout_detected
+            } else {
+                R.string.settings_force_car_layout_undetected
+            }
+        )
 
         refreshScanPathsUi(binding)
         setupOnlineSettings()
@@ -156,6 +166,14 @@ class SettingsFragment : Fragment() {
         binding.switchSpinCover.setOnCheckedChangeListener { _, checked ->
             settings.spinCoverWithDisc = checked
             // 播放页在返回前台的 onStart() 里重读这个值，不需要跨 Fragment 发通知。
+        }
+        binding.switchForceCarLayout.setOnCheckedChangeListener { _, checked ->
+            settings.forceCarLayout = checked
+            // 面板形态每次打开时读取，立即生效；抽屉安全区由 inset 回调计算，
+            // 这里主动请求重新分发一次，让抽屉底部三格也立刻让位，不用重启 App。
+            runCatching {
+                ViewCompat.requestApplyInsets(requireActivity().window.decorView)
+            }
         }
 
         binding.rowThemeEntry.setOnClickListener {

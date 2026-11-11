@@ -11,6 +11,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.suisheng.player.data.SettingsRepository
 
 /**
  * 沉浸式与系统栏安全区。
@@ -35,7 +36,7 @@ import androidx.core.view.WindowInsetsControllerCompat
  */
 object ImmersiveHelper {
 
-    /** 车机 UI（Automotive 或车机 UI mode）。 */
+    /** 车机 UI（Automotive 或车机 UI mode）——**仅用于决定是否隐藏系统状态栏**。 */
     fun isCarUi(context: Context): Boolean {
         val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
         if (uiMode == Configuration.UI_MODE_TYPE_CAR) return true
@@ -43,6 +44,47 @@ object ImmersiveHelper {
             context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
         }.getOrDefault(false)
     }
+
+    /**
+     * **布局用的大屏 / 车机判定**，供 `PanelHost` 形态分流与抽屉安全区兜底使用。
+     *
+     * 5.7.1 / 5.7.2 两轮「抽屉底部三格显示不全」「面板只露一行」反复修不好，
+     * 根因就在这里：原来一律用 [isCarUi]，而大量深度定制车机 ROM（带 PM2.5、
+     * 车内/外温度、自定义 Dock 状态栏）既不设 `UI_MODE_TYPE_CAR`，也不声明
+     * `FEATURE_AUTOMOTIVE`，判定恒为 false —— 于是车机专用兜底与居中卡片分流
+     * 全部落空，静默退回手机行为，且**不留任何日志**。
+     *
+     * 三层判定，任一层命中即为大屏车机形态：
+     *  ① 标准声明（[isCarUi]）；
+     *  ② 几何：横屏 **且**（`smallestScreenWidthDp ≥ 600` 或 `screenHeightDp ≥ 480`）。
+     *     前者覆盖 1024×600@1.0（短边 600dp），后者覆盖 1920×1080@2.0 这类
+     *     高密度车机（短边 540dp；若系统 Dock 再扣掉几十 dp，窗口屏高会降到
+     *     500dp 左右，所以阈值取 480 而非 540）。手机横屏的屏高一般 320~450dp、
+     *     短边也 <600dp，两条都不命中，不会误伤。
+     *  ③ 用户手动开关 `forceCarLayout`（自动判定都不命中时的最后兜底）。
+     *
+     * 注意 ①② 都可能被极端 ROM 骗过，所以保留 ③；开关默认关，不影响手机。
+     */
+    fun isCarLikeUi(context: Context): Boolean = isCarLikeUiAuto(context) ||
+        runCatching { SettingsRepository(context).forceCarLayout }.getOrDefault(false)
+
+    /**
+     * [isCarLikeUi] 的**自动部分**（声明 + 几何，不含手动开关）。
+     * 设置页用它显示「当前自动识别结果」，方便判断是否需要手动开启兜底开关；
+     * 若把开关也算进去，开关一打开就恒显示「已识别」，反而失去诊断意义。
+     */
+    fun isCarLikeUiAuto(context: Context): Boolean {
+        if (isCarUi(context)) return true
+        val cfg = context.resources.configuration
+        if (cfg.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (cfg.smallestScreenWidthDp >= CAR_LIKE_MIN_SMALLEST_WIDTH_DP) return true
+            if (cfg.screenHeightDp >= CAR_LIKE_MIN_HEIGHT_DP) return true
+        }
+        return false
+    }
+
+    private const val CAR_LIKE_MIN_SMALLEST_WIDTH_DP = 600
+    private const val CAR_LIKE_MIN_HEIGHT_DP = 480
 
     /**
      * 窗口级设置。**可以在 onCreate 里、setContentView 之前调**，也适合在
@@ -107,13 +149,13 @@ object ImmersiveHelper {
                 val bars = insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
                 )
-                val car = isCarUi(view.context)
-                val top = if (extraTopPaddingPx > 0 && car) {
+                val carLike = isCarLikeUi(view.context)
+                val top = if (extraTopPaddingPx > 0 && carLike) {
                     maxOf(bars.top, extraTopPaddingPx)
                 } else {
                     bars.top
                 }
-                val bottom = if (extraBottomPaddingPx > 0 && car) {
+                val bottom = if (extraBottomPaddingPx > 0 && carLike) {
                     maxOf(bars.bottom, extraBottomPaddingPx)
                 } else {
                     bars.bottom

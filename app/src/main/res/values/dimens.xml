@@ -26,8 +26,9 @@
     <!-- 5.7.1 品牌头部删除后，抽屉顶部的最小安全留白（车机专用兜底）。
          车机 ROM 隐藏系统状态栏后 inset 常返回 0，但系统条仍压在屏幕顶端。 -->
     <dimen name="drawer_top_safe_padding">32dp</dimen>
-    <!-- 车机底部系统 Dock 的最小让位（仅抽屉 root 生效）。真机若仍有遮挡可上调。 -->
-    <dimen name="drawer_bottom_safe_padding">64dp</dimen>
+    <!-- 车机底部系统 Dock 的最小让位（仅抽屉 root 生效）。按真机 Dock 约占屏高 9%
+         从 64dp 提到 80dp，真机若仍有遮挡可继续上调。 -->
+    <dimen name="drawer_bottom_safe_padding">80dp</dimen>
     <dimen name="drawer_header_icon_corner">12dp</dimen>
     <!-- 分组标题 28dp；条目 60dp（≥ 60dp 触控下限） -->
     <dimen name="drawer_group_title_height">28dp</dimen>

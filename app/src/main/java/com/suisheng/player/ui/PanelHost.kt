@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import androidx.core.view.doOnLayout
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
 /**
@@ -91,7 +92,7 @@ internal object PanelHost {
         } else {
             content
         }
-        return if (ImmersiveHelper.isCarUi(context)) {
+        return if (ImmersiveHelper.isCarLikeUi(context)) {
             buildCarCard(context, host, onShown)
         } else {
             buildBottomSheet(context, host, onShown)
@@ -135,8 +136,15 @@ internal object PanelHost {
     }
 
     /**
-     * 手机：保持 5.7.1 的贴底抽屉实现，逐字不改（真机与回归均已验证通过）。
-     * 车机不再走这条分支，所以不需要在这里补 Behavior 状态修复。
+     * 手机：贴底抽屉。同时补上 5.7.1 漏掉的两处兜底，作为**判定万一失效时的双保险**
+     * —— 若 [ImmersiveHelper.isCarLikeUi] 在某种 ROM 上仍不命中、车机误走这条分支，
+     * 也不会再退回「只露一行标题」：
+     *  ① `window.setLayout(MATCH_PARENT, MATCH_PARENT)`：5.7.1 只改了 sheet 子 View
+     *     的 layoutParams.width，Dialog **window** 本身仍可能收敛到内容宽；
+     *  ② show 之后强制 `STATE_EXPANDED`：把可能停在 collapsed / peek 的 sheet 拉回展开态。
+     *     **保留 `isFitToContents = true`** —— 若改成 false，内容很矮的面板也会占满
+     *     上限高度留一片空白，手机端观感会倒退。
+     * 手机端原本就正常，这两步对它是幂等的，不改变观感。
      */
     private fun buildBottomSheet(
         context: Context,
@@ -154,19 +162,24 @@ internal object PanelHost {
             val sheet = dialog.findViewById<FrameLayout>(
                 com.google.android.material.R.id.design_bottom_sheet
             ) ?: return@setOnShowListener
-            // BottomSheetDialog 的 window 在横屏 / 大屏 ROM 上会收敛到内容宽，
-            // 表现为「面板只有半屏宽」。显式设成 MATCH_PARENT 才与面板 XML 的
-            // match_parent 根一致（根本来就是 match_parent，问题出在 window）。
+            // ① window 全宽（之前只改了 sheet，window 仍可能是 WRAP_CONTENT）
+            dialog.window?.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
             val params = sheet.layoutParams
             if (params != null && params.width != ViewGroup.LayoutParams.MATCH_PARENT) {
                 params.width = ViewGroup.LayoutParams.MATCH_PARENT
                 sheet.layoutParams = params
             }
+            // ② 强制展开（保留 isFitToContents=true，内容矮时仍按内容收口）
             val cap = maxContentHeightPx(context)
-            dialog.behavior.maxHeight = cap
+            dialog.behavior.apply {
+                skipCollapsed = true
+                maxHeight = cap
+                state = BottomSheetBehavior.STATE_EXPANDED
+            }
             onShown?.invoke(cap)
-            // show 之后改过子 View 高度，必须让 sheet 重新走一遍 measure/layout，
-            // 否则 BottomSheetBehavior 还用着首帧算出来的 expandedOffset。
             sheet.requestLayout()
         }
         return dialog

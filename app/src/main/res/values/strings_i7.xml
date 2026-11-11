@@ -7,6 +7,12 @@
     <string name="settings_spin_cover">封面随黑胶一起旋转</string>
     <string name="settings_spin_cover_hint">开启时唱片与中间封面一起顺时针转；关闭则封面保持正立（人像封面不会倒过来）。</string>
 
+    <!-- 车机形态自动判定的最后兜底 -->
+    <string name="settings_force_car_layout">强制使用车机大屏布局</string>
+    <string name="settings_force_car_layout_detected">强制使用车机大屏布局（已自动识别）</string>
+    <string name="settings_force_car_layout_undetected">强制使用车机大屏布局（未自动识别，请开启）</string>
+    <string name="settings_force_car_layout_hint">仅当车机上面板只显示一行、或抽屉底部按钮被系统栏挡住时开启。开启后弹出菜单改为居中卡片、抽屉补出顶部与底部安全区；手机无需开启。括号内为当前设备的自动识别结果。</string>
+
     <!-- 车机横屏左滑信息页删除后，原页的技术字段并入「歌曲信息」按钮面板 -->
     <string name="song_info_section_tech">音频参数</string>
     <string name="song_info_year_track">年份 / 曲目：%1$s</string>
