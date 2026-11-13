@@ -428,6 +428,25 @@
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp" />
 
+                <!-- 逐字优先放在渠道列表上方：它决定的是「向渠道要哪种时间轴」，
+                     紧挨着列表才说得清它和渠道的关系。 -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchLyricWordLevel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:minHeight="48dp"
+                    android:text="@string/lyric_source_word_level"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:id="@+id/lyricWordLevelHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lyric_word_level_hint"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+
                 <LinearLayout
                     android:id="@+id/lyricProviderList"
                     android:layout_width="match_parent"

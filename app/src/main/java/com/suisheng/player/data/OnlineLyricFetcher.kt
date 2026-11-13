@@ -139,9 +139,9 @@ class OnlineLyricFetcher {
         // 逐字轨优先：yrc 带每一行、每个字的起止毫秒，是「KTV 字字对应」的唯一真数据源。
         // 它不保证每首歌都有，也不保证格式规整，所以任何一步不像 yrc 就静默回落到 lrc。
         if (preferWordLevel) {
-            val yrc = lyricJson.optJSONObject("yrc")?.optString("lyric")
-            if (YrcParser.looksLikeYrc(yrc.orEmpty())) {
-                val wordLines = runCatching { YrcParser.parse(yrc!!) }.getOrDefault(emptyList())
+            val yrc = lyricJson.optJSONObject("yrc")?.optString("lyric").orEmpty()
+            if (YrcParser.looksLikeYrc(yrc)) {
+                val wordLines = runCatching { YrcParser.parse(yrc) }.getOrDefault(emptyList())
                 if (wordLines.isNotEmpty()) {
                     val wordDoc = LyricDocument.singleTrack(wordLines)
                         .copy(sourceProviderId = LyricProviders.NETEASE)

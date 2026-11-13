@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌词来源面板。
+
+  与 panel_lyric_adjust 分开而不是塞进同一个布局：来源列表是「7~8 个固定行」的
+  独立选择面板，播放页顶栏的「调」和调节面板的「来源」页都复用它，
+  所以它必须能单独 inflate。
+
+  列表容器固定是 LinearLayout：行数只有个位数，用 RecyclerView 反而要额外处理
+  「面板高度按内容收口」的测量问题。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="4dp"
+        android:text="@string/lyric_source_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_source_subtitle"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <!-- 逐字优先是全局偏好，但用户通常是在「这份歌词没有逐字」时才会想到它，
+         所以开关跟着来源列表走，而不是只放在设置页。 -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/lyricSourceWordLevelSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_source_word_level"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lyricSourceWordLevelHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_word_level_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:id="@+id/lyricSourceList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/lyricSourceScopeHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/lyric_source_scope_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/lyricSourceClose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:text="@string/lyric_adjust_close"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+</LinearLayout>

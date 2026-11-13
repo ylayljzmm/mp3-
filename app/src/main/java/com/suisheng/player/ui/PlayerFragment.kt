@@ -18,17 +18,21 @@ import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.suisheng.player.MusicPlaybackService
 import com.suisheng.player.R
+import com.suisheng.player.SongParcelable
 import com.suisheng.player.data.CoverArtFetcher
 import com.suisheng.player.data.EqSettings
 import com.suisheng.player.data.FavoriteStore
+import com.suisheng.player.data.LyricFileStore
 import com.suisheng.player.data.PerSongLyricPrefs
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.data.SongInfoLoader
 import com.suisheng.player.databinding.DialogLyricSearchBinding
 import com.suisheng.player.databinding.FragmentPlayerBinding
+import com.suisheng.player.lrc.LyricProviderCatalog
 import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
@@ -216,6 +220,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         binding.btnDrawerMenu.setOnClickListener {
             (activity as? MainHost)?.openDrawer()
         }
+        // 5.8.0（需求 4）：歌词调节的常驻入口。以前只能从「更多 → 歌词调节」进，
+        // 听歌时觉得对不上要先点两下才摸到滑杆，这里直接放到顶栏。
+        binding.btnLyricTune.setOnClickListener { openLyricAdjustPanel() }
         binding.btnMore.setOnClickListener { openMorePanel() }
     }
 
@@ -659,11 +666,86 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
             requireContext(),
             onJump = { index -> sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_JUMP, index) },
             onRemove = { index -> sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_REMOVE, index) },
+            onInsert = { index, song -> sendQueueInsert(index, song) },
+            onDeleteFiles = { song -> confirmDeleteLocalFiles(song) },
             onClear = {
                 sendQueueCommand(MusicPlaybackService.ACTION_QUEUE_CLEAR, null)
                 Toast.makeText(requireContext(), R.string.queue_cleared, Toast.LENGTH_SHORT).show()
             },
         )
+    }
+
+    /**
+     * 撤销：把刚移出的那首插回原来的位置。
+     *
+     * 队列面板自己已经把行补回去了，这里只是让后台 `playlist` 跟上 —— 两边必须用同一套
+     * 下标规则（插在当前项之前时当前项后移一位），否则面板里的 ♪ 会和真实播放项错开。
+     */
+    private fun sendQueueInsert(index: Int, song: Song) {
+        runCatching {
+            ContextCompat.startForegroundService(
+                requireContext(),
+                Intent(requireContext(), MusicPlaybackService::class.java).apply {
+                    action = MusicPlaybackService.ACTION_QUEUE_INSERT
+                    putExtra(MusicPlaybackService.EXTRA_INDEX, index)
+                    putParcelableArrayListExtra(
+                        MusicPlaybackService.EXTRA_PLAYLIST,
+                        arrayListOf(SongParcelable.from(song)),
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * 删除本地文件前的**应用内二次确认**。
+     *
+     * 用户裁决：删除只在「刚移出队列的那一首」上开放，且必须先把要删的文件名列出来。
+     * 歌词文件默认勾选（用户就是想清干净），但可以取消 —— 歌留着、歌词删了是不可逆的，
+     * 所以做成显式勾选项而不是静默一起删。
+     */
+    private fun confirmDeleteLocalFiles(song: Song) {
+        val host = activity as? MainHost ?: return
+        val lyrics = LyricFileStore.lyricFileNames(requireContext(), song)
+        val audioName = song.path.substringAfterLast('/').ifBlank { song.title }
+        val message = buildString {
+            append(getString(R.string.queue_delete_files_message_audio, audioName))
+            append("\n\n")
+            if (lyrics.isEmpty()) {
+                append(getString(R.string.queue_delete_files_no_lyric))
+            } else {
+                append(
+                    getString(
+                        R.string.queue_delete_files_message_lyrics,
+                        lyrics.size,
+                        lyrics.joinToString("\n"),
+                    )
+                )
+            }
+        }
+        // 勾选状态在对话框活着的时候被回调修改，所以必须是可变的局部变量。
+        var deleteLyric = lyrics.isNotEmpty()
+        val builder = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.queue_delete_files_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.queue_delete_files) { _, _ ->
+                host.deleteLocalFiles(song, deleteLyric) { ok ->
+                    val ctx = context ?: return@deleteLocalFiles
+                    Toast.makeText(
+                        ctx,
+                        if (ok) R.string.queue_delete_files_done else R.string.queue_delete_files_failed,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+            .setNegativeButton(R.string.common_cancel, null)
+        if (lyrics.isNotEmpty()) {
+            builder.setMultiChoiceItems(
+                arrayOf(getString(R.string.queue_delete_files_also_lyrics)),
+                booleanArrayOf(true),
+            ) { _, _, checked -> deleteLyric = checked }
+        }
+        builder.show()
     }
 
     /** 顶栏「更多」：收藏 / 从队列移除 / 歌曲信息。 */
@@ -706,6 +788,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
                 hasTranslation = document?.hasTranslation == true,
                 hasPhonetic = document?.hasPhonetic == true,
                 providerId = document?.sourceProviderId,
+                providerOverride = perSongLyric.providerOverride(song),
+                sources = buildLyricSourceItems(document?.sourceProviderId, song),
+                wordLevelEnabled = settings.lyricWordLevelEnabled,
             ),
             LyricAdjustPanel.Callbacks(
                 onOffsetChanged = { offsetMs ->
@@ -727,8 +812,66 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
                     refreshLyricStyle()
                 },
                 onRefetch = { refetchFromNextProvider(song) },
+                onPickProvider = { providerId ->
+                    // null = 回到「自动（按顺序尝试）」；非空 = 只优先这一个是
+                    // `SongMetadataLoader` 的既有语义：先试它，取不到再按全局顺序兜底。
+                    perSongLyric.setProviderOverride(song, providerId)
+                    sendAction(MusicPlaybackService.ACTION_RELOAD_LYRICS)
+                    Toast.makeText(requireContext(), R.string.lyric_searching, Toast.LENGTH_SHORT).show()
+                },
+                onToggleWordLevel = { enabled ->
+                    settings.lyricWordLevelEnabled = enabled
+                    // 逐字轨只能从源站重新取 —— 已经落盘的歌词文件里没有逐字信息，
+                    // 所以「打开逐字」必须触发一次重取，不然开关看起来毫无作用。
+                    if (enabled) {
+                        sendAction(MusicPlaybackService.ACTION_RELOAD_LYRICS)
+                        Toast.makeText(requireContext(), R.string.lyric_searching, Toast.LENGTH_SHORT).show()
+                    }
+                },
             ),
         )
+    }
+
+    /**
+     * 把渠道注册表翻译成来源列表要显示的行。
+     *
+     * 能力标签必须来自 [LyricProviderCatalog]，不能在这里再写一份 `when` ——
+     * 设置页的开关、播放页的来源列表、取词器的分发三处必须读同一份元数据，
+     * 否则以后加渠道必然漏掉其中一处。
+     */
+    private fun buildLyricSourceItems(
+        currentProviderId: String?,
+        song: Song,
+    ): List<LyricSourceSheet.Item> {
+        val ctx = context ?: return emptyList()
+        val config = settings.lyricProviderConfig()
+        val override = perSongLyric.providerOverride(song)
+        val items = ArrayList<LyricSourceSheet.Item>(LyricProviderCatalog.all().size + 1)
+        items.add(
+            LyricSourceSheet.Item(
+                id = LyricSourceSheet.AUTO_ID,
+                label = ctx.getString(R.string.lyric_source_auto),
+                abilities = emptyList(),
+                enabled = true,
+                selected = override == null,
+                current = currentProviderId == null,
+            )
+        )
+        LyricProviderCatalog.all().forEach { capability ->
+            items.add(
+                LyricSourceSheet.Item(
+                    id = capability.id,
+                    label = ctx.getString(capability.labelRes),
+                    // 能力文案统一由 LyricSourceSheet 出：它会把「空能力集」翻成「纯文本」，
+                    // 否则 lyrics.ovh 这类渠道在列表里只剩一个名字，用户看不出它没有时间轴。
+                    abilities = LyricSourceSheet.abilityLabels(ctx, capability.abilities),
+                    enabled = config.isEnabled(capability.id),
+                    selected = override == capability.id,
+                    current = currentProviderId == capability.id,
+                )
+            )
+        }
+        return items
     }
 
     /**

@@ -235,7 +235,12 @@ class MusicPlaybackService : MediaSessionService() {
             return START_STICKY
         }
 
-        if (!requiresForeground(action) && playlist.isEmpty() && PlaybackStateHolder.songs.isEmpty()) {
+        // 队列空 + 曲库空时把服务收掉，避免常驻一个什么都不做的前台服务。
+        // `ACTION_QUEUE_INSERT` 必须放行：用户把队列里最后一首删空、再点「撤销」时，
+        // 队列此刻正好是空的 —— 走早退就等于这次撤销被服务直接丢掉，队列永远是空的。
+        if (!requiresForeground(action) && playlist.isEmpty() && PlaybackStateHolder.songs.isEmpty() &&
+            action != ACTION_QUEUE_INSERT
+        ) {
             stopSelfSafely()
             return START_NOT_STICKY
         }
@@ -339,6 +344,11 @@ class MusicPlaybackService : MediaSessionService() {
                     cmd.getStringArrayListExtra(EXTRA_PATHS)?.toHashSet().orEmpty()
                 )
             }
+            ACTION_QUEUE_INSERT -> {
+                val cmd = intent ?: return START_NOT_STICKY
+                val index = cmd.getIntExtra(EXTRA_INDEX, 0)
+                insertIntoQueue(index, readPlaylist(cmd)?.firstOrNull()?.toSong())
+            }
             ACTION_APPLY_EQ -> applyEqualizer()
         }
         return if (playlist.isNotEmpty()) START_STICKY else START_NOT_STICKY
@@ -372,7 +382,7 @@ class MusicPlaybackService : MediaSessionService() {
             ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP,
             ACTION_APPLY_EQ,
             ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR,
-            ACTION_QUEUE_ADD, ACTION_QUEUE_REMOVE_PATHS -> false
+            ACTION_QUEUE_ADD, ACTION_QUEUE_REMOVE_PATHS, ACTION_QUEUE_INSERT -> false
             else -> true
         }
     }
@@ -945,6 +955,36 @@ class MusicPlaybackService : MediaSessionService() {
         persistQueue()
     }
 
+    /**
+     * 把一首歌插回队列的指定位置（[ACTION_QUEUE_INSERT]）。
+     *
+     * 存在的意义只有一个：**撤销上一次删除**。所以它刻意不触发任何播放动作——
+     * 用户刚删了一首又反悔，撤销应该恢复「队列原样」，而不是顺手把播放跳走。
+     *
+     * [index] 用的是删除前的位置快照，队列在删与插之间可能又被别的操作改过
+     * （队列清空、又追加了新歌），所以先 `coerceIn` 夹到合法区间，插到末尾也不会崩。
+     *
+     * 当前项下标修正：插入点若不晚于当前项（`at <= currentIndex`），原来的当前项在列表里
+     * 整体后移了一位，`currentIndex` 必须同步 +1，否则播放页 / 通知会显示成隔壁那首歌。
+     */
+    private fun insertIntoQueue(index: Int, song: Song?) {
+        if (song == null) return
+        // 已经在队列里就不重复插：撤销是一次性的，重复插入会把队列撑出一份副本
+        if (playlist.any { it.path == song.path }) return
+        val at = index.coerceIn(0, playlist.size)
+        playlist = playlist.toMutableList().apply { add(at, song) }
+        if (currentIndex < 0) {
+            // 「把队列删空之后再撤销」这一条：此刻没有当前项，插回来就该让它成为当前项，
+            // 否则队列里有一首歌却没有任何 ♪，点播放也没有确定的目标。
+            currentIndex = at
+        } else if (at <= currentIndex) {
+            currentIndex += 1
+        }
+        refillShuffleQueue()
+        PlaybackStateHolder.notifyQueueChanged(playlist, currentIndex)
+        persistQueue()
+    }
+
     /** 批量移出队列：只从播放队列移除，绝不删文件。 */
     private fun removePathsFromQueue(paths: Set<String>) {
         if (paths.isEmpty() || playlist.isEmpty()) return
@@ -1161,6 +1201,11 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_QUEUE_ADD = "queue_add"
         /** 批量移出队列：`EXTRA_PATHS` = `ArrayList<String>`，只移队列不删文件。 */
         const val ACTION_QUEUE_REMOVE_PATHS = "queue_remove_paths"
+        /**
+         * 撤销删除：`EXTRA_INDEX` = 原来所在的位置，`EXTRA_PLAYLIST` = 单首 `SongParcelable`。
+         * 只把歌插回队列原位，**不起播**。
+         */
+        const val ACTION_QUEUE_INSERT = "queue_insert"
         /** 音效（均衡器）设置变更：无参数，服务读 `EqSettings` 后重新施加到系统音效。不拉前台。 */
         const val ACTION_APPLY_EQ = "apply_eq"
         const val ACTION_STOP = "stop"

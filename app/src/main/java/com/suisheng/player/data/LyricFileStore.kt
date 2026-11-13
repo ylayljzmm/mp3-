@@ -145,6 +145,51 @@ object LyricFileStore {
             File(path).exists()
         }
 
+    /**
+     * 删除这首歌的**全部**歌词文件，包括用户自己放的 `.lrc`。
+     *
+     * 只有「用户显式要求连歌词一起删」时才允许调这里。删除不可恢复，调用方必须
+     * 先弹二次确认，并把 [lyricFileNames] 给的文件名原样列出来，让用户知道自己删了什么。
+     *
+     * @return 实际删掉的文件个数（0 = 这首歌本来就没有歌词文件）。
+     */
+    fun deleteAllLyrics(context: Context, song: Song): Int {
+        var removed = 0
+        if (MediaPath.isStream(song.path)) {
+            if (onlineFile(context, song, LRC).delete()) removed++
+            if (onlineFile(context, song, EXT_MULTI_TRACK).delete()) removed++
+            return removed
+        }
+        // 用 Set 去重：`song.lrcPath` 通常就等于同名 `.lrc`，不去重会重复删、重复计数。
+        lyricTargets(context, song).forEach { if (deleteAtPath(context, it)) removed++ }
+        return removed
+    }
+
+    /** [deleteAllLyrics] 会删掉哪些文件（只给名字，路径不暴露给用户）。 */
+    fun lyricFileNames(context: Context, song: Song): List<String> {
+        if (MediaPath.isStream(song.path)) {
+            return listOf(onlineFile(context, song, LRC), onlineFile(context, song, EXT_MULTI_TRACK))
+                .filter { it.exists() }
+                .map { it.name }
+        }
+        return lyricTargets(context, song).mapNotNull { displayName(context, it) }
+    }
+
+    private fun lyricTargets(context: Context, song: Song): Set<String> {
+        val targets = LinkedHashSet<String>()
+        song.lrcPath?.takeIf { !isMetadataMarker(it) }?.let(targets::add)
+        resolveSidecarPath(context, song)?.let(targets::add)
+        resolveDocumentPath(context, song)?.let(targets::add)
+        return targets
+    }
+
+    private fun displayName(context: Context, path: String): String? =
+        if (path.startsWith("content://")) {
+            DocumentFile.fromSingleUri(context, Uri.parse(path))?.name
+        } else {
+            File(path).name.takeIf { File(path).exists() }
+        }
+
     fun migrateLegacyCache(context: Context, song: Song, cacheDir: File): String? {
         val cache = legacyCacheFile(cacheDir, song)
         if (!cache.exists() || cache.length() == 0L) return null
@@ -261,13 +306,12 @@ object LyricFileStore {
         return doc.uri.takeIf { doc.exists() }?.toString()
     }
 
-    private fun deleteAtPath(context: Context, path: String) {
+    private fun deleteAtPath(context: Context, path: String): Boolean =
         if (path.startsWith("content://")) {
-            DocumentFile.fromSingleUri(context, Uri.parse(path))?.delete()
+            DocumentFile.fromSingleUri(context, Uri.parse(path))?.delete() == true
         } else {
             File(path).delete()
         }
-    }
 
     private fun legacyCacheFile(cacheDir: File, song: Song): File =
         File(File(cacheDir, "lyrics"), "${songKey(song)}.lrc")

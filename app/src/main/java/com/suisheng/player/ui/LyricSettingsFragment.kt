@@ -17,6 +17,7 @@ import com.suisheng.player.R
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.databinding.FragmentLyricSettingsBinding
 import com.suisheng.player.databinding.ItemLyricProviderBinding
+import com.suisheng.player.lrc.LyricProviderCatalog
 import com.suisheng.player.lrc.LyricProviders
 import com.suisheng.player.model.LyricFontFamily
 import com.suisheng.player.model.LyricThemePreset
@@ -288,6 +289,13 @@ class LyricSettingsFragment : Fragment() {
      * 写死就等于把注册表抄了一遍，以后加渠道必然漏改一处。
      */
     private fun bindProviderCard() {
+        // 逐字优先：全局偏好，下一次取词时生效（SongMetadataLoader 读它决定要不要
+        // 向渠道请求逐字轨）。这里只落盘，不重建当前歌词 —— 用户切回来再看等于
+        // 原地换轴，播放进度会跳。
+        binding.switchLyricWordLevel.isChecked = settings.lyricWordLevelEnabled
+        binding.switchLyricWordLevel.setOnCheckedChangeListener { _, checked ->
+            settings.lyricWordLevelEnabled = checked
+        }
         renderProviderRows()
         binding.lyricProviderReset.setOnClickListener {
             settings.saveLyricProviderConfig(settings.lyricProviderConfig().reset())
@@ -303,6 +311,7 @@ class LyricSettingsFragment : Fragment() {
         config.order.forEach { id ->
             val row = ItemLyricProviderBinding.inflate(layoutInflater, container, false)
             row.providerSwitch.text = providerLabelText(id)
+            row.providerAbilities.text = providerAbilityText(id)
             // 先赋初值再挂监听：否则绑定监听时会被当成一次用户操作，把设置写脏。
             row.providerSwitch.isChecked = config.isEnabled(id)
             row.providerSwitch.setOnCheckedChangeListener { _, checked ->
@@ -349,6 +358,18 @@ class LyricSettingsFragment : Fragment() {
         } else {
             label
         }
+    }
+
+    /**
+     * 渠道能力标签（灰色小字）。
+     *
+     * 能力集合与文案都来自注册表 / 来源面板的同一份映射：设置页说这家有译文，
+     * 播放页的来源面板就必须也显示有译文，否则用户会以为其中一处坏了。
+     */
+    private fun providerAbilityText(id: String): String {
+        val capability = LyricProviderCatalog.of(id) ?: return ""
+        return LyricSourceSheet.abilityLabels(requireContext(), capability.abilities)
+            .joinToString(" · ")
     }
 
     // ------------------------------------------------------------ 公共

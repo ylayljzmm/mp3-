@@ -2,17 +2,19 @@ package com.suisheng.player.ui
 
 import android.content.Context
 import android.view.LayoutInflater
+import androidx.core.view.isVisible
 import com.google.android.material.slider.Slider
+import com.google.android.material.tabs.TabLayout
 import com.suisheng.player.R
 import com.suisheng.player.data.PerSongLyricPrefs
 import com.suisheng.player.databinding.PanelLyricAdjustBinding
-import com.suisheng.player.lrc.LyricProviders
+import com.suisheng.player.lrc.LyricProviderCatalog
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
 /**
- * 歌词调节面板（需求 4：快慢 / 翻译 / 注音）。
+ * 歌词调节面板（需求 4：快慢 / 翻译 / 注音；5.8 起多一个「来源」页签）。
  *
  * 与 [SpeedPanel] / [MorePanel] 同模式：`object` + [PanelHost] + ViewBinding。
  * 面板只做「状态 → 控件 + 操作 → 回调」，不碰播放器、不碰存储 —— 落盘和立即生效
@@ -28,6 +30,12 @@ import kotlin.math.roundToLong
  * 滑杆范围 ±5 秒 / 步进 0.1 秒，覆盖「差半拍」这种常见情况；快捷档给 -1.0 / -0.5 /
  * +0.5 / +1.0 四档，因为在车机上摸滑杆很难精确停在某一档。超过 ±5 秒的偏移不是
  * 「快慢」问题而是歌词对错了歌，面板不给入口。
+ *
+ * ## 为什么加页签
+ *
+ * 「同步」和「来源」是两个不同的心智动作：一个是对齐时间，一个是换一家取词。
+ * 竖着堆在一起会让面板超过一屏（车机只有 540~600dp），所以分成两页。
+ * 列表渲染直接复用 [LyricSourceSheet.buildSourceList]，不抄第二份。
  */
 object LyricAdjustPanel {
 
@@ -45,6 +53,13 @@ object LyricAdjustPanel {
         val hasPhonetic: Boolean,
         /** 这份歌词的来源渠道 id（`netease` / `local_file` / …），用于显示来源。 */
         val providerId: String?,
+        // ---- 5.8 新增：全部带默认值，旧调用点不传也能编译 ----
+        /** 用户为这首歌指定的渠道；`null` = 自动（按顺序回落）。 */
+        val providerOverride: String? = null,
+        /** 来源页要显示的列表；空表示宿主还没接上，面板自己用注册表兜底生成。 */
+        val sources: List<LyricSourceSheet.Item> = emptyList(),
+        /** 逐字优先开关的当前值（全局偏好）。 */
+        val wordLevelEnabled: Boolean = false,
     )
 
     /** 用户操作回调。宿主负责落盘并把结果推给四条消费链。 */
@@ -54,21 +69,32 @@ object LyricAdjustPanel {
         val onShowTranslationChanged: (Boolean) -> Unit,
         val onShowPhoneticChanged: (Boolean) -> Unit,
         val onRefetch: () -> Unit,
+        // ---- 5.8 新增，带默认实现，旧调用点不受影响 ----
+        /** 选中某个渠道，`null` = 自动。 */
+        val onPickProvider: (String?) -> Unit = {},
+        /** 逐字优先开关切换。 */
+        val onToggleWordLevel: (Boolean) -> Unit = {},
     )
 
-    /** 渠道 id → 展示名。未知或空一律「未知来源」，不要显示原始 id 给用户看。 */
-    fun providerLabel(context: Context, providerId: String?): String = when (providerId) {
-        null, "" -> context.getString(R.string.lyric_adjust_source_unknown)
-        LyricProviders.NETEASE -> context.getString(R.string.lyric_provider_netease)
-        LyricProviders.LRCLIB -> context.getString(R.string.lyric_provider_lrclib)
-        LyricProviders.KUGOU -> context.getString(R.string.lyric_provider_kugou)
-        LyricProviders.QQ -> context.getString(R.string.lyric_provider_qq)
-        LyricProviders.TEXTYL -> context.getString(R.string.lyric_provider_textyl)
-        LyricProviders.LYRICS_OVH -> context.getString(R.string.lyric_provider_lyrics_ovh)
-        SOURCE_LOCAL -> context.getString(R.string.lyric_provider_local)
-        SOURCE_ONLINE_API -> context.getString(R.string.lyric_provider_online_api)
-        SOURCE_PODCAST -> context.getString(R.string.lyric_provider_podcast)
-        else -> context.getString(R.string.lyric_adjust_source_unknown)
+    /**
+     * 渠道 id → 展示名。未知或空一律「未知来源」，不要显示原始 id 给用户看。
+     *
+     * 先查 [LyricProviderCatalog] 再走 `when` 兜底：注册表才是渠道名的唯一来源，
+     * 这里再硬编码一份的话，每加一个渠道就会漏一个（5.8 的酷我就是这么变成「未知来源」的）。
+     */
+    fun providerLabel(context: Context, providerId: String?): String {
+        if (providerId.isNullOrEmpty()) {
+            return context.getString(R.string.lyric_adjust_source_unknown)
+        }
+        LyricProviderCatalog.of(providerId)?.let { capability ->
+            return context.getString(capability.labelRes)
+        }
+        return when (providerId) {
+            SOURCE_LOCAL -> context.getString(R.string.lyric_provider_local)
+            SOURCE_ONLINE_API -> context.getString(R.string.lyric_provider_online_api)
+            SOURCE_PODCAST -> context.getString(R.string.lyric_provider_podcast)
+            else -> context.getString(R.string.lyric_adjust_source_unknown)
+        }
     }
 
     fun show(context: Context, state: State, callbacks: Callbacks) {
@@ -143,10 +169,74 @@ object LyricAdjustPanel {
         }
         binding.lyricAdjustClose.setOnClickListener { dialog.dismiss() }
 
+        setupTabs(binding)
+        bindSourcePage(context, binding, state, callbacks, dialog)
+
         dialog.show()
     }
 
     // ---------------------------------------------------------------- 内部
+
+    /**
+     * 页签：TabLayout + 两个容器手动 show/hide。
+     *
+     * 不用 ViewPager2：只有两页且不需要滑动手势，ViewPager2 在 Dialog 里还得处理
+     * 「内部 RecyclerView 和外层 NestedScrollView」的测量冲突。容器高度由 XML 的
+     * `measureAllChildren` 固定成两页的最高值，所以切页不会引起面板高度跳变。
+     */
+    private fun setupTabs(binding: PanelLyricAdjustBinding) {
+        val tabs = binding.lyricAdjustTabs
+        tabs.addTab(tabs.newTab().setText(R.string.lyric_adjust_tab_sync))
+        tabs.addTab(tabs.newTab().setText(R.string.lyric_adjust_tab_source))
+        tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) = renderPage(binding, tab.position)
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+        // 监听器是 addTab 之后才挂的，首帧不会收到回调，这里显式渲染一次
+        renderPage(binding, 0)
+    }
+
+    private fun renderPage(binding: PanelLyricAdjustBinding, index: Int) {
+        binding.lyricAdjustSyncPage.isVisible = index == 0
+        binding.lyricAdjustSourcePage.isVisible = index == 1
+    }
+
+    /**
+     * 来源页：列表复用 [LyricSourceSheet.buildSourceList]，点击直接透传给宿主。
+     *
+     * 旧调用点不会传 `state.sources`，所以这里必须能自己兜底生成 —— 空列表只会让
+     * 用户看到一个空白页签，比没有这个页签更糟。
+     */
+    private fun bindSourcePage(
+        context: Context,
+        binding: PanelLyricAdjustBinding,
+        state: State,
+        callbacks: Callbacks,
+        dialog: android.app.Dialog,
+    ) {
+        binding.lyricAdjustSourceWordLevelSwitch.isChecked = state.wordLevelEnabled
+        binding.lyricAdjustSourceWordLevelSwitch.setOnCheckedChangeListener { _, checked ->
+            callbacks.onToggleWordLevel(checked)
+        }
+
+        // current 一律按文档的真实来源重算：调用方传进来的 Item 可能是上一帧的快照
+        val items = state.sources
+            .ifEmpty {
+                LyricSourceSheet.itemsFromCatalog(
+                    context = context,
+                    currentProviderId = state.providerId,
+                    selectedId = state.providerOverride,
+                )
+            }
+            .map { it.copy(current = it.id == state.providerId) }
+
+        LyricSourceSheet.buildSourceList(context, binding.lyricAdjustSourceList, items) { id ->
+            dialog.dismiss()
+            callbacks.onPickProvider(id.takeUnless { it == LyricSourceSheet.AUTO_ID })
+        }
+        binding.lyricAdjustSourceClose.setOnClickListener { dialog.dismiss() }
+    }
 
     /** 快捷档：在当前值上加减，并钳到滑杆范围内（超出滑杆范围的值滑杆表达不了）。 */
     private fun nudged(currentMs: Long, deltaMs: Long): Long =

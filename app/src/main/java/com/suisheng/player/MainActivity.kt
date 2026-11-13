@@ -1,6 +1,7 @@
 package com.suisheng.player
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -9,6 +10,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -18,6 +20,9 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.suisheng.player.data.HiddenFolderStore
+import com.suisheng.player.data.LocalMediaDeleter
+import com.suisheng.player.data.LyricFileStore
+import com.suisheng.player.data.MediaDeleteResult
 import com.suisheng.player.data.PlaybackBootstrap
 import com.suisheng.player.data.PlaylistCache
 import com.suisheng.player.data.SettingsRepository
@@ -115,6 +120,33 @@ class MainActivity : AppCompatActivity(), MainHost {
     private val storagePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { scanMusic() }
+
+    /**
+     * 删除本地文件时被系统拦下的那一首。
+     *
+     * 删除是**两段式**的：API 30+ 只能由系统弹窗删，`deleteAudio()` 先把 `IntentSender`
+     * 交回来，等用户点了「允许」再回调到这里。中间这一段时间的上下文（哪首歌、要不要连歌词、
+     * 结果该回给谁）只能暂存在字段里。
+     */
+    private var pendingDeleteSong: Song? = null
+    private var pendingDeleteLyric = false
+    private var pendingDeleteCallback: ((Boolean) -> Unit)? = null
+
+    private val deleteConsent = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val song = pendingDeleteSong ?: return@registerForActivityResult
+        val deleteLyric = pendingDeleteLyric
+        // 先清现场再干活：收尾里可能再触发别的异步动作，字段留着会被下一次删除误用
+        pendingDeleteSong = null
+        pendingDeleteLyric = false
+        // 弹窗期间用户可能已经退出：此时起 service / 触发扫描都是对着已销毁的界面做事
+        if (isFinishing || isDestroyed) {
+            pendingDeleteCallback = null
+            return@registerForActivityResult
+        }
+        finishDeleteLocalFiles(song, deleteLyric, result.resultCode == Activity.RESULT_OK)
+    }
 
     /**
      * 唯一的返回键处理者：抽屉开着 → 收抽屉；否则 → [goBack]（先让页面退内层，
@@ -579,6 +611,71 @@ class MainActivity : AppCompatActivity(), MainHost {
     }
 
     override fun allSongs(): List<Song> = musicSongs
+
+    // ------------------------------------------------------------ 删除本地文件
+
+    override fun deleteLocalFiles(song: Song, deleteLyric: Boolean, onResult: (Boolean) -> Unit) {
+        when (val result = LocalMediaDeleter.deleteAudio(this, song)) {
+            is MediaDeleteResult.NeedsConsent -> {
+                pendingDeleteSong = song
+                pendingDeleteLyric = deleteLyric
+                pendingDeleteCallback = onResult
+                // launch 本身也会失败（Activity 正在 finish 时），失败必须把回调回掉，
+                // 否则调用方的「删除中」状态永远收不了尾
+                runCatching {
+                    deleteConsent.launch(IntentSenderRequest.Builder(result.intentSender).build())
+                }.onFailure {
+                    pendingDeleteSong = null
+                    pendingDeleteLyric = false
+                    pendingDeleteCallback = null
+                    onResult(false)
+                }
+            }
+            // 同步删完也走同一个收尾方法，所以先把回调放进字段（收尾只认字段）
+            is MediaDeleteResult.Deleted -> {
+                pendingDeleteCallback = onResult
+                finishDeleteLocalFiles(song, deleteLyric, true)
+            }
+            is MediaDeleteResult.Failed -> {
+                android.util.Log.w("MainActivity", "delete audio failed: ${result.reason}")
+                onResult(false)
+            }
+        }
+    }
+
+    /**
+     * 删除收尾：歌词 → 播放队列 → 重新扫库 → 回调。
+     *
+     * 音频没删成就**一定**不碰歌词：只删了歌词、歌还在，比「什么都没删」更糟，
+     * 用户会觉得歌词是凭空消失的。
+     */
+    private fun finishDeleteLocalFiles(song: Song, deleteLyric: Boolean, ok: Boolean) {
+        // 先取出并清空：收尾过程中的任何失败都不该让这个回调被调第二次
+        val callback = pendingDeleteCallback
+        pendingDeleteCallback = null
+        if (!ok) {
+            callback?.invoke(false)
+            return
+        }
+        if (deleteLyric) {
+            runCatching { LyricFileStore.deleteAllLyrics(this, song) }
+                .onSuccess { android.util.Log.d("MainActivity", "deleted $it lyric files") }
+                .onFailure { android.util.Log.w("MainActivity", "delete lyrics failed", it) }
+        }
+        // 队列里还挂着这首歌的话，文件没了以后每次切到它都是一次播放失败，先摘掉
+        runCatching {
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, MusicPlaybackService::class.java).apply {
+                    action = MusicPlaybackService.ACTION_QUEUE_REMOVE_PATHS
+                    putStringArrayListExtra(MusicPlaybackService.EXTRA_PATHS, arrayListOf(song.path))
+                },
+            )
+        }
+        // 曲库是宿主持有的单一数据源：文件变了必须重扫，歌曲列表 / 专辑墙 / 抽屉计数才会一起更新
+        scanMusic(null)
+        callback?.invoke(true)
+    }
 
     /**
      * 重算「原始曲库 − 隐藏目录」并刷新 UI。

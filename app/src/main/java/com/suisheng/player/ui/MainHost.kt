@@ -31,6 +31,14 @@ interface MainHost {
     fun allSongs(): List<Song>
 
     /**
+     * 删除一首本地歌曲的文件。
+     *
+     * @param deleteLyric 是否连同歌词文件（含用户手放的 `.lrc`）一起删
+     * @param onResult 结果回调，**主线程**，true 表示音频文件确实已删除
+     */
+    fun deleteLocalFiles(song: Song, deleteLyric: Boolean, onResult: (Boolean) -> Unit)
+
+    /**
      * 隐藏/恢复文件夹之后重算「可见曲库」并刷新受影响 UI（抽屉计数、首页列表、当前页）。
      *
      * 走宿主而不是让每个页面自己过滤：曲库是宿主持有的单一数据源，

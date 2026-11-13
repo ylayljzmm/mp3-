@@ -84,4 +84,70 @@
         android:textSize="14sp"
         android:visibility="gone" />
 
+    <!--
+      移出一行之后才出现的两步操作条。
+
+      为什么不做成「删除时弹一个对话框问要不要删文件」：用户点 × 的意图绝大多数只是
+      「这首这次不想听了」，立刻弹框会打断连续整理队列的节奏。改成「先移出、再在下方
+      给一个可选动作」——不点就什么都不发生，点了才进二次确认，删除不可恢复的东西
+      一律要求显式两步。
+    -->
+    <LinearLayout
+        android:id="@+id/queueActionBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="12dp"
+        android:background="?attr/colorSurfaceContainerHigh"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/queueActionHint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="已移出：晴天" />
+
+        <TextView
+            android:id="@+id/btnQueueUndo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="10dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="10dp"
+            android:text="@string/queue_undo"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/btnQueueDeleteFiles"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="10dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="10dp"
+            android:text="@string/queue_delete_files"
+            android:textColor="?attr/colorError"
+            android:textSize="14sp" />
+    </LinearLayout>
+
 </LinearLayout>

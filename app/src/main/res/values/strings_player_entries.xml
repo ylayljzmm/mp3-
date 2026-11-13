@@ -11,11 +11,28 @@
     <!-- 队列面板 -->
     <string name="queue_title">播放队列</string>
     <string name="queue_count">共 %1$d 首</string>
+    <!-- 队列里有正在播放的歌时，头部同时报出它排第几首：用户点开队列就是为了确认这个位置。 -->
+    <string name="queue_count_current">共 %1$d 首 · 正在播放第 %2$d 首</string>
     <string name="queue_clear">清空</string>
     <string name="queue_clear_confirm">清空后当前播放也会停止，确定要清空播放队列吗？</string>
     <string name="queue_empty">播放队列是空的</string>
     <string name="queue_remove">移出队列</string>
     <string name="queue_cleared">已清空队列</string>
+
+    <!-- 移出后的两步操作条（撤销 / 删除文件） -->
+    <string name="queue_removed_hint">已移出：%1$s</string>
+    <string name="queue_undo">撤销</string>
+    <string name="queue_delete_files">删除文件</string>
+    <string name="queue_delete_files_title">删除本地文件</string>
+    <string name="queue_delete_files_message_audio">音频：%1$s</string>
+    <string name="queue_delete_files_message_lyrics">歌词（%1$d 个）：\n%2$s</string>
+    <string name="queue_delete_files_also_lyrics">同时删除歌词文件</string>
+    <string name="queue_delete_files_no_lyric">这首歌没有歌词文件</string>
+    <string name="queue_delete_files_done">已删除</string>
+    <string name="queue_delete_files_failed">删除失败，文件可能已被其他应用占用</string>
+
+    <!-- 歌词来源选择（播放页「调」→「来源」页；文案与队列无关，放这里是为了不和并行改动冲突） -->
+    <string name="lyric_source_auto">自动（按顺序尝试）</string>
 
     <!-- 收藏 -->
     <string name="favorite_add">收藏</string>

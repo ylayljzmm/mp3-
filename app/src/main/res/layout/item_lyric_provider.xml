@@ -4,6 +4,9 @@
 
   用行内两个字符按钮而不是长按拖拽排序：车机上拖拽的命中率和误触都不可控，
   上下移按钮点一次只动一位，出错了再点回去就行。
+
+  渠道名下面挂一行能力标签（逐字 / 译文 / 时间轴 / 纯文本）：用户关掉一个渠道前
+  需要知道它本来能给什么，否则「关掉歌词质量最好的那家」这种决定只能靠猜。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -12,14 +15,29 @@
     android:minHeight="48dp"
     android:orientation="horizontal">
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/providerSwitch"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:minHeight="48dp"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="14sp" />
+        android:orientation="vertical">
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/providerSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/providerAbilities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="4dp"
+            android:paddingBottom="6dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/providerUp"

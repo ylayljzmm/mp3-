@@ -64,6 +64,18 @@
     <string name="lyric_word_level_on">已开启逐字</string>
     <string name="lyric_word_level_off">逐行显示</string>
 
+    <!-- 歌词来源面板 / 歌词调节面板的「来源」页签 -->
+    <string name="lyric_source_title">歌词来源</string>
+    <string name="lyric_source_subtitle">优先使用选中的来源；它没有这首歌的歌词时自动按顺序回落</string>
+    <string name="lyric_source_current">当前</string>
+    <string name="lyric_source_disabled">已关闭</string>
+    <string name="lyric_source_word_level">逐字优先</string>
+    <string name="lyric_source_scope_hint">仅对当前歌曲生效</string>
+    <string name="lyric_source_settings_hint">全部渠道与开关：设置 → 歌词设置</string>
+    <string name="lyric_adjust_tab_sync">同步</string>
+    <string name="lyric_adjust_tab_source">来源</string>
+    <string name="lyric_tune_button">调</string>
+
     <!-- 前奏 / 间奏提示 -->
     <string name="lyric_phase_prelude">前奏</string>
     <string name="lyric_phase_interlude">间奏</string>
