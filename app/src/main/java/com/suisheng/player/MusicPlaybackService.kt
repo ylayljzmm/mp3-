@@ -1166,7 +1166,7 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_STOP = "stop"
         /**
          * 冷启动预热：只恢复落盘队列 + 建媒体会话，不播放、不建前台通知。
-         * 由 `MP3PlayerApp.onCreate()` 发出，让 App 首帧就有可播的内容与可控制的会话。
+         * 由 `SuishengApp.onCreate()` 发出，让 App 首帧就有可播的内容与可控制的会话。
          */
         const val ACTION_ENSURE_SESSION = "ensure_session"
         const val EXTRA_INDEX = "index"

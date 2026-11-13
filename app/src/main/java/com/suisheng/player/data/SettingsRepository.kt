@@ -201,6 +201,16 @@ class SettingsRepository(context: Context) {
     fun lyricProviderConfig(): LyricProviderConfig =
         LyricProviderConfig.parse(lyricProviderOrderCsv, lyricProviderDisabledCsv)
 
+    /**
+     * 是否优先请求**逐字**轨（默认开）。
+     *
+     * 开：向支持逐字的渠道（目前只有网易云 `yrc`）额外要一条逐字轨，拿到就按字擦除；
+     * 关：只请求逐行轨，省掉一次较大字段的传输，歌词退化为逐行高亮。
+     */
+    var lyricWordLevelEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LYRIC_WORD_LEVEL, true)
+        set(value) = prefs.edit { putBoolean(KEY_LYRIC_WORD_LEVEL, value) }
+
     fun saveLyricProviderConfig(config: LyricProviderConfig) {
         prefs.edit {
             putString(KEY_LYRIC_PROVIDER_ORDER, config.orderCsv())
@@ -579,6 +589,8 @@ class SettingsRepository(context: Context) {
         const val KEY_LYRIC_PROVIDER_ORDER = "lyric_provider_order"
         /** 关掉的联网歌词渠道（逗号分隔 id），见 [lyricProviderDisabledCsv]。 */
         const val KEY_LYRIC_PROVIDER_DISABLED = "lyric_provider_disabled"
+        /** 逐字歌词优先（默认开）。关掉后只请求逐行轨，省一次较大字段的传输。 */
+        const val KEY_LYRIC_WORD_LEVEL = "lyric_word_level"
         const val KEY_ONLINE_COVER = "online_cover"
         const val KEY_SKIP_VIP = "skip_unplayable_vip"
         const val KEY_PODCAST_DESC = "podcast_show_desc"

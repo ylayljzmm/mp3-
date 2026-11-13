@@ -24,6 +24,21 @@ object LrcParser {
     /** 附加轨与原文行的时间戳容差：平台译文轨常有几十毫秒取整差。 */
     private const val TRACK_TOLERANCE_MS = 120L
 
+    /** 每个可唱歌词字的估算演唱时长。中文慢歌约 200–260ms/字，取中值。 */
+    private const val PER_CHAR_MS = 220L
+
+    /** 一行至少占用的演唱时长，避免短句被算得一闪而过。 */
+    private const val MIN_SING_MS = 600L
+
+    /** 行尾保护带：下一次开唱前这么长的时间不允许再"擦"，否则会擦进间奏。 */
+    private const val INTERLUDE_GUARD_MS = 800L
+
+    /** 行距小于这个值时认为没有间奏可吞，按老行为直接取行尾。 */
+    private const val TIGHT_LINE_MS = 900L
+
+    /** 最后一行的兜底行尾（没有下一行可参照时）。 */
+    private const val TAIL_MS = 8_000L
+
     fun parseFile(lrcFile: File): List<LrcLine> = parseContent(lrcFile.readText())
 
     fun fromPlainText(text: String): List<LrcLine> {
@@ -107,24 +122,58 @@ object LrcParser {
     private fun assignEndTimes(lines: List<LrcLine>): List<LrcLine> {
         if (lines.isEmpty()) return emptyList()
         return lines.mapIndexed { index, line ->
-            val end = if (index < lines.lastIndex) {
+            // 行尾仍取下一行起点：滚动定位、行切换都靠它，语义不变。
+            val nextStart = if (index < lines.lastIndex) {
                 lines[index + 1].startTimeMs
             } else {
-                line.startTimeMs + 8000L
+                line.startTimeMs + TAIL_MS
             }
+            // 但"唱完"要单独算：行尾包含行后的间奏/尾奏，不能拿它当演唱时长。
+            val singEnd = resolveSingEnd(line, nextStart)
             val chars = if (line.chars.all { it.startTimeMs == line.startTimeMs }) {
-                distributeCharTimes(line.chars, line.startTimeMs, end)
+                distributeCharTimes(line.chars, line.startTimeMs, singEnd)
             } else {
                 val adjusted = line.chars.toMutableList()
                 for (i in adjusted.indices) {
-                    val nextStart = adjusted.getOrNull(i + 1)?.startTimeMs ?: end
-                    adjusted[i] = adjusted[i].copy(startTimeMs = adjusted[i].startTimeMs.coerceAtMost(nextStart))
+                    val nextCharStart = adjusted.getOrNull(i + 1)?.startTimeMs ?: singEnd
+                    adjusted[i] = adjusted[i].copy(
+                        startTimeMs = adjusted[i].startTimeMs.coerceAtMost(nextCharStart),
+                    )
                 }
                 adjusted
             }
-            line.copy(chars = chars, endTimeMs = end)
+            line.copy(chars = chars, endTimeMs = nextStart, singEndMs = singEnd)
         }
     }
+
+    /**
+     * 本行演唱结束时刻。
+     *
+     * 有逐字真值（增强标签 / yrc）时以末字为准；否则按可唱字符数估算，
+     * 并在下一次开唱前留出 [INTERLUDE_GUARD_MS] 的保护带 ——
+     * 保证末字一定在下行开唱前停住，不会"擦到间奏里"。
+     *
+     * 行距本来就紧（≤ [TIGHT_LINE_MS]）时不估算，直接取行尾：
+     * 那种情况没有间奏可吞，保持 5.7.3 的手感。
+     */
+    private fun resolveSingEnd(line: LrcLine, nextStart: Long): Long {
+        val start = line.startTimeMs
+        val gap = (nextStart - start).coerceAtLeast(1L)
+        if (line.hasEnhancedWordTiming && line.chars.isNotEmpty()) {
+            val lastCharEnd = line.chars.last().startTimeMs + PER_CHAR_MS
+            return lastCharEnd.coerceIn(start, nextStart)
+        }
+        if (gap <= TIGHT_LINE_MS) return nextStart
+        val lower = start + MIN_SING_MS
+        val upper = nextStart - INTERLUDE_GUARD_MS
+        if (upper <= lower) return nextStart
+        val estimate = start + singableCount(line.chars) * PER_CHAR_MS
+        return estimate.coerceIn(lower, upper)
+    }
+
+    private fun singableCount(chars: List<LrcChar>): Int =
+        chars.count { it.char.trim().isNotEmpty() && !isPunctuation(it.char) }
+            .coerceAtLeast(1)
 
     private fun distributeCharTimes(chars: List<LrcChar>, startMs: Long, endMs: Long): List<LrcChar> {
         if (chars.isEmpty()) return emptyList()
@@ -132,7 +181,7 @@ object LrcParser {
         if (singable.isEmpty()) {
             return chars.map { it.copy(startTimeMs = startMs) }
         }
-        val duration = (endMs - startMs).coerceAtLeast(500L)
+        val duration = (endMs - startMs).coerceAtLeast(MIN_SING_MS / 2)
         val step = duration / singable.size
         var singableIndex = 0
         return chars.map { ch ->
@@ -182,18 +231,30 @@ object LrcParser {
             // 只在文档层剥离，parseContent 的返回保持原样（旧链行为不变）。
             val rawText = line.text
             val stripped = WORD_TAG_PATTERN.matcher(rawText).replaceAll("")
-            val chars = if (stripped == rawText) {
-                line.chars
-            } else {
-                stripped.map { LrcChar(it.toString(), line.startTimeMs) }
-            }
             val wordTimings = parseEnhancedWordTags(rawText)
+            // 标签个数与剥离后的字数一一对应时，直接按位赋给每个字 ——
+            // 这样逐字时间戳既能从增强 LRC 恢复，也能从 yrc 序列化后的文件恢复。
+            val perCharTiming = wordTimings.size == stripped.length && stripped.isNotEmpty()
+            val chars = when {
+                perCharTiming -> stripped.indices.map { i ->
+                    LrcChar(stripped[i].toString(), wordTimings[i])
+                }
+                stripped == rawText -> line.chars
+                else -> stripped.map { LrcChar(it.toString(), line.startTimeMs) }
+            }
+            val singEnd = if (perCharTiming) {
+                val last = wordTimings.last()
+                (last + PER_CHAR_MS).coerceAtMost(maxOf(line.endTimeMs, last)).coerceAtLeast(last)
+            } else {
+                line.singEndMs
+            }
             line.copy(
                 chars = chars,
                 translation = matchTrack(translation, line.startTimeMs),
                 phonetic = matchTrack(phonetic, line.startTimeMs),
                 wordTimings = wordTimings,
                 hasEnhancedWordTiming = wordTimings.isNotEmpty(),
+                singEndMs = singEnd,
             )
         }
 
@@ -234,7 +295,17 @@ object LrcParser {
 
         for (line in doc.lines) {
             val time = formatTime(line.startTimeMs)
-            sb.append('[').append(time).append(']').append(line.text).append('\n')
+            // 逐字行用标准增强标签（`<mm:ss.xx>`）把每个字的时间戳写进正文：
+            // 这是解析器本来就认识的语法，老版本读到只会当成普通文本，
+            // 不需要给 `.lrcx` 升版本，也不会触发任何迁移。
+            val body = if (line.hasEnhancedWordTiming && line.chars.isNotEmpty()) {
+                line.chars.joinToString("") { ch ->
+                    "<" + formatTime(ch.startTimeMs) + ">" + ch.char
+                }
+            } else {
+                line.text
+            }
+            sb.append('[').append(time).append(']').append(body).append('\n')
             line.translation?.takeIf { it.isNotBlank() }?.let {
                 sb.append(PREFIX_TRANSLATION).append(time).append(' ').append(it).append('\n')
             }

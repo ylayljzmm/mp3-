@@ -5,7 +5,7 @@ import android.content.Intent
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.util.CrashLogger
 
-class MP3PlayerApp : Application() {
+class SuishengApp : Application() {
     override fun onCreate() {
         super.onCreate()
         // Install first: anything after this point can be captured if it throws.

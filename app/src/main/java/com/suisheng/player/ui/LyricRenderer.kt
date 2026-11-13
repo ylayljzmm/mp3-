@@ -332,26 +332,42 @@ object LyricRenderer {
         return x
     }
 
+    /**
+     * 本行的**演唱窗口**长度（毫秒）。
+     *
+     * 用 [LrcLine.effectiveSingEndMs] 而不是 [LrcLine.endTimeMs]：后者是下一行起点，
+     * 包含行后的间奏。以前所有「算不出来就平均分」的地方都拿它当分母，
+     * 于是间奏越长、末字擦得越慢 —— 表现为「前奏/间奏时最后一个字还在一点点擦」，
+     * 正是 5.8.0 要修的原始症状。
+     */
+    private fun singingSpan(line: LrcLine): Long {
+        val start = line.startTimeMs
+        val end = line.effectiveSingEndMs.coerceAtLeast(start)
+        return (end - start).coerceAtLeast(1L)
+    }
+
     private fun charStartMs(line: LrcLine, index: Int): Long {
         val chars = line.chars
         if (index in chars.indices && (index == 0 || chars[index].startTimeMs > chars[index - 1].startTimeMs)) {
             return chars[index].startTimeMs
         }
         val count = chars.size.coerceAtLeast(1)
-        val duration = (line.endTimeMs - line.startTimeMs).coerceAtLeast(count.toLong())
-        val slot = duration / count
-        return line.startTimeMs + slot * index
+        val slot = singingSpan(line) / count
+        return (line.startTimeMs + slot * index).coerceAtMost(line.effectiveSingEndMs)
     }
 
     private fun charEndMs(line: LrcLine, index: Int): Long {
         val chars = line.chars
+        val singEnd = line.effectiveSingEndMs
         if (index + 1 < chars.size && chars[index + 1].startTimeMs > chars[index].startTimeMs) {
-            return chars[index + 1].startTimeMs
+            return chars[index + 1].startTimeMs.coerceAtMost(singEnd)
         }
+        // 末字（以及少数共用同一时间戳的字）：在**演唱结束**处收口，绝不等到行尾。
+        // 逐字轨给的 singEnd = 末字起 + 末字时长，所以这里等于精确还原平台的真值。
         val count = chars.size.coerceAtLeast(1)
-        val duration = (line.endTimeMs - line.startTimeMs).coerceAtLeast(count.toLong())
-        val slot = duration / count
-        return charStartMs(line, index) + slot
+        val slot = singingSpan(line) / count
+        val start = charStartMs(line, index)
+        return (start + slot).coerceAtMost(singEnd).coerceAtLeast(start)
     }
 
     fun drawWrappedStaticLine(

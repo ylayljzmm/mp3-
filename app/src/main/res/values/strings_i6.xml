@@ -45,9 +45,26 @@
     <string name="lyric_provider_lrclib">LRCLIB</string>
     <string name="lyric_provider_kugou">酷狗音乐</string>
     <string name="lyric_provider_qq">QQ 音乐</string>
+    <string name="lyric_provider_kuwo">酷我音乐</string>
     <string name="lyric_provider_textyl">Textyl</string>
     <string name="lyric_provider_lyrics_ovh">Lyrics.ovh</string>
     <string name="lyric_provider_local">本地歌词文件</string>
     <string name="lyric_provider_online_api">在线曲库</string>
     <string name="lyric_provider_podcast">播客简介</string>
+
+    <!-- 渠道能力标签 -->
+    <string name="lyric_ability_char_level">逐字</string>
+    <string name="lyric_ability_translation">译文</string>
+    <string name="lyric_ability_timeline">时间轴</string>
+    <string name="lyric_ability_plain">纯文本</string>
+
+    <!-- 逐字歌词 -->
+    <string name="lyric_word_level_title">逐字歌词</string>
+    <string name="lyric_word_level_hint">优先向支持的渠道请求逐字时间轴，唱到哪个字就亮到哪个字；没有逐字轨时自动回落到逐行。</string>
+    <string name="lyric_word_level_on">已开启逐字</string>
+    <string name="lyric_word_level_off">逐行显示</string>
+
+    <!-- 前奏 / 间奏提示 -->
+    <string name="lyric_phase_prelude">前奏</string>
+    <string name="lyric_phase_interlude">间奏</string>
 </resources>

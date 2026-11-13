@@ -37,7 +37,8 @@ class LyricProviderConfigTest {
 
     @Test
     fun legacyOrderGetsNewProvidersAppended() {
-        // 模拟 5.6.1 时代只认 netease/lrclib：新版多出来的 textyl、lyrics_ovh 必须自动补上。
+        // 模拟 5.6.1 时代只认 netease/lrclib：新版多出来的渠道必须自动补上，
+        // 且顺序严格等于出厂顺序，否则升级后老用户看不到新渠道、等于白加。
         val config = LyricProviderConfig.parse("lrclib,netease", null)
         assertEquals(
             listOf(
@@ -45,6 +46,7 @@ class LyricProviderConfigTest {
                 LyricProviders.NETEASE,
                 LyricProviders.KUGOU,
                 LyricProviders.QQ,
+                LyricProviders.KUWO,
                 LyricProviders.TEXTYL,
                 LyricProviders.LYRICS_OVH,
             ),
@@ -62,12 +64,24 @@ class LyricProviderConfigTest {
                 LyricProviders.KUGOU,
                 LyricProviders.NETEASE,
                 LyricProviders.LRCLIB,
+                LyricProviders.KUWO,
                 LyricProviders.TEXTYL,
                 LyricProviders.LYRICS_OVH,
             ),
             config.order,
         )
         assertTrue(config.disabled.isEmpty())
+    }
+
+    @Test
+    fun kuwoJoinedTheRegistry() {
+        // 酷我是 5.8.0 新增渠道：必须在已知集合里，出厂即启用，且排在酷狗/QQ 之后。
+        assertTrue(LyricProviders.isKnown(LyricProviders.KUWO))
+        assertTrue(LyricProviderConfig().isEnabled(LyricProviders.KUWO))
+        val index = LyricProviders.defaultOrder.indexOf(LyricProviders.KUWO)
+        assertTrue(index > LyricProviders.defaultOrder.indexOf(LyricProviders.QQ))
+        assertTrue(index < LyricProviders.defaultOrder.indexOf(LyricProviders.TEXTYL))
+        assertTrue(LyricProviderCatalog.of(LyricProviders.KUWO) != null)
     }
 
     @Test

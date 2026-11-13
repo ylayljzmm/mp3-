@@ -4,6 +4,7 @@ import com.suisheng.player.lrc.LrcParser
 import com.suisheng.player.lrc.LyricDocument
 import com.suisheng.player.lrc.LyricProviderConfig
 import com.suisheng.player.lrc.LyricProviders
+import com.suisheng.player.lrc.YrcParser
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -46,6 +47,8 @@ class OnlineLyricFetcher {
         artist: String,
         config: LyricProviderConfig = LyricProviderConfig(),
         onlyProviderId: String? = null,
+        /** 是否优先请求逐字轨（目前只有网易云支持）。关掉可省一次大字段的传输。 */
+        preferWordLevel: Boolean = true,
     ): LyricFetchOutcome? {
         val providerIds = onlyProviderId
             ?.takeIf { LyricProviders.isKnown(it) }
@@ -56,7 +59,7 @@ class OnlineLyricFetcher {
         for ((track, singer) in buildSearchQueries(title, artist)) {
             var weak: LyricFetchOutcome? = null
             for (id in providerIds) {
-                val result = runCatching { fetchFrom(id, track, singer) }.getOrNull() ?: continue
+                val result = runCatching { fetchFrom(id, track, singer, preferWordLevel) }.getOrNull() ?: continue
                 if (result.document.lines.isEmpty()) continue
                 val outcome = LyricFetchOutcome(result.document, id)
                 if (result.timed) return outcome
@@ -73,11 +76,17 @@ class OnlineLyricFetcher {
     /** 单次渠道结果。[timed] = 是否带真实时间轴（纯文本渠道为 false）。 */
     private data class ProviderResult(val document: LyricDocument, val timed: Boolean)
 
-    private fun fetchFrom(id: String, title: String, artist: String): ProviderResult? = when (id) {
-        LyricProviders.NETEASE -> fetchFromNetease(title, artist)
+    private fun fetchFrom(
+        id: String,
+        title: String,
+        artist: String,
+        preferWordLevel: Boolean,
+    ): ProviderResult? = when (id) {
+        LyricProviders.NETEASE -> fetchFromNetease(title, artist, preferWordLevel)
         LyricProviders.LRCLIB -> fetchFromLrcLib(title, artist)
         LyricProviders.KUGOU -> fetchFromKugou(title, artist)
         LyricProviders.QQ -> fetchFromQqMusic(title, artist)
+        LyricProviders.KUWO -> fetchFromKuwo(title, artist)
         LyricProviders.TEXTYL -> fetchFromTextyl(title, artist)
         LyricProviders.LYRICS_OVH -> fetchFromLyricsOvh(title, artist)
         else -> null
@@ -85,7 +94,11 @@ class OnlineLyricFetcher {
 
     // ---------------------------------------------------------------- 网易云
 
-    private fun fetchFromNetease(title: String, artist: String): ProviderResult? {
+    private fun fetchFromNetease(
+        title: String,
+        artist: String,
+        preferWordLevel: Boolean,
+    ): ProviderResult? {
         val keyword = if (isUsefulArtist(artist)) "$title $artist" else title
         val searchUrl =
             "https://music.163.com/api/search/get/web?s=${encode(keyword)}&type=1&offset=0&limit=12"
@@ -114,16 +127,37 @@ class OnlineLyricFetcher {
         }
         if (bestId <= 0L || bestScore < 3) return null
 
-        // lv=1 原文轨，tv=-1 译文轨，rv=-1 罗马音（注音）轨。
-        val lyricUrl = "https://music.163.com/api/song/lyric?id=$bestId&lv=1&kv=1&tv=-1&rv=-1"
+        // lv=1 原文轨，tv=-1 译文轨，rv=-1 罗马音（注音）轨，yv=-1 逐字轨。
+        // yv 不加时接口不会返回 `yrc` 字段，逐字就永远拿不到 —— 这是旧实现漏掉的一处。
+        val lyricUrl = "https://music.163.com/api/song/lyric?id=$bestId&lv=1&kv=1&tv=-1&rv=-1&yv=-1"
         val lyricJson = httpGetText(lyricUrl, headers)?.let { runCatching { JSONObject(it) }.getOrNull() }
             ?: return null
+
+        val translation = lyricJson.optJSONObject("tlyric")?.optString("lyric")
+        val phonetic = lyricJson.optJSONObject("romalrc")?.optString("lyric")
+
+        // 逐字轨优先：yrc 带每一行、每个字的起止毫秒，是「KTV 字字对应」的唯一真数据源。
+        // 它不保证每首歌都有，也不保证格式规整，所以任何一步不像 yrc 就静默回落到 lrc。
+        if (preferWordLevel) {
+            val yrc = lyricJson.optJSONObject("yrc")?.optString("lyric")
+            if (YrcParser.looksLikeYrc(yrc.orEmpty())) {
+                val wordLines = runCatching { YrcParser.parse(yrc!!) }.getOrDefault(emptyList())
+                if (wordLines.isNotEmpty()) {
+                    val wordDoc = LyricDocument.singleTrack(wordLines)
+                        .copy(sourceProviderId = LyricProviders.NETEASE)
+                    val mergedWord = LrcParser.mergePhonetic(
+                        LrcParser.mergeTranslation(wordDoc, translation),
+                        phonetic,
+                    )
+                    return ProviderResult(mergedWord, timed = true)
+                }
+            }
+        }
+
         val synced = lyricJson.optJSONObject("lrc")?.optString("lyric")?.takeIf { it.isNotBlank() }
             ?: return null
 
         val base = docFromLrc(synced, LyricProviders.NETEASE) ?: return null
-        val translation = lyricJson.optJSONObject("tlyric")?.optString("lyric")
-        val phonetic = lyricJson.optJSONObject("romalrc")?.optString("lyric")
         val merged = LrcParser.mergePhonetic(
             LrcParser.mergeTranslation(base.document, translation),
             phonetic,
@@ -281,6 +315,82 @@ class OnlineLyricFetcher {
         return base.copy(document = LrcParser.mergeTranslation(base.document, trans))
     }
 
+    // ---------------------------------------------------------------- 酷我
+
+    /**
+     * 酷我：两步走，先搜 rid 再取 `lrclist`。
+     *
+     * 这条链路是实测下来唯一稳定的：`www.kuwo.cn/api/www/music/lyric` 会因为缺 csrf
+     * 直接返回 `{"success":false,"message":"The request is illegal!"}`；
+     * `player.kuwo.cn/webmusic/st/getNewMuiseByRid` 会 302 到 SPA 页面；
+     * `newlyric.kuwo.cn/newlyric.lrc` 直接 `TP=DENY REQUEST`。
+     *
+     * 搜索接口返回的是**单引号伪 JSON**（`{'SONGNAME':'晴天',...}`），不能直接喂 `JSONObject`，
+     * 所以按 `'AARTIST':'` 切条、再用正则取需要的三个字段。
+     */
+    private fun fetchFromKuwo(title: String, artist: String): ProviderResult? {
+        val keyword = if (isUsefulArtist(artist)) "$title $artist" else title
+        val searchUrl = buildString {
+            append("https://search.kuwo.cn/r.s?all=").append(encode(keyword))
+            append("&ft=music&itemset=web_2013&client=kt&pn=0&rn=12&rformat=json&encoding=utf8")
+        }
+        val raw = httpGetText(searchUrl) ?: return null
+        val items = splitKuwoItems(raw)
+        if (items.isEmpty()) return null
+
+        var bestRid = 0L
+        var bestScore = -1
+        for (item in items) {
+            val songName = unescapeNamedEntities(regexField(item, "SONGNAME"))
+            val singer = unescapeNamedEntities(regexField(item, "ARTIST"))
+            val rid = regexField(item, "DC_TARGETID").toLongOrNull() ?: continue
+            if (rid <= 0L) continue
+            val score = similarity(title, songName) * 3 +
+                if (isUsefulArtist(artist)) similarity(artist, singer) * 2 else 0
+            if (score > bestScore) {
+                bestScore = score
+                bestRid = rid
+            }
+        }
+        if (bestRid <= 0L || bestScore < 3) return null
+
+        val lyricUrl = "https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=$bestRid&httpsStatus=1"
+        val body = httpGetText(lyricUrl, mapOf("Referer" to "https://m.kuwo.cn/")) ?: return null
+        val list = runCatching { JSONObject(body) }.getOrNull()
+            ?.optJSONObject("data")
+            ?.optJSONArray("lrclist")
+            ?: return null
+        if (list.length() == 0) return null
+
+        val entries = buildList {
+            for (i in 0 until list.length()) {
+                val item = list.optJSONObject(i) ?: continue
+                val text = unescapeNamedEntities(item.optString("lineLyric")).trim()
+                if (text.isEmpty()) continue
+                val seconds = item.optString("time").toDoubleOrNull() ?: continue
+                if (seconds < 0.0) continue
+                add((seconds * 1000.0).toLong() to text)
+            }
+        }.sortedBy { it.first }
+        if (entries.isEmpty()) return null
+
+        val lrcText = entries.joinToString("\n") { (ms, text) -> "[${timestamp(ms)}]$text" }
+        return docFromLrc(lrcText, LyricProviders.KUWO)
+    }
+
+    /** 按 `'AARTIST':'` 把伪 JSON 切成一条条歌曲记录。 */
+    private fun splitKuwoItems(raw: String): List<String> {
+        val starts = Regex("'AARTIST':'").findAll(raw).map { it.range.first }.toList()
+        if (starts.isEmpty()) return emptyList()
+        return starts.mapIndexed { index, start ->
+            val end = if (index + 1 < starts.size) starts[index + 1] else raw.length
+            raw.substring(start, end)
+        }
+    }
+
+    private fun regexField(chunk: String, field: String): String =
+        Regex("'$field':'([^']*)'").find(chunk)?.groupValues?.get(1).orEmpty()
+
     // ---------------------------------------------------------------- textyl
 
     /**
@@ -377,6 +487,23 @@ class OnlineLyricFetcher {
             (centis / 100L) % 60L,
             centis % 100L,
         )
+    }
+
+    /**
+     * 常见**命名实体**（酷我搜索接口里歌名、歌手大量出现 `&nbsp;`）。
+     *
+     * 只处理几个真会撞上的，剩下的交给 [unescapeNumericEntities]。
+     */
+    private fun unescapeNamedEntities(text: String): String {
+        if (text.isEmpty() || !text.contains('&')) return text
+        val replaced = text
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+        return unescapeNumericEntities(replaced).replace('\u00A0', ' ').trim()
     }
 
     private fun unescapeNumericEntities(text: String): String {

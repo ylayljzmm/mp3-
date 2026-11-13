@@ -106,19 +106,44 @@ object LyricFileStore {
 
     // ---------------------------------------------------------------- 删除 / 迁移
 
-    fun delete(context: Context, song: Song) {
-        song.lrcPath?.let { path ->
-            if (!isMetadataMarker(path)) {
-                deleteAtPath(context, path)
-            }
-        }
+    /**
+     * 删除 **本 App 生成的** 歌词文件。
+     *
+     * 只清 `.lrcx` 与在线缓存。用户自己放进音频同目录的 `.lrc` **绝不在这里删** ——
+     * 那是用户的数据，误删不可恢复（旧实现会删，导致「重新联网获取」把用户手写的歌词弄丢）。
+     * 真要连 `.lrc` 一起删，走带二次确认的删除流程，见 [LocalMediaDeleter]。
+     */
+    fun deleteGenerated(context: Context, song: Song) {
         if (MediaPath.isStream(song.path)) {
             onlineFile(context, song, LRC).delete()
             onlineFile(context, song, EXT_MULTI_TRACK).delete()
+            return
         }
-        resolveSidecarPath(context, song)?.let { deleteAtPath(context, it) }
+        // `song.lrcPath` 通常指向扫描时找到的 `.lrc`，只有当它确实指向 `.lrcx` 时才删。
+        song.lrcPath
+            ?.takeIf { !isMetadataMarker(it) && it.endsWith(".$EXT_MULTI_TRACK") }
+            ?.let { deleteAtPath(context, it) }
         resolveDocumentPath(context, song)?.let { deleteAtPath(context, it) }
     }
+
+    /** 这首歌有没有任何歌词文件（含用户手放的 `.lrc`）。删除确认框据此决定要不要问「一并删歌词」。 */
+    fun hasAny(context: Context, song: Song): Boolean {
+        if (isMetadataMarker(song.lrcPath.orEmpty())) return false
+        if (!song.lrcPath.isNullOrBlank() && pathExists(context, song.lrcPath!!)) return true
+        if (MediaPath.isStream(song.path)) {
+            return onlineFile(context, song, EXT_MULTI_TRACK).exists() ||
+                onlineFile(context, song, LRC).exists()
+        }
+        if (resolveSidecarPath(context, song) != null) return true
+        return resolveDocumentPath(context, song) != null
+    }
+
+    private fun pathExists(context: Context, path: String): Boolean =
+        if (path.startsWith("content://")) {
+            DocumentFile.fromSingleUri(context, Uri.parse(path))?.exists() == true
+        } else {
+            File(path).exists()
+        }
 
     fun migrateLegacyCache(context: Context, song: Song, cacheDir: File): String? {
         val cache = legacyCacheFile(cacheDir, song)

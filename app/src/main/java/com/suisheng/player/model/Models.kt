@@ -49,10 +49,38 @@ data class LrcLine(
     val phoneticLang: String? = null,
     /** 尖括号逐字标签 `<mm:ss.xx>` 解析出的逐字时间戳；没有就是空表。 */
     val wordTimings: List<Long> = emptyList(),
-    /** 该行是否带标准增强 LRC 的逐字标签（能力标记，本期只存不用）。 */
+    /** 该行是否带标准增强 LRC 的逐字标签（能力标记）。 */
     val hasEnhancedWordTiming: Boolean = false,
+    /**
+     * 本行**真正唱完**的时刻（毫秒）。
+     *
+     * 与 [endTimeMs] 是两个不同的东西，这一点是整条歌词链的关键：
+     * - [endTimeMs] = 下一行的起始时间，供滚动定位与行切换使用，**包含行后的间奏/尾奏**；
+     * - [singEndMs] = 这一行唱完的时刻，只用于逐字擦除的终止与「静止」判定。
+     *
+     * 以前只有 [endTimeMs]，于是「到下一行之前」的整段时长（含间奏）被平均分给每个字，
+     * 表现为间奏时最后一个字还在极慢地擦。把这两个时刻拆开之后，间奏期间擦除进度
+     * 会停在 [singEndMs] 对应的位置，不再移动。
+     *
+     * 默认 0 表示「未计算」，读取方一律用 [effectiveSingEndMs] 回落。
+     */
+    val singEndMs: Long = 0L,
 ) {
     val text: String get() = chars.joinToString("") { it.char }
+
+    /**
+     * 实际使用的演唱结束时刻。
+     *
+     * 老歌词文件、纯文本歌词、以及任何没算过这一行的场景都会落到 [endTimeMs]，
+     * 行为与 5.7.3 完全一致；只有解析器算出更早的演唱结束时才会真正"提前停"。
+     */
+    val effectiveSingEndMs: Long
+        get() = when {
+            singEndMs <= 0L -> endTimeMs
+            singEndMs < startTimeMs -> endTimeMs
+            singEndMs > endTimeMs && endTimeMs > startTimeMs -> endTimeMs
+            else -> singEndMs
+        }
 
     /**
      * 展开成显示用的多行文本，顺序固定为 **原文 → 注音 → 译文**。

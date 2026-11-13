@@ -28,12 +28,13 @@ object LyricProviders {
     const val LRCLIB = "lrclib"
     const val KUGOU = "kugou"
     const val QQ = "qq"
+    const val KUWO = "kuwo"
     const val TEXTYL = "textyl"
     const val LYRICS_OVH = "lyrics_ovh"
 
     /** 出厂顺序，也是「已知渠道全集」。 */
     val defaultOrder: List<String> =
-        listOf(NETEASE, LRCLIB, KUGOU, QQ, TEXTYL, LYRICS_OVH)
+        listOf(NETEASE, LRCLIB, KUGOU, QQ, KUWO, TEXTYL, LYRICS_OVH)
 
     /** 默认关闭的渠道：拿不到时间轴，打开后歌词会按固定 5 秒占位轴推进。 */
     val defaultDisabled: Set<String> = setOf(LYRICS_OVH)

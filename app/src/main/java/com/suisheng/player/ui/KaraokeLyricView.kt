@@ -74,7 +74,12 @@ class KaraokeLyricView @JvmOverloads constructor(
     private fun needsContinuousFrames(): Boolean {
         if (abs(targetPositionMs - displayPositionMs) > 2f) return true
         val line = lyricState?.currentLine ?: return false
-        return line.chars.size > 1 && displayPositionMs in line.startTimeMs.toFloat()..line.endTimeMs.toFloat()
+        if (line.chars.size <= 1) return false
+        // 只在本行**正在唱**的区间里请求连续帧。
+        // 这里以前用的是 endTimeMs（= 下一行起点，含行后间奏），于是整段间奏都在重绘，
+        // 叠加上被平均分的字时长，就表现为「间奏时末字还在慢慢擦」。改用演唱结束时刻。
+        val singEnd = line.effectiveSingEndMs
+        return displayPositionMs > line.startTimeMs && displayPositionMs < singEnd.toFloat()
     }
 
     override fun onDetachedFromWindow() {

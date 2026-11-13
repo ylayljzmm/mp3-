@@ -39,18 +39,22 @@ class SongMetadataLoader(
             loadOnlineApiLyrics(song)?.let { return it }
             loadPodcastDescriptionLyrics(song)?.let { return it }
         } else {
-            LyricFileStore.delete(context, song)
+            // 旧实现在这里先 delete() 再取词：网络一失败歌词就没了，而且 delete() 会连
+            // 用户手放的 `.lrc` 一起删。现在改为「不预先删除」—— 取到新词后 saveDocument()
+            // 会覆盖 `.lrcx`；取不到就原样保留旧歌词，用户最多是「换了渠道但没变化」。
             LyricFileStore.deleteLegacyCache(cacheDir, song)
         }
 
         if (!settings.onlineLyricsEnabled) return null
         val config = settings.lyricProviderConfig()
+        val preferWordLevel = settings.lyricWordLevelEnabled
         // 用户对单曲指定过渠道（「换一个渠道试试」）时**先试那一个**；
         // 试不到再按全局顺序走一遍 —— 指定渠道不等于放弃兜底，否则用户点错一次
         // 这首歌就再也取不到词了。
         val override = perSongPrefs.providerOverride(song)
-        val outcome = (override?.let { lyricFetcher.fetch(title, artist, config, it) }
-            ?: lyricFetcher.fetch(title, artist, config))
+        val outcome = (override?.let {
+            lyricFetcher.fetch(title, artist, config, it, preferWordLevel)
+        } ?: lyricFetcher.fetch(title, artist, config, null, preferWordLevel))
             ?: return null
         val savedPath = LyricFileStore.saveDocument(context, song, outcome.document)
         return LyricLoadResult(outcome.document.lines, savedPath, outcome.document)
