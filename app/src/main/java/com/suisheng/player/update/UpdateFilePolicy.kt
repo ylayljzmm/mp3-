@@ -8,6 +8,6 @@ internal object UpdateFilePolicy {
             .replace(unsafeFileCharacter, "_")
             .take(48)
             .ifBlank { "update" }
-        return "mp3-player-$safeVersion.apk"
+        return "suisheng-$safeVersion.apk"
     }
 }

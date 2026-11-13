@@ -7,7 +7,7 @@ import org.junit.Test
 class UpdateFilePolicyTest {
     @Test
     fun `keeps a normal semantic version readable`() {
-        assertEquals("mp3-player-4.1.0.apk", UpdateFilePolicy.apkFileName("4.1.0"))
+        assertEquals("suisheng-4.1.0.apk", UpdateFilePolicy.apkFileName("4.1.0"))
     }
 
     @Test
@@ -16,11 +16,11 @@ class UpdateFilePolicyTest {
 
         assertFalse(name.contains('/'))
         assertFalse(name.contains('\\'))
-        assertEquals("mp3-player-.._.._4.2_preview.apk", name)
+        assertEquals("suisheng-.._.._4.2_preview.apk", name)
     }
 
     @Test
     fun `uses a stable fallback for a blank version`() {
-        assertEquals("mp3-player-update.apk", UpdateFilePolicy.apkFileName("  "))
+        assertEquals("suisheng-update.apk", UpdateFilePolicy.apkFileName("  "))
     }
 }

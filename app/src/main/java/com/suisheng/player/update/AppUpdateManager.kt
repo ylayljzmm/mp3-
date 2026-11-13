@@ -58,7 +58,7 @@ sealed interface InstallRequest {
  * 发布新版本时只需在 GitHub 上发 Release 并上传签名 APK，客户端即可发现。
  *
  * 依赖 Release 里两项约定：
- * 1. 附件名以 `.apk` 结尾（当前为 `mp3-player-<version>-signed.apk`）
+ * 1. 附件名以 `.apk` 结尾（当前为 `suisheng-<version>-signed.apk`）
  * 2. 说明正文里写 `versionCode = <数字>`，用于跨版本比较（GitHub 本身不提供 versionCode）
  */
 class AppUpdateManager(private val context: Context) {
