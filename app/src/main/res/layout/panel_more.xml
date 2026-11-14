@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  更多面板（期 4）：收藏 / 取消收藏、从播放队列移除、歌曲信息、取消。
+  更多面板（期 4）：收藏 / 取消收藏、从播放队列移除、歌曲信息、重新加载专辑封面、取消。
 
-  条目文案与「从队列移除」的显隐都由 MorePanel 在弹出时决定（收藏态、队列长度是运行时数据）。
+  条目文案与「从队列移除」的显隐、「重新加载专辑封面」的可用态都由 MorePanel 在弹出时决定。
+  5.9 删除了「歌词调节」：播放页顶栏「调」是它的唯一常驻入口。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -52,20 +53,6 @@
         android:textSize="16sp" />
 
     <TextView
-        android:id="@+id/moreLyricAdjust"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:text="@string/lyric_adjust_entry"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="16sp" />
-
-    <TextView
         android:id="@+id/moreInfo"
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -76,6 +63,20 @@
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:text="@string/more_song_info"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/moreReloadCover"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/more_reload_cover"
         android:textColor="?attr/colorOnSurface"
         android:textSize="16sp" />
 

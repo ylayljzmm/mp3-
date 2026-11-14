@@ -11,32 +11,27 @@
     <string name="lyric_settings_section_layout">歌词版面</string>
     <string name="lyric_pane_gap">歌词区左内缩</string>
     <string name="lyric_pane_gap_value">当前 %1$d dp</string>
-    <string name="lyric_pane_gap_hint">仅横屏 / 车机双栏生效，控制歌词区左侧的额外留白；播放列整体右移由另一项固定值决定，不受此项影响。竖屏歌词页的左右留白由页面自身控制。</string>
+    <string name="lyric_pane_gap_hint">歌词区左侧留白，仅双栏生效</string>
 
-    <!-- 歌词调节面板（播放页 → 更多 → 歌词调节） -->
+    <!-- 歌词调节面板（播放页顶栏「调」直达） -->
     <string name="lyric_adjust_title">歌词调节</string>
-    <string name="lyric_adjust_entry">歌词调节</string>
     <string name="lyric_adjust_section_offset">歌词快慢</string>
     <string name="lyric_adjust_offset_value">当前 %1$s</string>
     <string name="lyric_adjust_offset_second">%1$s 秒</string>
-    <string name="lyric_adjust_offset_hint">按每首歌单独记忆。正值让歌词提前显示，负值让歌词延后。</string>
+    <string name="lyric_adjust_offset_hint">正值提前，负值延后 · 按歌曲记忆</string>
     <string name="lyric_adjust_reset">重置</string>
     <string name="lyric_adjust_section_track">附加内容</string>
     <string name="lyric_adjust_show_translation">显示歌词翻译</string>
     <string name="lyric_adjust_show_phonetic">显示注音</string>
-    <string name="lyric_adjust_translation_ready">本首歌词带翻译</string>
-    <string name="lyric_adjust_translation_missing">本首歌词没有翻译，可在下方换个渠道重新获取</string>
-    <string name="lyric_adjust_phonetic_ready">本首歌词带注音</string>
-    <string name="lyric_adjust_phonetic_missing">本首歌词没有注音</string>
-    <string name="lyric_adjust_section_source">歌词来源</string>
+    <string name="lyric_adjust_translation_missing">本首无翻译</string>
+    <string name="lyric_adjust_phonetic_missing">本首无注音</string>
     <string name="lyric_adjust_source_value">当前：%1$s</string>
     <string name="lyric_adjust_source_unknown">未知来源</string>
-    <string name="lyric_adjust_refetch">换个渠道重新获取</string>
     <string name="lyric_adjust_close">关闭</string>
 
     <!-- 联网歌词渠道 -->
     <string name="lyric_provider_section_title">联网歌词渠道</string>
-    <string name="lyric_provider_section_hint">按此处顺序依次尝试，取到即停。关掉不需要的渠道可以更快取到歌词。</string>
+    <string name="lyric_provider_section_hint">按顺序尝试，取到即停</string>
     <string name="lyric_provider_plain_warning">仅纯文本，无时间轴</string>
     <string name="lyric_provider_reset">恢复默认顺序</string>
     <string name="lyric_provider_move_up">上移</string>
@@ -60,18 +55,13 @@
 
     <!-- 逐字歌词 -->
     <string name="lyric_word_level_title">逐字歌词</string>
-    <string name="lyric_word_level_hint">优先向支持的渠道请求逐字时间轴，唱到哪个字就亮到哪个字；没有逐字轨时自动回落到逐行。</string>
     <string name="lyric_word_level_on">已开启逐字</string>
     <string name="lyric_word_level_off">逐行显示</string>
 
-    <!-- 歌词来源面板 / 歌词调节面板的「来源」页签 -->
-    <string name="lyric_source_title">歌词来源</string>
-    <string name="lyric_source_subtitle">优先使用选中的来源；它没有这首歌的歌词时自动按顺序回落</string>
+    <!-- 来源页 / 页签 -->
     <string name="lyric_source_current">当前</string>
     <string name="lyric_source_disabled">已关闭</string>
     <string name="lyric_source_word_level">逐字优先</string>
-    <string name="lyric_source_scope_hint">仅对当前歌曲生效</string>
-    <string name="lyric_source_settings_hint">全部渠道与开关：设置 → 歌词设置</string>
     <string name="lyric_adjust_tab_sync">同步</string>
     <string name="lyric_adjust_tab_source">来源</string>
     <string name="lyric_tune_button">调</string>

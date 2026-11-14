@@ -10,6 +10,10 @@
   `lyricAdjustPageHost` 上的 `measureAllChildren` 是关键：切换页签时如果容器高度跟着
   可见页变化，车机居中卡片是按首帧测量高度定死窗口的，切到更高的「来源」页就会被裁。
   让 FrameLayout 把 GONE 的页也一起量，面板高度始终取两页的最高值。
+
+  5.9：同步页只管时间 / 显示，来源页只管来源。原来同步页里的「歌词来源」分组与
+  「换个渠道重新获取」和来源页是两个换源动作，已整段删除；「当前：X」只读行平移到
+  来源页顶部，来源页的四条说明性长句一并删除。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -185,48 +189,11 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp" />
 
-            <!-- ============ 歌词来源（当前来源 + 换渠道重取） ============ -->
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:text="@string/lyric_adjust_section_source"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/lyricAdjustSourceValue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="24dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="24dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/lyricAdjustRefetch"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="?attr/selectableItemBackground"
-                android:paddingStart="24dp"
-                android:paddingTop="12dp"
-                android:paddingEnd="24dp"
-                android:paddingBottom="12dp"
-                android:text="@string/lyric_adjust_refetch"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="14sp" />
-
             <TextView
                 android:id="@+id/lyricAdjustClose"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="16dp"
                 android:background="?attr/selectableItemBackground"
                 android:gravity="center"
                 android:paddingTop="14dp"
@@ -245,16 +212,16 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <!-- 当前来源只读行：5.9 从同步页平移过来，信息不丢、位置归位。 -->
             <TextView
-                android:id="@+id/lyricAdjustSourceIntro"
+                android:id="@+id/lyricAdjustSourceValue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
-                android:text="@string/lyric_source_subtitle"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/lyricAdjustSourceWordLevelSwitch"
@@ -268,43 +235,12 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
 
-            <TextView
-                android:id="@+id/lyricAdjustSourceWordLevelHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:text="@string/lyric_word_level_hint"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
             <LinearLayout
                 android:id="@+id/lyricAdjustSourceList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:orientation="vertical" />
-
-            <TextView
-                android:id="@+id/lyricAdjustSourceSettingsHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:text="@string/lyric_source_settings_hint"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/lyricAdjustSourceScopeHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:text="@string/lyric_source_scope_hint"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/lyricAdjustSourceClose"

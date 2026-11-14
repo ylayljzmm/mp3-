@@ -28,11 +28,19 @@ import kotlin.math.min
  *
  * 现在高光只用**离轴径向渐变**：渐变的边缘天然是柔的（0 到 1 连续降 alpha，
  * 最外一圈 alpha 为 0），几何形状是"光源偏左上的一点漫反射"，不再有任何直线边。
- * 沟槽也换成从 0.40R 到 0.985R 的等间距细圆环 —— 圆环本身就是同心圆，
- * 转起来不会像分组环那样出现"环随盘摆"的视觉噪音。
+ *
+ * ## 5.9 等亮密纹与深色环带
+ *
+ * 沟槽改成完全等亮、等距、极细的同心圆，不再「每 7 圈提亮一条」—— 分层亮环
+ * 转起来会跟着盘摆，是盘面上唯一会动的视觉噪音。沟槽起点由
+ * [VinylRecordView.COVER_RATIO] 派生：封面边缘到密纹之间留一圈纯盘底的深色环带，
+ * 同时可见密纹区变窄，每帧 `drawCircle` 次数约减半。
+ *
+ * **本次同样不得引入扇形 / 弧形贴片**：高光只用径向渐变且末停点必须 alpha 0，
+ * 禁止 `drawArc`、`SweepGradient` 与任何带硬切线的图元。
  *
  * **每帧零分配**：Paint 与两个 Shader 都在 [onSizeChanged] 里建好，
- * [onDraw] 只改 Paint 的颜色、画圆。30fps 持续转动下这是硬要求。
+ * [onDraw] 只画圆。30fps 持续转动下这是硬要求。
  */
 class VinylDiscView @JvmOverloads constructor(
     context: Context,
@@ -46,7 +54,7 @@ class VinylDiscView @JvmOverloads constructor(
         isDither = true
     }
 
-    /** L2 沟槽（普通圈 / 每 7 圈一条的稍亮圈共用，靠改 color 区分）。 */
+    /** L2 沟槽：颜色在建 Paint 时一次定死，绘制帧不再逐圈写 color。 */
     private val groovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         color = COLOR_GROOVE
@@ -88,9 +96,9 @@ class VinylDiscView @JvmOverloads constructor(
         val cy = h / 2f
 
         // 沟槽间距：车机上盘面只有 80 ~ 300dp，环太密会和屏幕像素栅格打摩尔纹，
-        // 所以下限钉在 2px（比 1px 稳），大盘按 1.2% 半径适度放大。
+        // 所以下限钉在 2px（比 1px 稳），大盘按 0.9% 半径适度放大。
         grooveStepPx = max(2.0f, radiusPx * GROOVE_STEP_RATIO)
-        groovePaint.strokeWidth = dp(0.9f)
+        groovePaint.strokeWidth = dp(0.8f)
         rimPaint.strokeWidth = dp(1.2f)
         coverRingPaint.strokeWidth = dp(1f)
 
@@ -131,23 +139,19 @@ class VinylDiscView @JvmOverloads constructor(
         // L1 盘底
         canvas.drawCircle(cx, cy, r, basePaint)
 
-        // L2 沟槽：0.40R → 0.985R 等间距同心圆，每 7 圈挑一圈提亮，形成"音轨分隔"层次。
+        // L2 沟槽：从「封面半径 + 环带」铺到 0.985R，等距、等亮、无分层。
         val outer = r * GROOVE_END_RATIO
         var radius = r * GROOVE_START_RATIO
-        var index = 0
         while (radius < outer) {
-            groovePaint.color =
-                if (index % GROOVE_ACCENT_EVERY == 0) COLOR_GROOVE_ACCENT else COLOR_GROOVE
             canvas.drawCircle(cx, cy, radius, groovePaint)
             radius += grooveStepPx
-            index++
         }
 
         // L3 高光（先大范围主光，再叠小亮斑）
         canvas.drawCircle(cx, cy, r, highlightPaint)
         canvas.drawCircle(cx, cy, r, spotPaint)
 
-        // L4 收口：外沿一圈细白线勾出盘边，封面外圈一圈更淡的白线压住位图锯齿。
+        // L4 收口：外沿一圈细亮线勾出盘边，封面外圈一圈更淡的线压住位图锯齿。
         canvas.drawCircle(cx, cy, r * RIM_RADIUS_RATIO, rimPaint)
         canvas.drawCircle(cx, cy, r * COVER_RING_RADIUS_RATIO, coverRingPaint)
     }
@@ -159,36 +163,36 @@ class VinylDiscView @JvmOverloads constructor(
         /** L1 盘底：与 `bg_vinyl_disc.xml` 的 solid 同色，首帧不跳色。 */
         val COLOR_BASE = 0xFF0E0E12.toInt()
 
-        /** L2 沟槽：白 alpha 0x0A（≈0.04）；每 7 圈一条 0x14（≈0.08）。 */
+        /** L2 沟槽：白 alpha 0x0A（≈0.04），所有圈完全等亮。 */
         val COLOR_GROOVE = 0x0AFFFFFF
-        val COLOR_GROOVE_ACCENT = 0x14FFFFFF
 
         /**
-         * L3 主高光的四个停点：0x1C → 0x0E → 0x06 → 0x00（全透明）。
+         * L3 主高光的四个停点：0x22 → 0x11 → 0x07 → 0x00（全透明）。
          *
          * 最后一个停点**必须**是 alpha 0：否则渐变圆的外缘会留下一条硬边，
          * 那就等于把删掉的弧形反光换个形状又贴回来。
          */
-        val COLOR_HIGHLIGHT_CORE = 0x1CFFFFFF
-        val COLOR_HIGHLIGHT_MID = 0x0EFFFFFF
-        val COLOR_HIGHLIGHT_FAR = 0x06FFFFFF
+        val COLOR_HIGHLIGHT_CORE = 0x22FFFFFF
+        val COLOR_HIGHLIGHT_MID = 0x11FFFFFF
+        val COLOR_HIGHLIGHT_FAR = 0x07FFFFFF
         val COLOR_HIGHLIGHT_EDGE = 0x00FFFFFF
 
-        /** L3 副高光：起 0x14、止全透明。 */
-        val COLOR_SPOT_CORE = 0x14FFFFFF
+        /** L3 副高光：起 0x18、止全透明。 */
+        val COLOR_SPOT_CORE = 0x18FFFFFF
         val COLOR_SPOT_EDGE = 0x00FFFFFF
 
-        /** L4 收口：外沿白 alpha 0x18；封面外圈白 alpha 0x0F。 */
-        val COLOR_RIM = 0x18FFFFFF
-        val COLOR_COVER_RING = 0x0FFFFFFF
+        /** L4 收口：外沿细亮线、封面外圈压边。 */
+        val COLOR_RIM = 0x47FFFFFF
+        val COLOR_COVER_RING = 0x33FFFFFF
 
-        /** 沟槽区间与间距。 */
-        const val GROOVE_START_RATIO = 0.40f
+        /**
+         * 沟槽起点 = 封面半径 + 0.05R 深色环带；压边半径 = 封面半径 + 0.015R。
+         * 一律由 [VinylRecordView.COVER_RATIO] 派生，改封面占比时只需动一处。
+         */
+        const val GROOVE_START_RATIO = VinylRecordView.COVER_RATIO + 0.05f
         const val GROOVE_END_RATIO = 0.985f
-        const val GROOVE_STEP_RATIO = 0.012f
-
-        /** 每 7 圈来一条稍亮的圈（`i % 7 == 0`）。 */
-        const val GROOVE_ACCENT_EVERY = 7
+        const val GROOVE_STEP_RATIO = 0.009f
+        const val COVER_RING_RADIUS_RATIO = VinylRecordView.COVER_RATIO + 0.015f
 
         /** 主高光圆心偏移与半径。 */
         const val HIGHLIGHT_OFFSET_X = 0.32f
@@ -199,8 +203,7 @@ class VinylDiscView @JvmOverloads constructor(
         const val SPOT_OFFSET = 0.30f
         const val SPOT_RADIUS_RATIO = 0.45f
 
-        /** 外沿收口半径；封面外圈半径（= `VinylRecordView` 的封面占比 0.70 再留 0.015 余量）。 */
+        /** 外沿收口半径。 */
         const val RIM_RADIUS_RATIO = 0.996f
-        const val COVER_RING_RADIUS_RATIO = 0.715f
     }
 }

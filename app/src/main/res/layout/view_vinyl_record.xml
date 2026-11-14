@@ -8,7 +8,9 @@
                        `min(w, h) × COVER_RATIO(0.70)` 动态写回 layoutParams；
                        XML 里的 @dimen/vinyl_art 只是首帧兜底值）
     vinylHole       L5 中心孔（已按方案 F 置 gone）
-  vinylDisc 与 vinylCover 都在 vinylRotateGroup 里，各自用 rotation 反向等速自转。
+  vinylDisc 与 vinylCover 都在 vinylRotateGroup 里，共用父组的同一相位顺时针旋转。
+  封面直径按 min(w,h) × COVER_RATIO 动态写回；VinylDiscView 的沟槽起点与压边半径
+  由同一个 COVER_RATIO 派生，改封面占比时只需动一处。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

@@ -1,6 +1,7 @@
 package com.suisheng.player.data
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import com.suisheng.player.lrc.LrcParser
 import com.suisheng.player.lrc.LyricDocument
 import com.suisheng.player.model.LrcLine
@@ -76,10 +77,68 @@ class SongMetadataLoader(
 
     fun readLocalLyrics(song: Song): List<LrcLine>? = readLocalDocument(song)?.lines
 
+    /**
+     * 读取封面（播放链路唯一入口）。
+     *
+     * 返回的**路径不随文件内容变化**：[reloadCover] 会在同一路径上原子替换内容，再靠
+     * `PlaybackStateHolder.setCoverArt()` 广播一次刷新黑胶中心 / 信息页 / 迷你条。
+     * 因此这里与 `setCoverArt()` 都**禁止加「路径没变就跳过」的去重**，否则重载封面会毫无效果。
+     */
     fun loadCover(song: Song): String? {
         val cache = coverCacheFile(song)
         if (cache.exists() && cache.length() > 0) return cache.absolutePath
         return coverFetcher.fetch(song, cache, allowOnline = settings.onlineCoverEnabled, onlineMusicApi = onlineMusicApi)
+    }
+
+    /**
+     * 强制重取当前曲目的封面：绕过 [loadCover] 的缓存快路，重解析一次后原子替换。
+     *
+     * 磁盘缓存的 key、目录、扩展名一个字节都不改 —— 改了等于让全库已缓存封面失效，
+     * 下次切歌会逐首重开 `MediaMetadataRetriever`，车机上是一次可感知的卡顿。
+     *
+     * 只写同目录的 `.tmp`：联网下载中途异常会留下**非空残片**，直接往正式文件写会把
+     * 坏图当成有效缓存一直用下去，而且失败时原封面已经丢了。失败一律删 tmp、正式缓存原样保留。
+     * 是否联网严格服从 `settings.onlineCoverEnabled`，与 [loadCover] 完全同口径。
+     *
+     * @return 成功时返回**原缓存文件的路径**（内容已是新图）；失败返回 null，调用方不得据此清空封面。
+     */
+    fun reloadCover(song: Song): String? {
+        val cache = coverCacheFile(song)
+        val parent = cache.parentFile ?: return null
+        val tmp = File(parent, "${cache.name}.tmp")
+        val bak = File(parent, "${cache.name}.bak")
+        runCatching { tmp.delete(); bak.delete() }
+        var replaced = false
+        try {
+            val fetched = coverFetcher.fetch(
+                song,
+                tmp,
+                allowOnline = settings.onlineCoverEnabled,
+                onlineMusicApi = onlineMusicApi,
+            )
+            if (fetched == null || !tmp.exists() || tmp.length() <= 0L || !isDecodable(tmp)) {
+                return null
+            }
+            val hadCache = cache.exists()
+            if (hadCache && !cache.renameTo(bak)) return null
+            if (!tmp.renameTo(cache)) {
+                if (hadCache) bak.renameTo(cache)
+                return null
+            }
+            replaced = true
+            return cache.absolutePath
+        } catch (_: Exception) {
+            return null
+        } finally {
+            runCatching { tmp.delete() }
+            if (replaced) {
+                runCatching { bak.delete() }
+            } else if (bak.exists()) {
+                // 替换没成功：原图还在就丢掉备份，不在就把备份还回去，绝不丢用户看到的封面
+                if (cache.exists()) runCatching { bak.delete() }
+                else runCatching { bak.renameTo(cache) }
+            }
+        }
     }
 
     private fun loadOnlineApiLyrics(song: Song): LyricLoadResult? {
@@ -114,6 +173,15 @@ class SongMetadataLoader(
         val bytes = digest.digest("${song.path}|${song.title}|${song.artist}".toByteArray())
         val key = bytes.joinToString("") { "%02x".format(it) }
         return File(File(cacheDir, "covers"), "$key.jpg")
+    }
+
+    /** 只解边界，不分配整张位图；挡住下载残片 / 非图片文件被当成有效缓存。 */
+    private fun isDecodable(file: File): Boolean {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        return runCatching {
+            BitmapFactory.decodeFile(file.absolutePath, options)
+            options.outWidth > 0 && options.outHeight > 0
+        }.getOrDefault(false)
     }
 
     /**

@@ -37,12 +37,14 @@ import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
 import com.suisheng.player.playback.AudioEffectController
+import com.suisheng.player.playback.CoverReloadState
 import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.CoverBitmap
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -764,8 +766,41 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
             canRemoveFromQueue = queue.size > 1 && queue.any { it.path == song.path },
             onToggleFavorite = ::toggleFavorite,
             onRemoveFromQueue = ::removeCurrentFromQueue,
-            onLyricAdjust = ::openLyricAdjustPanel,
+            reloadCoverEnabled =
+                PlaybackStateHolder.coverReloadState == CoverReloadState.IDLE,
+            onReloadCover = ::reloadCurrentCover,
         )
+    }
+
+    /**
+     * 更多面板「重新加载专辑封面」：置加载态 → 发指令 → 超时兜底恢复菜单。
+     *
+     * 真正的重取在服务端（缓存文件在服务侧目录），结果通过
+     * [PlaybackStateHolder.Listener.onCoverReloadResult] 回来；这里不碰磁盘、不碰位图。
+     */
+    private fun reloadCurrentCover() {
+        if (PlaybackStateHolder.coverReloadState != CoverReloadState.IDLE) return
+        val ctx = context ?: return
+        PlaybackStateHolder.setCoverReloadState(CoverReloadState.LOADING)
+        Toast.makeText(ctx, R.string.cover_reload_loading, Toast.LENGTH_SHORT).show()
+        sendAction(MusicPlaybackService.ACTION_RELOAD_COVER)
+        // 服务异常 / 进程被杀时结果事件可能永远不来，30s 后强制恢复，避免菜单永久禁用。
+        viewLifecycleOwner.lifecycleScope.launch {
+            delay(COVER_RELOAD_TIMEOUT_MS)
+            if (PlaybackStateHolder.coverReloadState == CoverReloadState.LOADING) {
+                PlaybackStateHolder.setCoverReloadState(CoverReloadState.IDLE)
+            }
+        }
+    }
+
+    override fun onCoverReloadResult(success: Boolean) {
+        PlaybackStateHolder.setCoverReloadState(CoverReloadState.IDLE)
+        val ctx = context ?: return
+        Toast.makeText(
+            ctx,
+            if (success) R.string.cover_reload_success else R.string.cover_reload_failed,
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     /**
@@ -811,7 +846,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
                     settings.lyricShowPhonetic = enabled
                     refreshLyricStyle()
                 },
-                onRefetch = { refetchFromNextProvider(song) },
                 onPickProvider = { providerId ->
                     // null = 回到「自动（按顺序尝试）」；非空 = 只优先这一个是
                     // `SongMetadataLoader` 的既有语义：先试它，取不到再按全局顺序兜底。
@@ -872,26 +906,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
             )
         }
         return items
-    }
-
-    /**
-     * 「换个渠道重新获取」：按当前渠道在启用顺序里的**下一位**重取。
-     *
-     * 直接重取同一个渠道多半还是同一份歌词，用户点这个按钮的意图就是「这份不对，换一家」。
-     * 选中的渠道写进 `PerSongLyricPrefs`（`SongMetadataLoader` 会先试它，失败再按全局顺序兜底）。
-     */
-    private fun refetchFromNextProvider(song: Song) {
-        val order = settings.lyricProviderConfig().enabledOrder()
-        if (order.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.lyric_adjust_source_unknown, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val currentId = PlaybackStateHolder.lyricDocument?.sourceProviderId
-        val index = order.indexOf(currentId)
-        val nextId = if (index < 0) order.first() else order[(index + 1) % order.size]
-        perSongLyric.setProviderOverride(song, nextId)
-        sendAction(MusicPlaybackService.ACTION_RELOAD_LYRICS)
-        Toast.makeText(requireContext(), R.string.lyric_searching, Toast.LENGTH_SHORT).show()
     }
 
     /** 功能行第 2 格：切换当前曲目的收藏状态（立即落盘 + 立即换图标）。 */
@@ -1117,6 +1131,9 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
 
         /** 信息页封面的落盘目录（`cacheDir/song_info_cover`）。 */
         const val INFO_COVER_DIR = "song_info_cover"
+
+        /** 封面重载结果最长等待：覆盖内嵌解析 8s 搜索 + 10s 下载的最坏串行耗时。 */
+        const val COVER_RELOAD_TIMEOUT_MS = 30_000L
 
         /** 缓存文件数超过这个值就触发清理，清到 [INFO_COVER_CACHE_KEEP] 个。 */
         const val INFO_COVER_CACHE_MAX = 60

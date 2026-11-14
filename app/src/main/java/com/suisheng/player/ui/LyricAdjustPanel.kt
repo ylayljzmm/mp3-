@@ -36,6 +36,9 @@ import kotlin.math.roundToLong
  * 「同步」和「来源」是两个不同的心智动作：一个是对齐时间，一个是换一家取词。
  * 竖着堆在一起会让面板超过一屏（车机只有 540~600dp），所以分成两页。
  * 列表渲染直接复用 [LyricSourceSheet.buildSourceList]，不抄第二份。
+ *
+ * 5.9 起两页职责彻底分开：同步页只管时间 / 显示，来源页只管来源。原来同步页里
+ * 与来源页重复的「歌词来源」分组和「换个渠道重新获取」已删除，换源只在来源页明确指定。
  */
 object LyricAdjustPanel {
 
@@ -68,7 +71,6 @@ object LyricAdjustPanel {
         val onOffsetReset: () -> Unit,
         val onShowTranslationChanged: (Boolean) -> Unit,
         val onShowPhoneticChanged: (Boolean) -> Unit,
-        val onRefetch: () -> Unit,
         // ---- 5.8 新增，带默认实现，旧调用点不受影响 ----
         /** 选中某个渠道，`null` = 自动。 */
         val onPickProvider: (String?) -> Unit = {},
@@ -135,38 +137,28 @@ object LyricAdjustPanel {
 
         binding.lyricAdjustTranslationSwitch.isChecked = state.showTranslation
         binding.lyricAdjustTranslationSwitch.isEnabled = state.hasTranslation
-        binding.lyricAdjustTranslationHint.text = context.getString(
-            if (state.hasTranslation) {
-                R.string.lyric_adjust_translation_ready
-            } else {
-                R.string.lyric_adjust_translation_missing
-            }
-        )
+        // 有译文时开关可用就是最好的说明，不必再写一行「本首歌词带翻译」。
+        binding.lyricAdjustTranslationHint.isVisible = !state.hasTranslation
+        binding.lyricAdjustTranslationHint.text =
+            context.getString(R.string.lyric_adjust_translation_missing)
         binding.lyricAdjustTranslationSwitch.setOnCheckedChangeListener { _, checked ->
             callbacks.onShowTranslationChanged(checked)
         }
 
         binding.lyricAdjustPhoneticSwitch.isChecked = state.showPhonetic
         binding.lyricAdjustPhoneticSwitch.isEnabled = state.hasPhonetic
-        binding.lyricAdjustPhoneticHint.text = context.getString(
-            if (state.hasPhonetic) {
-                R.string.lyric_adjust_phonetic_ready
-            } else {
-                R.string.lyric_adjust_phonetic_missing
-            }
-        )
+        binding.lyricAdjustPhoneticHint.isVisible = !state.hasPhonetic
+        binding.lyricAdjustPhoneticHint.text =
+            context.getString(R.string.lyric_adjust_phonetic_missing)
         binding.lyricAdjustPhoneticSwitch.setOnCheckedChangeListener { _, checked ->
             callbacks.onShowPhoneticChanged(checked)
         }
 
+        // 当前来源只读行在「来源」页顶部（5.9 从同步页平移过来），赋值逻辑不变。
         binding.lyricAdjustSourceValue.text = context.getString(
             R.string.lyric_adjust_source_value,
             providerLabel(context, state.providerId),
         )
-        binding.lyricAdjustRefetch.setOnClickListener {
-            dialog.dismiss()
-            callbacks.onRefetch()
-        }
         binding.lyricAdjustClose.setOnClickListener { dialog.dismiss() }
 
         setupTabs(binding)

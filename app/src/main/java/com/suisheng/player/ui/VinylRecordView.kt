@@ -324,7 +324,7 @@ class VinylRecordView @JvmOverloads constructor(
         }
     }
 
-    private companion object {
+    internal companion object {
         /** 48 秒一圈（`05 §4.2`）。 */
         const val ROTATION_DURATION_MS = 48_000L
 

@@ -13,14 +13,17 @@ import com.suisheng.player.util.TimeFormat
  * 「更多」面板（`design/05` 顶栏 `btnMore`）。
  *
  * 与 [SpeedPanel] / [QueuePanel] 同模式：`object` + [PanelHost] + ViewBinding，
- * 面板只负责「把运行时状态渲染成 4 个条目 + 回调宿主」，不碰播放器也不碰存储。
+ * 面板只负责「把运行时状态渲染成条目 + 回调宿主」，不碰播放器也不碰存储。
  *
  * 条目：
  * 1. 收藏 / 取消收藏（文案由调用方按 [isFavorite] 决定）；
  * 2. 从播放队列移除（仅当当前曲目确实在队列里且队列长度 > 1）；
- * 3. 歌词调节（快慢 / 翻译 / 注音，见 [LyricAdjustPanel]）；
- * 4. 歌曲信息（弹 `MaterialAlertDialogBuilder` 逐行列字段）；
+ * 3. 歌曲信息（弹 `MaterialAlertDialogBuilder` 逐行列字段）；
+ * 4. 重新加载专辑封面（强制重取并刷新黑胶中心封面）；
  * 5. 取消。
+ *
+ * 5.9 去掉了「歌词调节」：它与顶栏常驻的「调」通向同一个面板，留两处只是
+ * 多一层菜单。播放页顶栏仍是唯一常驻入口。
  */
 object MorePanel {
 
@@ -30,9 +33,8 @@ object MorePanel {
      * @param song 当前播放曲目
      * @param isFavorite 当前曲目是否已收藏（决定第 1 条的文案）
      * @param canRemoveFromQueue 是否显示「从播放队列移除」
-     * @param onToggleFavorite 点了收藏 / 取消收藏（面板随后关闭）
-     * @param onRemoveFromQueue 点了从队列移除（面板随后关闭）
-     * @param onLyricAdjust 点了歌词调节（面板随后关闭）
+     * @param reloadCoverEnabled 封面重载任务进行中传 false：条目置灰且不注册点击，避免并发解析
+     * @param onReloadCover 点了「重新加载专辑封面」（面板随后关闭）
      */
     fun show(
         context: Context,
@@ -41,7 +43,8 @@ object MorePanel {
         canRemoveFromQueue: Boolean,
         onToggleFavorite: () -> Unit,
         onRemoveFromQueue: () -> Unit,
-        onLyricAdjust: () -> Unit = {},
+        reloadCoverEnabled: Boolean = true,
+        onReloadCover: () -> Unit = {},
     ) {
         val binding = PanelMoreBinding.inflate(LayoutInflater.from(context))
         // 条目不高，但小屏 + 大字体时仍可能超屏高：交给 PanelHost 套一层滚动容器
@@ -52,6 +55,9 @@ object MorePanel {
         )
         binding.moreRemove.isVisible = canRemoveFromQueue
 
+        binding.moreReloadCover.isEnabled = reloadCoverEnabled
+        binding.moreReloadCover.alpha = if (reloadCoverEnabled) 1f else 0.45f
+
         binding.moreFavorite.setOnClickListener {
             dialog.dismiss()
             onToggleFavorite()
@@ -60,13 +66,16 @@ object MorePanel {
             dialog.dismiss()
             onRemoveFromQueue()
         }
-        binding.moreLyricAdjust.setOnClickListener {
-            dialog.dismiss()
-            onLyricAdjust()
-        }
         binding.moreInfo.setOnClickListener {
             dialog.dismiss()
             showSongInfo(context, song)
+        }
+        if (reloadCoverEnabled) {
+            binding.moreReloadCover.setOnClickListener {
+                // 先关面板再回调：避免加载结果与菜单叠在一起
+                dialog.dismiss()
+                onReloadCover()
+            }
         }
         binding.moreCancel.setOnClickListener { dialog.dismiss() }
 

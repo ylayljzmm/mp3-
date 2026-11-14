@@ -8,6 +8,9 @@ import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
 import java.util.concurrent.CopyOnWriteArrayList
 
+/** 封面重载的持久状态；成功 / 失败是一次性事件，不落在这里。 */
+enum class CoverReloadState { IDLE, LOADING }
+
 object PlaybackStateHolder {
     private val listeners = CopyOnWriteArrayList<Listener>()
 
@@ -30,6 +33,12 @@ object PlaybackStateHolder {
     var activeLibrary: LibraryKind = LibraryKind.MUSIC
         private set
 
+    var coverReloadState: CoverReloadState = CoverReloadState.IDLE
+        private set
+
+    /** 封面重载成功后要额外失效的缓存（P2 可插拔 hook，当前无注册者）。 */
+    private val coverCacheInvalidators = CopyOnWriteArrayList<(Song) -> Unit>()
+
     val currentSong: Song?
         get() = songs.getOrNull(currentIndex)
 
@@ -51,6 +60,12 @@ object PlaybackStateHolder {
         fun onPlaylistChanged(songs: List<Song>) {}
         fun onCoverChanged(coverPath: String?) {}
         fun onDurationChanged(durationMs: Long) {}
+
+        /** 封面重载的持久状态变化；新建 Listener 时也会补发一次。 */
+        fun onCoverReloadStateChanged(state: CoverReloadState) {}
+
+        /** 封面重载的一次性结果（成功 / 失败），不补发，避免页面重建后重复弹提示。 */
+        fun onCoverReloadResult(success: Boolean) {}
     }
 
     fun addListener(listener: Listener) {
@@ -59,6 +74,7 @@ object PlaybackStateHolder {
         listener.onPlaylistChanged(songs)
         listener.onCoverChanged(coverArtPath)
         listener.onDurationChanged(durationMs)
+        listener.onCoverReloadStateChanged(coverReloadState)
     }
 
     fun removeListener(listener: Listener) {
@@ -148,9 +164,39 @@ object PlaybackStateHolder {
         songs = updated
     }
 
+    /**
+     * 写入封面路径并广播。
+     *
+     * **禁止加「路径没变就跳过」的去重**：`SongMetadataLoader.reloadCover()` 会在
+     * 同一路径上原子替换文件内容，靠这次广播让黑胶中心 / 信息页 / 迷你条重新解码。
+     * 同理，失败时调用方绝不能传 null，否则会落成占位图。
+     */
     fun setCoverArt(path: String?) {
         coverArtPath = path
         listeners.forEach { it.onCoverChanged(path) }
+    }
+
+    fun setCoverReloadState(state: CoverReloadState) {
+        coverReloadState = state
+        listeners.forEach { it.onCoverReloadStateChanged(state) }
+    }
+
+    /** 一次性结果事件：不写持久状态、不在 [addListener] 补发。 */
+    fun notifyCoverReloadResult(success: Boolean) {
+        listeners.forEach { it.onCoverReloadResult(success) }
+    }
+
+    fun addCoverCacheInvalidator(fn: (Song) -> Unit) {
+        coverCacheInvalidators.add(fn)
+    }
+
+    fun removeCoverCacheInvalidator(fn: (Song) -> Unit) {
+        coverCacheInvalidators.remove(fn)
+    }
+
+    /** 单个失效器抛异常不能影响主链路；P2 之前没有注册者，调用即空转。 */
+    fun invokeCoverCacheInvalidators(song: Song) {
+        coverCacheInvalidators.forEach { runCatching { it(song) } }
     }
 
     fun setDuration(durationMs: Long) {

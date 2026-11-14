@@ -5,7 +5,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -13,26 +12,23 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.color.MaterialColors
 import com.suisheng.player.R
-import com.suisheng.player.databinding.PanelLyricSourceBinding
 import com.suisheng.player.lrc.LyricAbility
 import com.suisheng.player.lrc.LyricProviderCatalog
 
 /**
- * 歌词来源选择面板。
+ * 歌词来源列表的数据模型与渲染工具。
  *
- * 与 [SpeedPanel] / [MorePanel] / [LyricAdjustPanel] 同模式：`object` + [PanelHost] + ViewBinding。
+ * 5.9 删除了独立的来源面板 `show()`：它全仓没有调用点，对应布局也从未被 inflate，
+ * 是 5.8 留下的第三套「来源」UI。现在播放页换源统一走 [LyricAdjustPanel] 的
+ * 「来源」页签，全局顺序与开关走歌词设置页，两处职责正交。
  *
- * ## 为什么「逐字优先」放在这个面板里
- *
- * [com.suisheng.player.data.SettingsRepository.lyricWordLevelEnabled] 是**全局**偏好，
- * 本应只出现在设置页。但用户真正意识到「逐字」存在，是在听一首没有逐字的歌的时候；
- * 让他从播放页退出、进设置、找到歌词设置、再切回来，歌早过去了。所以这里给一个快捷开关，
- * 权威入口仍然是「设置 → 歌词设置」。
+ * 本文件保留 [AUTO_ID] / [Item] / [itemsFromCatalog] / [buildSourceList] /
+ * [abilityLabels] 等成员：调节面板、歌词设置页、播放页都在复用，**不要整文件删除**。
  *
  * ## 列表为什么是动态 addView
  *
  * 行数固定（自动 + 每个联网渠道，个位数），用 RecyclerView 会引入「面板要按内容收口
- * 高度」的测量问题（见 [PanelHost] 对 RecyclerView 的说明）；LinearLayout 直接铺开更稳。
+ * 高度」的测量问题（见 PanelHost 对 RecyclerView 的说明）；LinearLayout 直接铺开更稳。
  */
 object LyricSourceSheet {
 
@@ -42,8 +38,8 @@ object LyricSourceSheet {
     /**
      * 一行「来源」的运行时状态。
      *
-     * 文案与能力标签都**由调用方本地化好后传进来**：面板不查设置、不查注册表，
-     * 这样同一个面板既能被播放页直接弹出，也能被调节面板的「来源」页复用。
+     * 文案与能力标签都**由调用方本地化好后传进来**：这里不查设置、不查注册表，
+     * 这样同一套渲染既服务于播放页的「来源」页，也服务于兜底生成的列表。
      */
     data class Item(
         /** 渠道 id；[AUTO_ID] 表示「自动」。 */
@@ -59,44 +55,6 @@ object LyricSourceSheet {
         /** 是不是当前这份歌词的实际来源。 */
         val current: Boolean,
     )
-
-    /**
-     * 弹出来源面板。
-     *
-     * @param items 第一行必须是「自动」（[AUTO_ID]）
-     * @param currentProviderId 当前这份歌词的实际来源 id；用它覆盖 [Item.current]，
-     *   避免调用方传进来的列表和文档状态不一致时打勾打错行
-     * @param wordLevelEnabled 逐字优先开关的当前值
-     * @param onPick 选中回调，`null` 表示「自动（按顺序尝试）」
-     * @param onToggleWordLevel 逐字优先开关的切换回调
-     */
-    fun show(
-        context: Context,
-        items: List<Item>,
-        currentProviderId: String?,
-        wordLevelEnabled: Boolean,
-        onPick: (String?) -> Unit,
-        onToggleWordLevel: (Boolean) -> Unit,
-    ) {
-        val binding = PanelLyricSourceBinding.inflate(LayoutInflater.from(context))
-        val dialog = PanelHost.build(context, binding.root, scrollable = true)
-
-        binding.lyricSourceWordLevelSwitch.isChecked = wordLevelEnabled
-        binding.lyricSourceWordLevelSwitch.setOnCheckedChangeListener { _, checked ->
-            onToggleWordLevel(checked)
-        }
-
-        // current 一律以 currentProviderId 为准：调用方给的列表可能是上一帧的快照，
-        // 打勾和「当前」角标必须和文档真实的来源一致。
-        val rows = items.map { it.copy(current = it.id == currentProviderId) }
-        buildSourceList(context, binding.lyricSourceList, rows) { id ->
-            dialog.dismiss()
-            onPick(id.takeUnless { it == AUTO_ID })
-        }
-        binding.lyricSourceClose.setOnClickListener { dialog.dismiss() }
-
-        dialog.show()
-    }
 
     /**
      * 按注册表的出厂顺序生成列表，全部视为启用。
@@ -126,7 +84,7 @@ object LyricSourceSheet {
     }
 
     /**
-     * 把来源列表铺进容器。调节面板的「来源」页也调这个，保证两处渲染逐像素一致。
+     * 把来源列表铺进容器。播放页「来源」页与兜底列表读同一份渲染，逐像素一致。
      *
      * @param onPick 传的是被点行的原始 id（含 [AUTO_ID]），由调用方决定怎么映射
      */
@@ -145,7 +103,7 @@ object LyricSourceSheet {
         }
     }
 
-    /** 能力 → 已本地化标签。设置页与来源面板读同一份，避免加能力时只改一处。 */
+    /** 能力 → 已本地化标签。设置页与来源列表读同一份，避免加能力时只改一处。 */
     fun abilityLabel(context: Context, ability: LyricAbility): String = when (ability) {
         LyricAbility.CHAR_LEVEL -> context.getString(R.string.lyric_ability_char_level)
         LyricAbility.TRANSLATION -> context.getString(R.string.lyric_ability_translation)

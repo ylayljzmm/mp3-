@@ -439,14 +439,6 @@
                     android:text="@string/lyric_source_word_level"
                     android:textColor="?attr/colorOnSurface" />
 
-                <TextView
-                    android:id="@+id/lyricWordLevelHint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/lyric_word_level_hint"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="12sp" />
-
                 <LinearLayout
                     android:id="@+id/lyricProviderList"
                     android:layout_width="match_parent"

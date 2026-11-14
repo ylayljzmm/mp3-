@@ -43,6 +43,7 @@ import com.suisheng.player.playback.MediaControlRecoveryPolicy
 import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.MediaPath
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +79,9 @@ class MusicPlaybackService : MediaSessionService() {
     private var saveTick = 0
     private var lastClusterMetadataKey = ""
     private val metadataScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 封面重载在途标记：UI 状态与服务层各有一道闸，这里是最后一道，防同一缓存文件被并发写。 */
+    private val coverReloadInFlight = AtomicBoolean(false)
     private val metadataLoader by lazy {
         SongMetadataLoader(
             applicationContext,
@@ -238,8 +242,10 @@ class MusicPlaybackService : MediaSessionService() {
         // 队列空 + 曲库空时把服务收掉，避免常驻一个什么都不做的前台服务。
         // `ACTION_QUEUE_INSERT` 必须放行：用户把队列里最后一首删空、再点「撤销」时，
         // 队列此刻正好是空的 —— 走早退就等于这次撤销被服务直接丢掉，队列永远是空的。
+        // `ACTION_RELOAD_COVER` 同理：宁可让方法自己判空并回报失败，也不要静默丢结果
+        // 让播放页的加载态卡到超时。
         if (!requiresForeground(action) && playlist.isEmpty() && PlaybackStateHolder.songs.isEmpty() &&
-            action != ACTION_QUEUE_INSERT
+            action != ACTION_QUEUE_INSERT && action != ACTION_RELOAD_COVER
         ) {
             stopSelfSafely()
             return START_NOT_STICKY
@@ -323,6 +329,7 @@ class MusicPlaybackService : MediaSessionService() {
                 runCatching { exoPlayer?.seekTo(seek.coerceAtLeast(0L)) }
             }
             ACTION_RELOAD_LYRICS -> intent?.let { reloadLyrics(it) }
+            ACTION_RELOAD_COVER -> reloadCover()
             ACTION_QUEUE_JUMP -> {
                 val cmd = intent ?: return START_NOT_STICKY
                 val index = cmd.getIntExtra(EXTRA_INDEX, -1)
@@ -380,7 +387,7 @@ class MusicPlaybackService : MediaSessionService() {
     private fun requiresForeground(action: String?): Boolean {
         return when (action) {
             ACTION_SET_MODE, ACTION_SET_SPEED, ACTION_STOP,
-            ACTION_APPLY_EQ,
+            ACTION_APPLY_EQ, ACTION_RELOAD_COVER,
             ACTION_QUEUE_JUMP, ACTION_QUEUE_REMOVE, ACTION_QUEUE_CLEAR,
             ACTION_QUEUE_ADD, ACTION_QUEUE_REMOVE_PATHS, ACTION_QUEUE_INSERT -> false
             else -> true
@@ -1087,6 +1094,52 @@ class MusicPlaybackService : MediaSessionService() {
         }
     }
 
+    /**
+     * 重新加载当前曲目的封面。
+     *
+     * `SongMetadataLoader.loadCover()` 只要缓存文件存在且非空就直接返回，所以必须走
+     * `SongMetadataLoader.reloadCover()` 强制重解析；它会在**同一路径**上原子替换内容，
+     * 成功后复用 [PlaybackStateHolder.setCoverArt] 广播一次，黑胶中心 / 信息页 / 迷你条
+     * 就会重新解码，三处视图层一行都不用改。
+     *
+     * 失败时**绝不调用** `setCoverArt`（包括传 null）：原图、播放与黑胶旋转相位全部保持原样。
+     * 结果是一次性事件，由 [PlaybackStateHolder.notifyCoverReloadResult] 通知播放页弹提示。
+     */
+    private fun reloadCover() {
+        val song = PlaybackStateHolder.currentSong ?: playlist.getOrNull(currentIndex)
+        if (song == null) {
+            PlaybackStateHolder.notifyCoverReloadResult(false)
+            return
+        }
+        // 与 UI 的 LOADING 状态、菜单项禁用构成第三道闸：同一缓存文件绝不并发写
+        if (!coverReloadInFlight.compareAndSet(false, true)) return
+
+        metadataScope.launch {
+            try {
+                val ok = try {
+                    val path = metadataLoader.reloadCover(song)
+                    // 加载期间切歌：丢弃结果，不把 A 的封面刷到 B 上
+                    if (path != null && PlaybackStateHolder.currentSong?.path == song.path) {
+                        withContext(Dispatchers.Main) {
+                            PlaybackStateHolder.setCoverArt(path)
+                        }
+                        PlaybackStateHolder.invokeCoverCacheInvalidators(song)
+                        true
+                    } else {
+                        false
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+                withContext(Dispatchers.Main) {
+                    PlaybackStateHolder.notifyCoverReloadResult(ok)
+                }
+            } finally {
+                coverReloadInFlight.set(false)
+            }
+        }
+    }
+
     private fun updateClusterMetadata(song: Song?, positionMs: Long) {
         if (song == null) return
         if (!settings.clusterLyricsEnabled) return
@@ -1191,6 +1244,8 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_RESUME = "resume"
         const val ACTION_SEEK = "seek"
         const val ACTION_RELOAD_LYRICS = "reload_lyrics"
+        /** 重新加载当前曲目封面：无参数，绕过缓存快路重解析一次；纯元数据动作，不拉前台。 */
+        const val ACTION_RELOAD_COVER = "reload_cover"
         /** 队列跳转：`EXTRA_INDEX` = 目标下标（越界忽略）。 */
         const val ACTION_QUEUE_JUMP = "queue_jump"
         /** 队列移除：`EXTRA_INDEX` = 要移出的下标（越界忽略）。 */
