@@ -37,12 +37,10 @@
     <string name="lyric_provider_move_up">上移</string>
     <string name="lyric_provider_move_down">下移</string>
     <string name="lyric_provider_netease">网易云音乐</string>
-    <string name="lyric_provider_lrclib">LRCLIB</string>
     <string name="lyric_provider_kugou">酷狗音乐</string>
     <string name="lyric_provider_qq">QQ 音乐</string>
-    <string name="lyric_provider_kuwo">酷我音乐</string>
-    <string name="lyric_provider_textyl">Textyl</string>
-    <string name="lyric_provider_lyrics_ovh">Lyrics.ovh</string>
+    <string name="lyric_provider_migu">咪咕音乐</string>
+    <string name="lyric_provider_lrclib">LRCLIB</string>
     <string name="lyric_provider_local">本地歌词文件</string>
     <string name="lyric_provider_online_api">在线曲库</string>
     <string name="lyric_provider_podcast">播客简介</string>

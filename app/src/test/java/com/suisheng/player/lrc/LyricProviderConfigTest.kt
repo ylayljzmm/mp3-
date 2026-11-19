@@ -8,12 +8,14 @@ import org.junit.Test
 /**
  * 联网歌词渠道配置的回归测试（`lrc/LyricProviderConfig.kt`）。
  *
- * 锁四件事：
+ * 锁五件事：
  *  ① 出厂状态 = 按 [LyricProviders.defaultOrder] 顺序、[LyricProviders.defaultDisabled] 开关；
  *  ② `parse()` 面对**上个版本**写进去的字符串要向前兼容 —— 新增渠道自动补到末尾，
  *    否则升级后老用户看不到新渠道，等于白加；
- *  ③ 不允许把渠道全关掉，否则「联网歌词」总开关会变成点了没反应；
- *  ④ `orderCsv()` / `disabledCsv()` 往返稳定 —— 这两个字符串是唯一落盘形态。
+ *  ③ 被删掉的渠道（酷我 / textyl / lyrics.ovh）出现在老字符串里时必须**安静丢弃**，
+ *    不能因为读到不认识的 id 崩掉，也不能让它复活；
+ *  ④ 不允许把渠道全关掉，否则「联网歌词」总开关会变成点了没反应；
+ *  ⑤ `orderCsv()` / `disabledCsv()` 往返稳定 —— 这两个字符串是唯一落盘形态。
  */
 class LyricProviderConfigTest {
 
@@ -22,11 +24,28 @@ class LyricProviderConfigTest {
         val config = LyricProviderConfig()
         assertEquals(LyricProviders.defaultOrder, config.order)
         assertEquals(LyricProviders.defaultDisabled, config.disabled)
-        assertFalse(config.isEnabled(LyricProviders.LYRICS_OVH))
-        assertTrue(config.isEnabled(LyricProviders.NETEASE))
         assertEquals(
             (LyricProviders.defaultOrder - LyricProviders.defaultDisabled).toSet(),
             config.enabledOrder().toSet(),
+        )
+        // 五个渠道全是真时间轴源，出厂不该有任何一个被关掉。
+        assertTrue(LyricProviders.defaultDisabled.isEmpty())
+        assertTrue(config.enabledOrder().containsAll(LyricProviders.defaultOrder))
+        // 网易云必须排第一：逐字 / 译文只有它能给，取词器「第一个拿到有轴歌词的赢」，
+        // 排后面就等于这两个能力永远用不上。
+        assertEquals(LyricProviders.NETEASE, config.order.first())
+    }
+
+    @Test
+    fun catalogAndRegistryDescribeTheSameSet() {
+        // 能力表与注册表是两份手写列表，最容易在"加渠道只改一处"时错位。
+        assertEquals(
+            LyricProviders.defaultOrder.toSet(),
+            LyricProviderCatalog.all().map { it.id }.toSet(),
+        )
+        assertEquals(
+            emptySet<String>(),
+            LyricProviderCatalog.all().filter { !it.defaultEnabled }.map { it.id }.toSet(),
         )
     }
 
@@ -46,9 +65,7 @@ class LyricProviderConfigTest {
                 LyricProviders.NETEASE,
                 LyricProviders.KUGOU,
                 LyricProviders.QQ,
-                LyricProviders.KUWO,
-                LyricProviders.TEXTYL,
-                LyricProviders.LYRICS_OVH,
+                LyricProviders.MIGU,
             ),
             config.order,
         )
@@ -57,16 +74,15 @@ class LyricProviderConfigTest {
 
     @Test
     fun unknownIdsDroppedAndDuplicatesRemoved() {
-        val config = LyricProviderConfig.parse("qq,who_knows,qq,kugou", "nonexistent")
+        // `kuwo` 是 5.9.0 删掉的渠道：老用户存下的顺序里可能还有它，必须安静丢弃。
+        val config = LyricProviderConfig.parse("qq,who_knows,qq,kuwo,kugou", "nonexistent")
         assertEquals(
             listOf(
                 LyricProviders.QQ,
                 LyricProviders.KUGOU,
                 LyricProviders.NETEASE,
+                LyricProviders.MIGU,
                 LyricProviders.LRCLIB,
-                LyricProviders.KUWO,
-                LyricProviders.TEXTYL,
-                LyricProviders.LYRICS_OVH,
             ),
             config.order,
         )
@@ -74,33 +90,60 @@ class LyricProviderConfigTest {
     }
 
     @Test
-    fun kuwoJoinedTheRegistry() {
-        // 酷我是 5.8.0 新增渠道：必须在已知集合里，出厂即启用，且排在酷狗/QQ 之后。
-        assertTrue(LyricProviders.isKnown(LyricProviders.KUWO))
-        assertTrue(LyricProviderConfig().isEnabled(LyricProviders.KUWO))
-        val index = LyricProviders.defaultOrder.indexOf(LyricProviders.KUWO)
-        assertTrue(index > LyricProviders.defaultOrder.indexOf(LyricProviders.QQ))
-        assertTrue(index < LyricProviders.defaultOrder.indexOf(LyricProviders.TEXTYL))
-        assertTrue(LyricProviderCatalog.of(LyricProviders.KUWO) != null)
+    fun removedProvidersAreGoneForGood() {
+        // 三个被删渠道：不是"默认关闭"，而是从已知集合里彻底消失。
+        for (id in listOf("kuwo", "textyl", "lyrics_ovh")) {
+            assertFalse("$id 应该已经从注册表删除", LyricProviders.isKnown(id))
+            assertEquals(null, LyricProviderCatalog.of(id))
+        }
+        // 老数据里三个都在、且 lyrics_ovh 被写过"默认关闭"，升级后不能留下任何痕迹。
+        val config = LyricProviderConfig.parse(
+            "netease,lrclib,kugou,qq,kuwo,textyl,lyrics_ovh",
+            "lyrics_ovh",
+        )
+        assertEquals(LyricProviders.defaultOrder.toSet(), config.order.toSet())
+        assertTrue(config.disabled.isEmpty())
     }
 
     @Test
-    fun enablingDefaultOffProviderSurvivesNullVsEmpty() {
-        val opened = LyricProviderConfig().withEnabled(LyricProviders.LYRICS_OVH, true)
-        assertTrue(opened.isEnabled(LyricProviders.LYRICS_OVH))
-        // 空串 = 用户显式写过「一个都没关」，与「没写过（null）」必须区分开。
-        assertEquals("", opened.disabledCsv())
-        assertTrue(LyricProviderConfig.parse(opened.orderCsv(), opened.disabledCsv())
-            .isEnabled(LyricProviders.LYRICS_OVH))
-        // 而 null 仍回到出厂默认（关闭）。
-        assertFalse(LyricProviderConfig.parse(opened.orderCsv(), null)
-            .isEnabled(LyricProviders.LYRICS_OVH))
+    fun miguJoinedTheRegistry() {
+        // 咪咕是 5.9.0 新增渠道：必须在已知集合里、出厂即启用，且排在 QQ 之后、
+        // LRCLIB 之前 —— 它给中文译词，但英文歌常只有纯文本，不值得排在 QQ 前面。
+        assertTrue(LyricProviders.isKnown(LyricProviders.MIGU))
+        assertTrue(LyricProviderConfig().isEnabled(LyricProviders.MIGU))
+        val index = LyricProviders.defaultOrder.indexOf(LyricProviders.MIGU)
+        assertTrue(index > LyricProviders.defaultOrder.indexOf(LyricProviders.QQ))
+        assertTrue(index < LyricProviders.defaultOrder.indexOf(LyricProviders.LRCLIB))
+        assertTrue(LyricProviderCatalog.of(LyricProviders.MIGU) != null)
+    }
+
+    @Test
+    fun qqNoLongerAdvertisesTranslation() {
+        // QQ 的 `trans` 字段在 18 首基准里全是空串，译文能力标了就是骗用户。
+        val abilities = LyricProviderCatalog.of(LyricProviders.QQ)?.abilities.orEmpty()
+        assertFalse(LyricAbility.TRANSLATION in abilities)
+        assertTrue(LyricAbility.TIMELINE in abilities)
+    }
+
+    @Test
+    fun nullDisabledFallsBackToFactoryAndEmptyMeansNoneDisabled() {
+        // 出厂没有默认关闭的渠道，所以此刻 null（没写过）与 ""（写过但一个都没关）等价。
+        assertTrue(LyricProviders.defaultDisabled.isEmpty())
+        assertTrue(LyricProviderConfig.parse(null, null).disabled.isEmpty())
+        assertTrue(LyricProviderConfig.parse(null, "").disabled.isEmpty())
+
+        // 但用户显式关掉的渠道必须原样还原，不能被出厂默认抹掉。
+        val custom = LyricProviderConfig().withEnabled(LyricProviders.MIGU, false)
+        assertEquals(setOf(LyricProviders.MIGU), custom.disabled)
+        val restored = LyricProviderConfig.parse(custom.orderCsv(), custom.disabledCsv())
+        assertEquals(custom, restored)
+        assertEquals(custom.disabled, restored.disabled)
     }
 
     @Test
     fun lastEnabledProviderCannotBeDisabled() {
         // 只留 netease 一个开着
-        var config = LyricProviderConfig().withEnabled(LyricProviders.LYRICS_OVH, true)
+        var config = LyricProviderConfig()
         for (id in LyricProviders.defaultOrder) {
             if (id != LyricProviders.NETEASE) config = config.withEnabled(id, false)
         }
@@ -127,15 +170,15 @@ class LyricProviderConfigTest {
     @Test
     fun moveStopsAtBoundaries() {
         val config = LyricProviderConfig()
-        val up = config.moved(LyricProviders.LRCLIB, up = true)
+        val up = config.moved(LyricProviders.KUGOU, up = true)
         assertEquals(
-            listOf(LyricProviders.LRCLIB, LyricProviders.NETEASE),
+            listOf(LyricProviders.KUGOU, LyricProviders.NETEASE),
             up.order.take(2),
         )
         // 已经在首位，再上移不动。
-        assertEquals(up, up.moved(LyricProviders.LRCLIB, up = true))
+        assertEquals(up, up.moved(LyricProviders.KUGOU, up = true))
         // 已在末位，下移不动。
-        assertEquals(config, config.moved(LyricProviders.LYRICS_OVH, up = false))
+        assertEquals(config, config.moved(LyricProviders.LRCLIB, up = false))
         // 未知 id 不动。
         assertEquals(config, config.moved("who_knows", up = true))
     }
@@ -154,7 +197,7 @@ class LyricProviderConfigTest {
     @Test
     fun resetRestoresFactory() {
         val config = LyricProviderConfig()
-            .moved(LyricProviders.TEXTYL, up = true)
+            .moved(LyricProviders.MIGU, up = true)
             .withEnabled(LyricProviders.NETEASE, false)
         assertEquals(LyricProviderConfig(), config.reset())
     }

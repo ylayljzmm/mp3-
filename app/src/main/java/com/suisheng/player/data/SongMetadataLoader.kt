@@ -53,9 +53,12 @@ class SongMetadataLoader(
         // 试不到再按全局顺序走一遍 —— 指定渠道不等于放弃兜底，否则用户点错一次
         // 这首歌就再也取不到词了。
         val override = perSongPrefs.providerOverride(song)
+        // 带上时长：搜索接口的候选排序会用「候选时长和这首歌差多少」把伴奏、remix、
+        // 同名翻唱压下去，这是《晴天》这类被翻唱淹没的歌能选对的关键信号。
+        // `durationMs` 拿不到时是 0，`OnlineLyricFetcher` 会跳过时长项，不会误判。
         val outcome = (override?.let {
-            lyricFetcher.fetch(title, artist, config, it, preferWordLevel)
-        } ?: lyricFetcher.fetch(title, artist, config, null, preferWordLevel))
+            lyricFetcher.fetch(title, artist, config, it, preferWordLevel, song.durationMs)
+        } ?: lyricFetcher.fetch(title, artist, config, null, preferWordLevel, song.durationMs))
             ?: return null
         val savedPath = LyricFileStore.saveDocument(context, song, outcome.document)
         return LyricLoadResult(outcome.document.lines, savedPath, outcome.document)

@@ -32,6 +32,23 @@ data class LyricProviderCapability(
     val defaultEnabled: Boolean,
 )
 
+/**
+ * 渠道能力表。
+ *
+ * 每一条都对应实测结论（同一批 18 首歌，见 `OnlineLyricFetcher` 类注释）：
+ *
+ * - [LyricProviders.NETEASE] 四轨齐全：`lrc` 逐行、`yrc` 逐字、`tlyric` 中文译文、
+ *   `romalrc` 注音。是唯一能给出逐字的渠道；
+ * - [LyricProviders.MIGU] `lyricUrl` 给逐行、`trcUrl` 给中文译词，所以标了译文能力。
+ *   注意译文不是每首都挂（华语歌的 `trcUrl` 是空串），能力表说的是"接口支持"；
+ * - [LyricProviders.QQ] **只有时间轴**。它的 `trans` 字段在 18 首上全为空串，
+ *   早先按"接口有 trans 字段"就标了译文能力，属于看字段不看实际内容；
+ * - [LyricProviders.KUGOU]、[LyricProviders.LRCLIB] 只有时间轴。
+ *
+ * 现在没有任何渠道是纯文本源了（旧的 lyrics.ovh 已删除），所以 `defaultEnabled` 全为
+ * `true`，`LyricProviders.defaultDisabled` 也是空集 —— 两处必须一致，
+ * `LyricProviderConfigTest` 里有一条断言在守这个不变量。
+ */
 object LyricProviderCatalog {
 
     private val entries: List<LyricProviderCapability> = listOf(
@@ -46,12 +63,6 @@ object LyricProviderCatalog {
             defaultEnabled = true,
         ),
         LyricProviderCapability(
-            id = LyricProviders.LRCLIB,
-            labelRes = R.string.lyric_provider_lrclib,
-            abilities = setOf(LyricAbility.TIMELINE),
-            defaultEnabled = true,
-        ),
-        LyricProviderCapability(
             id = LyricProviders.KUGOU,
             labelRes = R.string.lyric_provider_kugou,
             abilities = setOf(LyricAbility.TIMELINE),
@@ -60,26 +71,20 @@ object LyricProviderCatalog {
         LyricProviderCapability(
             id = LyricProviders.QQ,
             labelRes = R.string.lyric_provider_qq,
+            abilities = setOf(LyricAbility.TIMELINE),
+            defaultEnabled = true,
+        ),
+        LyricProviderCapability(
+            id = LyricProviders.MIGU,
+            labelRes = R.string.lyric_provider_migu,
             abilities = setOf(LyricAbility.TRANSLATION, LyricAbility.TIMELINE),
             defaultEnabled = true,
         ),
         LyricProviderCapability(
-            id = LyricProviders.KUWO,
-            labelRes = R.string.lyric_provider_kuwo,
+            id = LyricProviders.LRCLIB,
+            labelRes = R.string.lyric_provider_lrclib,
             abilities = setOf(LyricAbility.TIMELINE),
             defaultEnabled = true,
-        ),
-        LyricProviderCapability(
-            id = LyricProviders.TEXTYL,
-            labelRes = R.string.lyric_provider_textyl,
-            abilities = setOf(LyricAbility.TIMELINE),
-            defaultEnabled = true,
-        ),
-        LyricProviderCapability(
-            id = LyricProviders.LYRICS_OVH,
-            labelRes = R.string.lyric_provider_lyrics_ovh,
-            abilities = emptySet(),
-            defaultEnabled = false,
         ),
     )
 

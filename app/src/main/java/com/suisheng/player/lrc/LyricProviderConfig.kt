@@ -11,33 +11,46 @@ package com.suisheng.player.lrc
  *
  * ## 默认顺序的排法
  *
- * 排序依据是「能不能拿到时间轴」× 「能不能顺带拿到译文/注音」× 命中率：
+ * 排序依据是「命中率」× 「能不能拿到时间轴」× 「能不能顺带拿到译文/逐字」，全部用同一批
+ * 18 首歌实测过（详见 [OnlineLyricFetcher] 的类注释）：
  *
- * 1. [NETEASE] —— 时间轴 + 译文（`tlyric`）+ 注音（`romalrc`）三轨最全，放首位；
- * 2. [LRCLIB] —— 只有时间轴，但元数据匹配最干净、无风控；
- * 3. [KUGOU]、[QQ] —— 时间轴质量好，偶有风控；
- * 4. [TEXTYL] —— 免鉴权的简单接口，覆盖冷门歌，时间轴精度到秒；
- * 5. [LYRICS_OVH] —— **只有纯文本，没有时间轴**，默认关闭（见 [defaultDisabled]）。
+ * 1. [NETEASE] —— 时间轴 + 译文（`tlyric`）+ 注音（`romalrc`）+ 逐字（`yrc`）四轨最全，
+ *    命中率也最高（18/18）。**必须排第一**：取词器是「第一个拿到有轴歌词的渠道赢」，
+ *    把别的源放前面会让逐字/译文这两个只有网易云能给的能力永远用不上；
+ * 2. [KUGOU] —— 延迟最低（中位 162~261ms），纯时间轴，是网易云抽风时的第一顺位替补；
+ * 3. [QQ] —— 稳定 18/18，纯时间轴（`trans` 字段实测恒为空，别指望译文）；
+ * 4. [MIGU] —— 一次搜索直接给歌词地址，带中文译词轨（`trcUrl`），但对英文歌常只给纯文本；
+ * 5. [LRCLIB] —— 元数据最干净、无风控，但中文曲库返回**繁体**，且偶尔十几秒不返回，
+ *    所以排在最后并配了更短的超时。
  *
- * [LYRICS_OVH] 仍然注册进来是因为「有词总比没词强」：真遇到冷门歌时用户可以在设置里
- * 手动打开它兜底，但它给出的轴是 5 秒一行的占位轴，不能让默认行为退化成那样。
+ * ## 为什么删掉了酷我 / textyl / lyrics.ovh
+ *
+ * - 酷我：搜索结果前排全是「(KTV版伴奏)」「(DJ版)」，`lrclist` 基本为空 —— 不是慢，是取不到词；
+ * - textyl：`api.textyl.co` 的 TLS 证书已过期，现在 100% 连接失败；
+ * - lyrics.ovh：近八成请求 404，剩下的只有纯文本、没有时间轴。
+ *
+ * 三个源留着只会拖慢每一次取词，且永远排不上用场。
  */
 object LyricProviders {
 
     const val NETEASE = "netease"
-    const val LRCLIB = "lrclib"
     const val KUGOU = "kugou"
     const val QQ = "qq"
-    const val KUWO = "kuwo"
-    const val TEXTYL = "textyl"
-    const val LYRICS_OVH = "lyrics_ovh"
+    const val MIGU = "migu"
+    const val LRCLIB = "lrclib"
 
     /** 出厂顺序，也是「已知渠道全集」。 */
     val defaultOrder: List<String> =
-        listOf(NETEASE, LRCLIB, KUGOU, QQ, KUWO, TEXTYL, LYRICS_OVH)
+        listOf(NETEASE, KUGOU, QQ, MIGU, LRCLIB)
 
-    /** 默认关闭的渠道：拿不到时间轴，打开后歌词会按固定 5 秒占位轴推进。 */
-    val defaultDisabled: Set<String> = setOf(LYRICS_OVH)
+    /**
+     * 默认关闭的渠道。
+     *
+     * 目前**一个都没有**：五个源都能给出真实时间轴，没有「打开后歌词按 5 秒占位轴乱走」
+     * 的纯文本源了。保留这个集合是因为 `parse()` 的向前兼容要靠它区分
+     * 「没写过开关」与「写过但一个都没关」。
+     */
+    val defaultDisabled: Set<String> = emptySet()
 
     val all: List<String> get() = defaultOrder
 
@@ -53,10 +66,12 @@ object LyricProviders {
  *
  * ## 解析必须向前兼容
  *
- * `parse()` 面对的可能是**上个版本写进去的字符串**：那时候还没有 [LyricProviders.KUWO]。
+ * `parse()` 面对的可能是**上个版本写进去的字符串**：5.9.0 之前还注册着酷我、textyl、
+ * lyrics.ovh 三个渠道，用户存的顺序里可能就有这三个 id。
  * 所以规则是「已知 id 按存下来的顺序排 → 缺的已知 id 按出厂顺序补到末尾 → 未知 id 直接丢」。
  * 这样版本升级新增渠道时，老用户不用手动打开新渠道也不会看不到它，降级回老版本也不会
- * 因为读到不认识的 id 而崩。
+ * 因为读到不认识的 id 而崩。删掉的渠道同理：老字符串里的 `kuwo` 会被当作未知 id 丢弃，
+ * 用户不需要清数据。
  */
 data class LyricProviderConfig(
     val order: List<String> = LyricProviders.defaultOrder,

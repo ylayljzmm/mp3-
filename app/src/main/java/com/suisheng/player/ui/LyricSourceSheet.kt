@@ -113,8 +113,9 @@ object LyricSourceSheet {
     /**
      * 能力集合 → 标签列表。
      *
-     * 空集合在注册表里的语义是「拿不到时间轴」，用户看到的应该是「纯文本」而不是一片空白
-     * —— `LyricProviders.LYRICS_OVH` 就是这种渠道。
+     * 空集合在注册表里的语义是「只有纯文本、拿不到时间轴」，用户看到的应该是「纯文本」
+     * 而不是一片空白。当前五个渠道都至少有时间轴，这个分支是留给以后可能加进来的
+     * 纯文本源（曾经的 lyrics.ovh 就是这种）。
      */
     fun abilityLabels(context: Context, abilities: Set<LyricAbility>): List<String> {
         if (abilities.isEmpty()) return listOf(context.getString(R.string.lyric_ability_plain))
