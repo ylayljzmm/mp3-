@@ -33,7 +33,7 @@ object MorePanel {
      * @param song 当前播放曲目
      * @param isFavorite 当前曲目是否已收藏（决定第 1 条的文案）
      * @param canRemoveFromQueue 是否显示「从播放队列移除」
-     * @param reloadCoverEnabled 封面重载任务进行中传 false：条目置灰且不注册点击，避免并发解析
+     * @param reloadCoverEnabled 封面重载任务进行中传 false：条目置灰（监听仍在位，靠 isEnabled 拦），避免并发解析
      * @param onReloadCover 点了「重新加载专辑封面」（面板随后关闭）
      */
     fun show(
@@ -55,6 +55,10 @@ object MorePanel {
         )
         binding.moreRemove.isVisible = canRemoveFromQueue
 
+        // 点击监听**永远注册**。5.9.1 是按 reloadCoverEnabled 决定要不要 setOnClickListener，
+        // 于是状态一旦卡在 LOADING 就同时得到「灰掉」和「没监听」两个锁，只能杀进程恢复。
+        // 现在灰掉交给 isEnabled（框架层本来就会拦点击），监听始终在位，
+        // 启用状态只要被 isCoverReloadBusy() 的过期判定恢复，点击就能立刻用。
         binding.moreReloadCover.isEnabled = reloadCoverEnabled
         binding.moreReloadCover.alpha = if (reloadCoverEnabled) 1f else 0.45f
 
@@ -70,12 +74,12 @@ object MorePanel {
             dialog.dismiss()
             showSongInfo(context, song)
         }
-        if (reloadCoverEnabled) {
-            binding.moreReloadCover.setOnClickListener {
-                // 先关面板再回调：避免加载结果与菜单叠在一起
-                dialog.dismiss()
-                onReloadCover()
-            }
+        binding.moreReloadCover.setOnClickListener {
+            // 灰掉时框架已拦掉点击，这里再兜一次：状态可能在面板打开的瞬间才过期恢复
+            if (!binding.moreReloadCover.isEnabled) return@setOnClickListener
+            // 先关面板再回调：避免加载结果与菜单叠在一起
+            dialog.dismiss()
+            onReloadCover()
         }
         binding.moreCancel.setOnClickListener { dialog.dismiss() }
 

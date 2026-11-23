@@ -24,6 +24,7 @@ import com.suisheng.player.model.LibraryGroup
 import com.suisheng.player.model.LibraryGrouper
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.Song
+import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.PinyinIndex
 import java.io.File
 import kotlin.math.max
@@ -68,6 +69,26 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
     private var rootDir: File? = null
     private var currentDir: File? = null
 
+    /** 专辑墙的封面加载器；非专辑分组时为 null。 */
+    private var albumCoverLoader: AlbumCoverLoader? = null
+
+    /**
+     * 封面重载成功后，把专辑墙上对应的那一格重画一次。
+     *
+     * 用**具名字段**而不是 lambda 字面量注册：`removeCoverCacheInvalidator` 是按引用
+     * 比对的，每次调 `onViewCreated` 都新建一个 lambda 就会在 holder 里越积越多，
+     * Fragment 换页十几次之后一次重载会去操作十几个已经销毁的 View。
+     * 失效本身在 loader 里（内存 LRU + 磁盘图），这里只负责让那一格重新绑定。
+     */
+    private val coverInvalidator: (Song) -> Unit = invalidator@{ song ->
+        val loader = albumCoverLoader ?: return@invalidator
+        val key = loader.albumKeyOf(song)
+        loader.invalidateFor(song)
+        if (_binding == null) return@invalidator
+        val position = adapter.positionOf(key)
+        if (position >= 0) adapter.notifyItemChanged(position)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -88,9 +109,14 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
             if (grouping == Grouping.FOLDER) View.VISIBLE else View.GONE
 
         val coverLoader = AlbumCoverLoader(requireContext(), viewLifecycleOwner.lifecycleScope)
+        // 只有专辑墙有封面缓存；艺术家/文件夹页传 null，也就不必挂失效通道
+        albumCoverLoader = coverLoader.takeIf { grouping == Grouping.ALBUM }
+        if (albumCoverLoader != null) {
+            PlaybackStateHolder.addCoverCacheInvalidator(coverInvalidator)
+        }
         adapter = LibraryGroupAdapter(
             mode = grouping.adapterMode,
-            coverLoader = coverLoader.takeIf { grouping == Grouping.ALBUM },
+            coverLoader = albumCoverLoader,
             countText = { group -> getString(R.string.library_song_count, group.subtitle) },
             onClick = ::onGroupClicked,
             // 只有「文件夹」有长按语义：专辑/艺术家长按隐藏没有意义（同一张专辑散落在多个目录）
@@ -127,6 +153,10 @@ class GroupedLibraryFragment : Fragment(), PageBackHandler {
     }
 
     override fun onDestroyView() {
+        // 必须成对反注册：holder 是进程级单例，漏一次就永远持有本页引用，
+        // 之后每次重载封面都会来操作一个 null binding 的 Fragment。
+        PlaybackStateHolder.removeCoverCacheInvalidator(coverInvalidator)
+        albumCoverLoader = null
         binding.groupList.adapter = null
         _binding = null
         super.onDestroyView()

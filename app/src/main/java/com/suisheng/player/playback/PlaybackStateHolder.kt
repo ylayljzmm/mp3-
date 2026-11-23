@@ -1,6 +1,9 @@
 package com.suisheng.player.playback
 
+import android.os.SystemClock
+
 import com.suisheng.player.lrc.LyricDocument
+import com.suisheng.player.model.CoverReloadResult
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.LyricState
@@ -12,6 +15,14 @@ import java.util.concurrent.CopyOnWriteArrayList
 enum class CoverReloadState { IDLE, LOADING }
 
 object PlaybackStateHolder {
+    /**
+     * 封面重载的超时门限。
+     *
+     * iTunes 检索（8s）+ 封面下载（10s）在最坏链路上会叠加到 20s 上下，
+     * 这里留出 10s 余量。它同时是「状态过期」的判据，见 [isCoverReloadBusy]。
+     */
+    const val COVER_RELOAD_TIMEOUT_MS = 30_000L
+
     private val listeners = CopyOnWriteArrayList<Listener>()
 
     var songs: List<Song> = emptyList()
@@ -36,7 +47,27 @@ object PlaybackStateHolder {
     var coverReloadState: CoverReloadState = CoverReloadState.IDLE
         private set
 
-    /** 封面重载成功后要额外失效的缓存（P2 可插拔 hook，当前无注册者）。 */
+    /**
+     * 进入 [CoverReloadState.LOADING] 的时刻（`elapsedRealtime`，0 = 没在加载）。
+     *
+     * 为什么要有它：这个状态是**进程级**的，但 5.9.1 的复位逻辑挂在
+     * `PlayerFragment` 的 `viewLifecycleOwner.lifecycleScope` 上 —— 用户点完
+     * 「重新加载封面」立刻返回上一页，协程被取消、listener 被移除，状态就永久卡在
+     * LOADING。`MorePanel` 那时连点击监听都不注册，只能杀进程恢复。
+     *
+     * 现在改成「状态自带过期语义」：读取方用 [isCoverReloadBusy] 判断，
+     * 超过 [COVER_RELOAD_TIMEOUT_MS] 自动视作已结束并就地复位，
+     * 不再依赖任何某个页面替全进程兜底。
+     */
+    var coverReloadStartedAt: Long = 0L
+        private set
+
+    /**
+     * 封面重载成功后要额外失效的缓存。
+     *
+     * 专辑墙（`AlbumCoverLoader`）用专辑名做键、自己缓存内存位图与磁盘图，
+     * 不清就永远是旧图 —— 而它和播放页不共享任何缓存层，只能靠这条 hook 通知。
+     */
     private val coverCacheInvalidators = CopyOnWriteArrayList<(Song) -> Unit>()
 
     val currentSong: Song?
@@ -64,8 +95,8 @@ object PlaybackStateHolder {
         /** 封面重载的持久状态变化；新建 Listener 时也会补发一次。 */
         fun onCoverReloadStateChanged(state: CoverReloadState) {}
 
-        /** 封面重载的一次性结果（成功 / 失败），不补发，避免页面重建后重复弹提示。 */
-        fun onCoverReloadResult(success: Boolean) {}
+        /** 封面重载的一次性结果，不补发，避免页面重建后重复弹提示。 */
+        fun onCoverReloadResult(result: CoverReloadResult) {}
     }
 
     fun addListener(listener: Listener) {
@@ -178,12 +209,36 @@ object PlaybackStateHolder {
 
     fun setCoverReloadState(state: CoverReloadState) {
         coverReloadState = state
+        coverReloadStartedAt = if (state == CoverReloadState.LOADING) {
+            SystemClock.elapsedRealtime()
+        } else {
+            0L
+        }
         listeners.forEach { it.onCoverReloadStateChanged(state) }
     }
 
+    /**
+     * 是否正在加载封面 —— 带过期判定，见 [coverReloadStartedAt]。
+     *
+     * 任何「能不能点重新加载封面」的地方都该用它，别再直接比 [coverReloadState]：
+     * 一旦进程里没人复位，直接比会永久禁用这个功能。这里发现已超时就顺手复位，
+     * 让下一个读取方立刻恢复正常。
+     */
+    fun isCoverReloadBusy(): Boolean {
+        if (coverReloadState != CoverReloadState.LOADING) return false
+        val startedAt = coverReloadStartedAt
+        val expired = startedAt <= 0L ||
+            SystemClock.elapsedRealtime() - startedAt >= COVER_RELOAD_TIMEOUT_MS
+        if (expired) {
+            setCoverReloadState(CoverReloadState.IDLE)
+            return false
+        }
+        return true
+    }
+
     /** 一次性结果事件：不写持久状态、不在 [addListener] 补发。 */
-    fun notifyCoverReloadResult(success: Boolean) {
-        listeners.forEach { it.onCoverReloadResult(success) }
+    fun notifyCoverReloadResult(result: CoverReloadResult) {
+        listeners.forEach { it.onCoverReloadResult(result) }
     }
 
     fun addCoverCacheInvalidator(fn: (Song) -> Unit) {
@@ -194,7 +249,7 @@ object PlaybackStateHolder {
         coverCacheInvalidators.remove(fn)
     }
 
-    /** 单个失效器抛异常不能影响主链路；P2 之前没有注册者，调用即空转。 */
+    /** 单个失效器抛异常不能影响主链路。 */
     fun invokeCoverCacheInvalidators(song: Song) {
         coverCacheInvalidators.forEach { runCatching { it(song) } }
     }

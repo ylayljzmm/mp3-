@@ -47,6 +47,14 @@
     <string name="cover_reload_loading">正在重新加载封面</string>
     <string name="cover_reload_success">封面已更新</string>
     <string name="cover_reload_failed">未能重新加载封面</string>
+    <!-- 失败不再统一一句话：用户需要分清是「开关关着」「本地文件没内嵌也没搜到」还是「图本来就是这张」 -->
+    <string name="cover_reload_unchanged">封面已是最新，没有找到更好的图</string>
+    <string name="cover_reload_online_disabled">联网封面已关闭，本地文件也没有内嵌封面</string>
+    <string name="cover_reload_no_source">没找到这张专辑的封面</string>
+    <string name="cover_reload_not_decodable">取到的封面图已损坏，保留原图</string>
+    <string name="cover_reload_io_failed">读写封面缓存失败，请稍后重试</string>
+    <string name="cover_reload_busy">正在处理上一张封面，请稍后再试</string>
+    <string name="cover_reload_no_song">当前没有正在播放的歌曲</string>
     <string name="more_info_title">歌曲信息</string>
     <string name="more_info_song">歌曲名：%1$s</string>
     <string name="more_info_artist">歌手：%1$s</string>

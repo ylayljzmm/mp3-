@@ -33,6 +33,8 @@ import com.suisheng.player.data.SongInfoLoader
 import com.suisheng.player.databinding.DialogLyricSearchBinding
 import com.suisheng.player.databinding.FragmentPlayerBinding
 import com.suisheng.player.lrc.LyricProviderCatalog
+import com.suisheng.player.model.CoverReloadOutcome
+import com.suisheng.player.model.CoverReloadResult
 import com.suisheng.player.model.LrcLine
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
@@ -44,7 +46,6 @@ import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -766,41 +767,56 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
             canRemoveFromQueue = queue.size > 1 && queue.any { it.path == song.path },
             onToggleFavorite = ::toggleFavorite,
             onRemoveFromQueue = ::removeCurrentFromQueue,
-            reloadCoverEnabled =
-                PlaybackStateHolder.coverReloadState == CoverReloadState.IDLE,
+            // 用 isCoverReloadBusy() 而不是直接比状态：状态是进程级的，一旦没人复位
+            // 就会永久禁用这个功能；isCoverReloadBusy() 带过期判定，超时自动恢复。
+            reloadCoverEnabled = !PlaybackStateHolder.isCoverReloadBusy(),
             onReloadCover = ::reloadCurrentCover,
         )
     }
 
     /**
-     * 更多面板「重新加载专辑封面」：置加载态 → 发指令 → 超时兜底恢复菜单。
+     * 更多面板「重新加载专辑封面」：置加载态 → 发指令。
      *
      * 真正的重取在服务端（缓存文件在服务侧目录），结果通过
      * [PlaybackStateHolder.Listener.onCoverReloadResult] 回来；这里不碰磁盘、不碰位图。
+     *
+     * **不再挂 viewLifecycleOwner 的超时协程**：那个兜底在用户点完立刻返回上一页时会被
+     * 连协程一起取消，状态就永久卡 LOADING（5.9.1 的死锁）。现在过期判定在
+     * [PlaybackStateHolder.isCoverReloadBusy] 里，跟页面生命周期无关。
+     * 置 LOADING 也必须放在发指令**成功之后**，否则指令早退（队列为空 / 服务启动失败）
+     * 又会留下一个没人负责复位的高位状态。
      */
     private fun reloadCurrentCover() {
-        if (PlaybackStateHolder.coverReloadState != CoverReloadState.IDLE) return
+        if (PlaybackStateHolder.isCoverReloadBusy()) return
         val ctx = context ?: return
+        if (!sendAction(MusicPlaybackService.ACTION_RELOAD_COVER)) return
         PlaybackStateHolder.setCoverReloadState(CoverReloadState.LOADING)
         Toast.makeText(ctx, R.string.cover_reload_loading, Toast.LENGTH_SHORT).show()
-        sendAction(MusicPlaybackService.ACTION_RELOAD_COVER)
-        // 服务异常 / 进程被杀时结果事件可能永远不来，30s 后强制恢复，避免菜单永久禁用。
-        viewLifecycleOwner.lifecycleScope.launch {
-            delay(COVER_RELOAD_TIMEOUT_MS)
-            if (PlaybackStateHolder.coverReloadState == CoverReloadState.LOADING) {
-                PlaybackStateHolder.setCoverReloadState(CoverReloadState.IDLE)
-            }
-        }
     }
 
-    override fun onCoverReloadResult(success: Boolean) {
+    /**
+     * 封面重载结果（来自服务端的一次性事件）。
+     *
+     * 无论成败都先把 LOADING 复位 —— 这是本页唯一需要负责的状态收尾。
+     * 文案按 [CoverReloadOutcome] 分开：5.9.1 只有一个 Boolean，用户看到「未能重新加载封面」
+     * 根本分不清是「在线封面开关关着」「本地文件没内嵌也没搜到」，还是「图本来就这一张」。
+     * BUSY / CANCELLED 不打扰用户（前者是重复点击，后者是已经切歌、结果被丢弃）。
+     */
+    override fun onCoverReloadResult(result: CoverReloadResult) {
         PlaybackStateHolder.setCoverReloadState(CoverReloadState.IDLE)
+        val textRes = when (result.outcome) {
+            CoverReloadOutcome.UPDATED -> R.string.cover_reload_success
+            CoverReloadOutcome.UNCHANGED -> R.string.cover_reload_unchanged
+            CoverReloadOutcome.ONLINE_DISABLED -> R.string.cover_reload_online_disabled
+            CoverReloadOutcome.NO_SOURCE -> R.string.cover_reload_no_source
+            CoverReloadOutcome.NOT_DECODABLE -> R.string.cover_reload_not_decodable
+            CoverReloadOutcome.IO_FAILED -> R.string.cover_reload_io_failed
+            CoverReloadOutcome.BUSY -> R.string.cover_reload_busy
+            CoverReloadOutcome.NO_SONG -> R.string.cover_reload_no_song
+            CoverReloadOutcome.CANCELLED -> return
+        }
         val ctx = context ?: return
-        Toast.makeText(
-            ctx,
-            if (success) R.string.cover_reload_success else R.string.cover_reload_failed,
-            Toast.LENGTH_SHORT,
-        ).show()
+        Toast.makeText(ctx, textRes, Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -1065,19 +1081,26 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         ContextCompat.startForegroundService(requireContext(), intent)
     }
 
-    private fun sendAction(action: String) {
+    /**
+     * 向前台服务投递一个动作指令，返回是否真的发出去了。
+     *
+     * 返回值不是装饰：`reloadCurrentCover()` 要靠它决定要不要置 LOADING 态。
+     * 队列为空、服务起不来时这里早退，调用方若已经先把状态置成 LOADING，
+     * 就再也没人能把它复位。
+     */
+    private fun sendAction(action: String): Boolean {
         if (PlaybackStateHolder.songs.isEmpty()) {
             Toast.makeText(requireContext(), R.string.no_songs, Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
-        runCatching {
+        return runCatching {
             ContextCompat.startForegroundService(
                 requireContext(),
                 Intent(requireContext(), MusicPlaybackService::class.java).apply { this.action = action }
             )
         }.onFailure {
             Toast.makeText(requireContext(), R.string.playback_start_failed, Toast.LENGTH_SHORT).show()
-        }
+        }.isSuccess
     }
 
     /** 由 `MainActivity.notifyLyricStyleChanged()` 调用（歌词字号/配色/栏距变了要重排）。 */
@@ -1131,9 +1154,6 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
 
         /** 信息页封面的落盘目录（`cacheDir/song_info_cover`）。 */
         const val INFO_COVER_DIR = "song_info_cover"
-
-        /** 封面重载结果最长等待：覆盖内嵌解析 8s 搜索 + 10s 下载的最坏串行耗时。 */
-        const val COVER_RELOAD_TIMEOUT_MS = 30_000L
 
         /** 缓存文件数超过这个值就触发清理，清到 [INFO_COVER_CACHE_KEEP] 个。 */
         const val INFO_COVER_CACHE_MAX = 60

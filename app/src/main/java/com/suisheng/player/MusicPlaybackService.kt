@@ -34,6 +34,8 @@ import com.suisheng.player.data.RssFeedRepository
 import com.suisheng.player.data.SettingsRepository
 import com.suisheng.player.data.SongMetadataLoader
 import com.suisheng.player.lrc.LrcParser
+import com.suisheng.player.model.CoverReloadOutcome
+import com.suisheng.player.model.CoverReloadResult
 import com.suisheng.player.model.LibraryKind
 import com.suisheng.player.model.PlaybackMode
 import com.suisheng.player.model.Song
@@ -811,6 +813,30 @@ class MusicPlaybackService : MediaSessionService() {
                 )
                 LyricsOverlayService.updateLyrics(applicationContext, PlaybackStateHolder.lyricState)
             }
+
+            // 落盘的旧歌词是 5.9.1 那批「有正文、没译文」的残缺数据时，先用旧的行把界面撑起来
+            // （上面已经画完），再在后台补一次重取。不能让用户为了拿到译文去手动点「换渠道」，
+            // 也不能让重取挡住首屏 —— 所以是「先显示、后刷新」，不是「先刷新」。
+            if (localDocument != null && metadataLoader.isStaleLyrics(localDocument)) {
+                val refreshed = runCatching { metadataLoader.loadLyrics(song, forceOnline = true) }
+                    .getOrNull() ?: return@launch
+                if (playlist.getOrNull(currentIndex)?.path != song.path) return@launch
+                refreshed.lrcPath?.let { persistSongLrcPath(song.path, it) }
+                currentLines = refreshed.lines
+                withContext(Dispatchers.Main) {
+                    val p = exoPlayer
+                    PlaybackStateHolder.setLyricDocument(refreshed.document)
+                    PlaybackStateHolder.timebase.setUserOffset(perSongLyricPrefs.offsetMs(song))
+                    PlaybackStateHolder.update(
+                        song,
+                        p?.isPlaying == true,
+                        p?.currentPosition ?: 0L,
+                        currentLines,
+                        p?.duration?.coerceAtLeast(0L) ?: PlaybackStateHolder.durationMs
+                    )
+                    LyricsOverlayService.updateLyrics(applicationContext, PlaybackStateHolder.lyricState)
+                }
+            }
         }
     }
 
@@ -1103,36 +1129,49 @@ class MusicPlaybackService : MediaSessionService() {
      * 就会重新解码，三处视图层一行都不用改。
      *
      * 失败时**绝不调用** `setCoverArt`（包括传 null）：原图、播放与黑胶旋转相位全部保持原样。
-     * 结果是一次性事件，由 [PlaybackStateHolder.notifyCoverReloadResult] 通知播放页弹提示。
+     * 结果是一次性事件，带着具体原因交给播放页 —— 5.9.1 只回一个 Boolean，
+     * 「在线封面关着」「文件没内嵌也没搜到」全被压成同一句「未能重新加载封面」。
      */
     private fun reloadCover() {
         val song = PlaybackStateHolder.currentSong ?: playlist.getOrNull(currentIndex)
         if (song == null) {
-            PlaybackStateHolder.notifyCoverReloadResult(false)
+            PlaybackStateHolder.notifyCoverReloadResult(CoverReloadResult(CoverReloadOutcome.NO_SONG))
             return
         }
-        // 与 UI 的 LOADING 状态、菜单项禁用构成第三道闸：同一缓存文件绝不并发写
-        if (!coverReloadInFlight.compareAndSet(false, true)) return
+        // 与 UI 的 LOADING 状态、菜单项禁用构成第三道闸：同一缓存文件绝不并发写。
+        // 抢不到也要回报，否则 UI 只能干等 30s 超时。
+        if (!coverReloadInFlight.compareAndSet(false, true)) {
+            PlaybackStateHolder.notifyCoverReloadResult(CoverReloadResult(CoverReloadOutcome.BUSY))
+            return
+        }
 
         metadataScope.launch {
             try {
-                val ok = try {
-                    val path = metadataLoader.reloadCover(song)
+                val result = try {
+                    val reloaded = metadataLoader.reloadCover(song)
                     // 加载期间切歌：丢弃结果，不把 A 的封面刷到 B 上
-                    if (path != null && PlaybackStateHolder.currentSong?.path == song.path) {
-                        withContext(Dispatchers.Main) {
-                            PlaybackStateHolder.setCoverArt(path)
-                        }
-                        PlaybackStateHolder.invokeCoverCacheInvalidators(song)
-                        true
+                    if (reloaded.outcome == CoverReloadOutcome.UPDATED &&
+                        PlaybackStateHolder.currentSong?.path != song.path
+                    ) {
+                        CoverReloadResult(CoverReloadOutcome.CANCELLED)
                     } else {
-                        false
+                        // 只有真换了图才广播：UNCHANGED 时图一个字节都没变，
+                        // 广播只会让三个显示端白解码一次同一张图。
+                        if (reloaded.outcome == CoverReloadOutcome.UPDATED) {
+                            reloaded.path?.let { path ->
+                                withContext(Dispatchers.Main) {
+                                    PlaybackStateHolder.setCoverArt(path)
+                                }
+                            }
+                            PlaybackStateHolder.invokeCoverCacheInvalidators(song)
+                        }
+                        reloaded
                     }
                 } catch (_: Exception) {
-                    false
+                    CoverReloadResult(CoverReloadOutcome.IO_FAILED)
                 }
                 withContext(Dispatchers.Main) {
-                    PlaybackStateHolder.notifyCoverReloadResult(ok)
+                    PlaybackStateHolder.notifyCoverReloadResult(result)
                 }
             } finally {
                 coverReloadInFlight.set(false)

@@ -49,6 +49,14 @@ class LibraryGroupAdapter(
 
     override fun getItemCount(): Int = items.size
 
+    /**
+     * 找到 [key] 对应的位置，找不到返回 -1。
+     *
+     * 用于「封面重载后只刷新受影响的那一张卡」：整表 `notifyDataSetChanged()`
+     * 会让几十张已加载好的封面全部重新走一次解码，滚动位置也会跳。
+     */
+    fun positionOf(key: String): Int = items.indexOfFirst { it.key == key }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return if (mode == Mode.GRID) {

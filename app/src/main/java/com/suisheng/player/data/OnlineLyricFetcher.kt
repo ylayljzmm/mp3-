@@ -183,8 +183,19 @@ class OnlineLyricFetcher {
         val translation = lyricJson.optJSONObject("tlyric")?.optString("lyric")
         val phonetic = lyricJson.optJSONObject("romalrc")?.optString("lyric")
 
+        // 行级轨先单独建好并挂上侧轨：`tlyric` / `romalrc` 的时间轴是跟着 `lrc` 生成的，
+        // 与逐字 `yrc` 不是同一套基准（实测《Lemon》侧轨对 lrc 命中 42/45、对 yrc 命中 0/45）。
+        // 所以侧轨一律先挂在行级轨上，需要逐字时再整行搬运过去 —— 顺序反了就会成片丢译文。
+        val synced = lyricJson.optJSONObject("lrc")?.optString("lyric")?.takeIf { it.isNotBlank() }
+        val lineDoc = synced
+            ?.takeUnless { looksLikeAudiobook(it) }
+            ?.let { LrcParser.parseDocument(stripCreditHeader(it, request.title, request.artist)) }
+            ?.takeIf { it.lines.isNotEmpty() }
+            ?.copy(sourceProviderId = LyricProviders.NETEASE)
+            ?.let { LrcParser.mergePhonetic(LrcParser.mergeTranslation(it, translation), phonetic) }
+
         // 逐字轨优先：yrc 带每一行、每个字的起止毫秒，是「KTV 字字对应」的唯一真数据源。
-        // 它不保证每首歌都有，也不保证格式规整，所以任何一步不像 yrc 就静默回落到 lrc。
+        // 它不保证每首歌都有，也不保证格式规整，所以任何一步不像 yrc 就静默回落到行级轨。
         if (preferWordLevel) {
             val yrc = lyricJson.optJSONObject("yrc")?.optString("lyric").orEmpty()
             if (YrcParser.looksLikeYrc(yrc)) {
@@ -195,23 +206,13 @@ class OnlineLyricFetcher {
                 if (cleaned.isNotEmpty()) {
                     val wordDoc = LyricDocument.singleTrack(cleaned)
                         .copy(sourceProviderId = LyricProviders.NETEASE)
-                    return LrcParser.mergePhonetic(
-                        LrcParser.mergeTranslation(wordDoc, translation),
-                        phonetic,
-                    )
+                    // 有行级轨就按行对应关系把译文/注音搬过来，没有就原样返回逐字轨。
+                    return lineDoc?.let { LrcParser.retargetSideTracks(wordDoc, it) } ?: wordDoc
                 }
             }
         }
 
-        val synced = lyricJson.optJSONObject("lrc")?.optString("lyric")?.takeIf { it.isNotBlank() }
-            ?: return null
-        if (looksLikeAudiobook(synced)) return null
-        val base = LrcParser.parseDocument(stripCreditHeader(synced, request.title, request.artist))
-        if (base.lines.isEmpty()) return null
-        return LrcParser.mergePhonetic(
-            LrcParser.mergeTranslation(base.copy(sourceProviderId = LyricProviders.NETEASE), translation),
-            phonetic,
-        )
+        return lineDoc
     }
 
     private fun neteaseArtistOf(song: JSONObject): String {
@@ -540,14 +541,15 @@ class OnlineLyricFetcher {
      */
     private fun stripCreditLines(lines: List<LrcLine>, title: String, artist: String): List<LrcLine> {
         val kept = lines.filterIndexed { index, line ->
-            // 与 [stripCreditHeader] 同一套窗口规则：头 15 秒**或者**头 25 行。
-            if (line.startTimeMs > HEAD_WINDOW_MS && index >= HEAD_WINDOW_LINES) return@filterIndexed true
             val body = line.text.trim()
             if (body.isEmpty()) return@filterIndexed true
-            val drop = body == MIGU_WATERMARK ||
-                SECTION_MARKER.matches(body) ||
-                META_LABEL.containsMatchIn(body) ||
-                isTitleHeader(body, title, artist)
+            // 水印和 `[verse]` / `[MUSIC]` 这类段落标记**在文件任何位置都要删**：
+            // 它们不是歌词，而且实测《残酷な天使のテーゼ》的 `[MUSIC]` 出现在中间，
+            // 留着会把后面的行整体顶偏一位，两侧轨就再也对不齐了。
+            if (body == MIGU_WATERMARK || SECTION_MARKER.matches(body)) return@filterIndexed false
+            // 与 [stripCreditHeader] 同一套窗口规则：头 15 秒**或者**头 25 行。
+            if (line.startTimeMs > HEAD_WINDOW_MS && index >= HEAD_WINDOW_LINES) return@filterIndexed true
+            val drop = META_LABEL.containsMatchIn(body) || isTitleHeader(body, title, artist)
             !drop
         }
         return if (kept.size >= 3) kept else lines

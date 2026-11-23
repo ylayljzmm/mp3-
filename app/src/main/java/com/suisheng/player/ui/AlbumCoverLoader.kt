@@ -8,7 +8,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.suisheng.player.R
 import com.suisheng.player.data.CoverArtFetcher
+import com.suisheng.player.model.LibraryGrouper
 import com.suisheng.player.model.Song
+import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.CoverBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +78,37 @@ class AlbumCoverLoader(
                 letterView.visibility = View.GONE
             }
         }
+    }
+
+    /**
+     * 播放页重载了 [song] 的封面之后，让专辑墙**丢掉**这张卡上缓存的旧图。
+     *
+     * 这里的缓存键是 `group.key`（专辑名），既不随文件内容变化，也没有 mtime 之类
+     * 的版本信息 —— 所以重载成功后如果不主动失效，回到专辑墙看到的仍然是旧图，
+     * 用户会以为「重新加载封面没生效」。这正是 5.9.1 的病根之一，只是它藏在这一页。
+     *
+     * 只清这一个专辑的内存图和磁盘图，不动其余几十张：专辑墙一屏几十张卡，
+     * 全清会让用户滚回来看见一片首字母占位，然后重新开几十次 MediaMetadataRetriever。
+     * 清完后本页由宿主 `refresh()` 重新绑定时会重新加载（见 [GroupedLibraryFragment]）。
+     */
+    fun invalidateFor(song: Song) {
+        val key = albumKeyOf(song)
+        memory.remove(key)
+        // inFlight 里还挂着的那个请求算的是旧文件的图，放开让它下次能重新发起
+        inFlight.remove(key)
+        runCatching { File(cacheDir, md5(key) + ".jpg").delete() }
+    }
+
+    /**
+     * 这首歌在专辑墙上的缓存键：与 `LibraryGrouper.byAlbum` 完全同一套口径
+     * （空专辑名归到 `LibraryGrouper.UNKNOWN_KEY`）。
+     *
+     * 公开出来是给页面用的：失效之后页面要靠同一个 key 找到那一格重新绑定，
+     * 两处各算一次很容易漂移（比如一处 trim 了、一处没 trim）。
+     */
+    fun albumKeyOf(song: Song): String {
+        val raw = song.album.trim()
+        return if (raw.isEmpty()) LibraryGrouper.UNKNOWN_KEY else raw
     }
 
     private fun load(key: String, source: Song): Bitmap? {

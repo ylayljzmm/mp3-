@@ -36,6 +36,16 @@ data class LyricDocument(
     val phoneticLang: String? = null,
     /** 这份歌词由哪个渠道给出（`netease` / `lrclib` / 本地文件…），供 UI 显示来源。 */
     val sourceProviderId: String? = null,
+    /**
+     * 附加轨（译文 / 注音）对齐算法的版本号，0 表示「5.9.1 及更早落盘的旧文件」。
+     *
+     * 存在的唯一理由：网易云的 `tlyric` / `romalrc` 时间轴跟着**行级 lrc**，
+     * 而逐字 `yrc` 是另一套时间基准。5.9.1 把侧轨直接按时间戳挂到 yrc 行上，
+     * 几乎全部落空 —— 那些 `.lrcx` 里存的就是「有正文、没译文」的残缺数据。
+     * 光修代码不会让已落盘的文件变好，所以这里记一个版本，读取时发现版本过旧
+     * 就静默重取一次（见 `SongMetadataLoader.loadLyrics`）。
+     */
+    val alignVersion: Int = 0,
 ) {
     /** 是否为本项目的多轨格式。 */
     val isMultiTrack: Boolean get() = formatVersion >= 2
@@ -55,6 +65,16 @@ data class LyricDocument(
 
         /** 多轨格式的版本标记行，必须是文件首行。 */
         const val MARKER = "#@suisheng-lrc-v2"
+
+        /**
+         * 当前附加轨对齐算法的版本号（写进 `#@meta align=`）。
+         *
+         * - `0`：5.9.1 及更早，侧轨按时间戳挂到逐字轨上 —— 大概率丢译文/注音；
+         * - `2`：5.9.2 起，侧轨先在行级轨上取准、再按行对应搬到逐字轨上。
+         *
+         * 只增不清：读到低于这个值的文档就重取一次词。
+         */
+        const val ALIGN_VERSION_CURRENT = 2
 
         /** 由旧单轨解析结果包装成文档。 */
         fun singleTrack(lines: List<LrcLine>, fileOffsetMs: Long = 0L): LyricDocument =
