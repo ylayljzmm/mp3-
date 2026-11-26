@@ -6,6 +6,8 @@
 
     <string name="settings_spin_cover">封面随黑胶一起旋转</string>
     <string name="settings_spin_cover_hint">开启时唱片与中间封面一起顺时针转；关闭则封面保持正立（人像封面不会倒过来）。</string>
+    <string name="settings_vinyl_particles">黑胶粒子特效</string>
+    <string name="settings_vinyl_particles_hint">播放时黑胶周围有上浮的音符与光点。低端设备上关闭可省电。</string>
 
     <!-- 车机形态自动判定的最后兜底 -->
     <string name="settings_force_car_layout">强制使用车机大屏布局</string>

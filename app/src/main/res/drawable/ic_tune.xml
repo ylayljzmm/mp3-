@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌词调节入口图标（5.10.0 C6）。
+
+  原来这里是 14sp 加粗的「调」字，占位感很强、和右侧的图标按钮不成体系。
+  换成与 Material `tune` 等价的图标：三条水平滑轨 + 各一个滑块。
+
+  尺寸由使用处的 `@dimen/player_topbar_icon_size`(24dp) 控制，本文件只描述 24dp 画布；
+  颜色不写死，用 `?attr/colorOnSurfaceVariant` 在布局里 tint，跟随主题。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="@dimen/player_topbar_icon_size"
+    android:height="@dimen/player_topbar_icon_size"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 第一条滑轨 + 滑块（偏右） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,6h10v1.6H3z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M15.2,4.6a2.2,2.2 0 1,0 0,4.4a2.2,2.2 0 1,0 0,-4.4z" />
+
+    <!-- 第二条滑轨 + 滑块（偏左） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,11.2h10v1.6H11z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8.8,9.8a2.2,2.2 0 1,0 0,4.4a2.2,2.2 0 1,0 0,-4.4z" />
+
+    <!-- 第三条滑轨 + 滑块（居中偏右） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,16.4h9v1.6H3z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M14.4,15a2.2,2.2 0 1,0 0,4.4a2.2,2.2 0 1,0 0,-4.4z" />
+
+</vector>

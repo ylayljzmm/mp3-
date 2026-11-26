@@ -93,6 +93,16 @@ class SettingsRepository(context: Context) {
         set(value) = prefs.edit { putBoolean(KEY_SPIN_COVER_WITH_DISC, value) }
 
     /**
+     * 黑胶上浮粒子特效（默认 **开**）。
+     *
+     * 5.10.0 新增。粒子只在自己可见 + 正在播放时才跑（`Choreographer` 帧回调），
+     * 但低端机上仍可能占 GPU，所以给一个总开关。关掉后立刻清空已存在的粒子。
+     */
+    var vinylParticlesEnabled: Boolean
+        get() = prefs.getBoolean(KEY_VINYL_PARTICLES, true)
+        set(value) = prefs.edit { putBoolean(KEY_VINYL_PARTICLES, value) }
+
+    /**
      * 强制按「车机大屏」布局（默认关，自动判定的最后兜底）。
      *
      * 某些深度定制车机 ROM 既不声明 automotive、屏幕参数又异常，几何判定也
@@ -537,6 +547,8 @@ class SettingsRepository(context: Context) {
         const val KEY_LYRIC_SHOW_PHONETIC = "lyric_show_phonetic"
         /** 封面是否随黑胶盘一起顺时针旋转（默认开），见 [spinCoverWithDisc]。 */
         const val KEY_SPIN_COVER_WITH_DISC = "spin_cover_with_disc"
+        /** 黑胶上浮粒子特效（默认开），见 [vinylParticlesEnabled]。 */
+        const val KEY_VINYL_PARTICLES = "vinyl_particles"
         /** 强制车机大屏布局（默认关），见 [forceCarLayout]。 */
         const val KEY_FORCE_CAR_LAYOUT = "force_car_layout"
         const val KEY_MAX_VISUAL_LINES = "max_visual_lines"

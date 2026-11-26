@@ -51,7 +51,12 @@ class VinylRecordView @JvmOverloads constructor(
 
     private val rotateGroup: FrameLayout
     private val coverView: ImageView
+    private val glowView: VinylGlowView
+    private val particleView: VinylParticleView
     private var currentBitmap: Bitmap? = null
+
+    /** 粒子开关的本地副本；宿主在 `onStart()` 里同步 [SettingsRepository] 的值。 */
+    private var particlesEnabled = true
 
     /** 最近一次写进封面的直径（px）；0 表示还没算过。 */
     private var coverSizePx = 0
@@ -93,6 +98,8 @@ class VinylRecordView @JvmOverloads constructor(
         LayoutInflater.from(context).inflate(R.layout.view_vinyl_record, this, true)
         rotateGroup = findViewById(R.id.vinylRotateGroup)
         coverView = findViewById(R.id.vinylCover)
+        glowView = findViewById(R.id.vinylGlow)
+        particleView = findViewById(R.id.vinylParticles)
         // 封面是圆的：用 outline 裁，而不是给 ImageView 套一个圆形 drawable
         coverView.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
@@ -100,6 +107,8 @@ class VinylRecordView @JvmOverloads constructor(
             }
         }
         coverView.clipToOutline = true
+        // 粒子层默认跟随播放态；开关初值由宿主在 onStart() 里同步
+        particleView.setParticlesEnabled(particlesEnabled)
         isClickable = true
         isFocusable = true
     }
@@ -111,8 +120,8 @@ class VinylRecordView @JvmOverloads constructor(
      *
      * 播放页改成三页滑动之后，唱片所在的格子在竖屏 / 横屏、手机 / 车机上的实际边长
      * 差别很大（从几十 dp 到几百 dp），写死一套 dimen 必然在某一档上「封面比盘大」
-     * 或者「封面缩在圆心一小块」。这里统一取 0.70 × 短边，与 `VinylDiscView`
-     * 的封面外圈（0.715R）对齐 —— 差的那 0.015 正好让白描边露在外面压住锯齿。
+     * 或者「封面缩在圆心一小块」。这里统一取 [COVER_RATIO] × 短边，与 `VinylDiscView`
+     * 的封面压边（`COVER_RATIO + 0.015`）对齐 —— 差的那 0.015 正好让压边露在外面压住锯齿。
      *
      * 只在尺寸真的变了才写 layoutParams：`onSizeChanged` 里改子 View 布局会再触发
      * 一次 layout，不做去重就会变成"布局 → onSizeChanged → 布局"的无底循环。
@@ -136,6 +145,9 @@ class VinylRecordView @JvmOverloads constructor(
         } else {
             coverView.setImageBitmap(bitmap)
         }
+        // 封面主色抽色：给环境光晕用（对应 QQ 的 magicColor）。
+        // 必须在 recycle 旧图之前调用，且只能用新图 —— 旧图已经被上次用它算过了。
+        glowView.setAccentColor(CoverAccentExtractor.extract(bitmap))
         // 先挂上新图再回收旧图，避免 View 从已回收的 Bitmap 上绘制。
         // 不回收的话，连续切歌每首泄漏一张整封面。
         if (previous != null && previous !== bitmap && !previous.isRecycled) {
@@ -143,10 +155,25 @@ class VinylRecordView @JvmOverloads constructor(
         }
     }
 
+    /** 粒子特效开关（默认开）。宿主在 `onStart()` 里按设置同步。 */
+    fun setParticlesEnabled(enabled: Boolean) {
+        if (particlesEnabled == enabled) return
+        particlesEnabled = enabled
+        particleView.setParticlesEnabled(enabled)
+    }
+
+    /** 粒子层与光效层的播放态。由 `startSpin()` / `pauseSpin()` 内部调用。 */
+    private fun syncPlayStateViews(playing: Boolean) {
+        glowView.setPlaying(playing)
+        particleView.setPlaying(playing)
+    }
+
     // ------------------------------------------------------------------ 旋转
 
     /** 开始转（无歌 / 暂停态调它也不会出现「转半圈」的跳变）。 */
     fun startSpin() {
+        // 光效与粒子跟着播放态走，放在所有早退之前，保证任何路径都会同步
+        syncPlayStateViews(true)
         if (animationsDisabled()) {
             // 系统「移除动画」：完全静态展示（`05 §4.2` 降级档）
             setAbsoluteAngle(angle)
@@ -180,11 +207,13 @@ class VinylRecordView @JvmOverloads constructor(
 
     /** 暂停：**不清零角度**（`05 §4.2` 暂停档）。 */
     fun pauseSpin() {
+        syncPlayStateViews(false)
         val animator = spinner ?: return
         if (animator.isStarted && !animator.isPaused) animator.pause()
     }
 
     fun resumeSpin() {
+        syncPlayStateViews(true)
         val animator = spinner ?: run {
             startSpin()
             return
@@ -325,13 +354,26 @@ class VinylRecordView @JvmOverloads constructor(
     }
 
     internal companion object {
-        /** 48 秒一圈（`05 §4.2`）。 */
-        const val ROTATION_DURATION_MS = 48_000L
+        /**
+         * 转一圈的时长，**24 秒**（5.10.0 由 48 秒改小）。
+         *
+         * 48 秒的角速度是 7.5°/s，肉眼几乎看不出在转；QQ 音乐实测在 20–24 秒区间。
+         * 取 24 秒（15°/s）既明显又在长时间观看下不晃眼；20 秒在车机大屏上略活泼。
+         */
+        const val ROTATION_DURATION_MS = 24_000L
 
         /** 30fps 上限 ≈ 33ms 一帧。 */
         const val FRAME_INTERVAL_MS = 33L
 
-        /** 封面直径占唱片短边的比例（`design/05 §4.1` L4：0.70）。 */
-        const val COVER_RATIO = 0.70f
+        /**
+         * 封面直径占唱片短边的比例，**0.56**。
+         *
+         * QQ 音乐实测封面半径 ≈0.50R（直径 = 盘径的 50%）；0.56 是用户确认后的取值，
+         * 比 QQ 略大一点，好处是封面大一些、沟槽带留得更宽，能看清光照纹理。
+         *
+         * 这个常量被三处派生引用：`VinylDiscView.COVER_RING_RADIUS_RATIO`（+0.015）、
+         * 本类的 `onSizeChanged`、以及布局里的注释说明。改它一处即可全局生效。
+         */
+        const val COVER_RATIO = 0.56f
     }
 }

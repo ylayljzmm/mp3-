@@ -8,7 +8,6 @@
 <resources>
 
     <!-- ================= 歌曲信息页（播放页左右滑动的第 1 页） ================= -->
-    <string name="song_info_title">歌曲信息</string>
     <string name="song_info_page_hint">左右滑动切换</string>
 
     <string name="song_info_section_basic">基本信息</string>

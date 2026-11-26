@@ -115,18 +115,15 @@
          h480dp 及以上歌名行 42dp（35sp × 1.2）、歌手行 20dp（16sp × 1.25）。
          ========================================================= -->
     <dimen name="player_axis_width">300dp</dimen>
-    <dimen name="player_axis_offset">8dp</dimen>
     <!-- 手机横屏（屏高 < 480dp）不位移：左栏本来就不贴边，右移会挤压歌词列。 -->
     <dimen name="player_axis_shift">0dp</dimen>
     <dimen name="player_topbar">64dp</dimen>
     <!-- 82 + 4 + 32 + 2 + 18 + 4 + 22 + 2 + 44 + 2 + 34 = 246 ≤ 248 ✓ -->
-    <dimen name="vinyl_size">82dp</dimen>
-    <!-- 封面直径 = 唱片 × 0.70（§4.1 L4）：82 × 0.70 ≈ 58。
+    <!-- 封面直径 = 唱片 × 0.56（5.10.0 起）：82 × 0.56 ≈ 46。
          6.0 起这只是一个**布局阶段的兜底值**：真实直径由 `VinylRecordView.onSizeChanged`
-         按控件实际短边 × 0.70 写回（播放页的唱片格子会随屏幕与滑动页高度变化），
+         按控件实际短边 × 0.56 写回（播放页的唱片格子会随屏幕与滑动页高度变化），
          四档仍保留同名 dimen，是为了首帧不会先画一个错尺寸再跳。 -->
-    <dimen name="vinyl_art">58dp</dimen>
-    <dimen name="player_gap_vinyl_title">4dp</dimen>
+    <dimen name="vinyl_art">46dp</dimen>
     <dimen name="player_gap_title_artist">2dp</dimen>
     <dimen name="player_gap_artist_progress">4dp</dimen>
     <dimen name="player_gap_progress_transport">2dp</dimen>
@@ -140,7 +137,7 @@
     <dimen name="player_time_width">40dp</dimen>
     <!-- 22dp ≥ 13dp 滑块直径 + 上下各 4dp 余量：滑块不再被父容器裁掉一半 -->
     <dimen name="player_progress_height">22dp</dimen>
-    <dimen name="player_vinyl_hole">8dp</dimen>
+    <dimen name="player_vinyl_hole">6dp</dimen>
     <dimen name="player_topbar_button">60dp</dimen>
     <dimen name="player_topbar_padding">12dp</dimen>
     <dimen name="player_topbar_button_padding">18dp</dimen>
@@ -169,6 +166,8 @@
          于 5.5.0 一并删除（四档都没有这个 key 了）。 -->
     <dimen name="player_title_text_size">26sp</dimen>
     <dimen name="player_artist_text_size">13sp</dimen>
+    <dimen name="player_gap_artist_source">2dp</dimen>
+    <dimen name="player_source_text_size">11sp</dimen>
     <dimen name="player_action_icon_size">22dp</dimen>
 
     <!-- =========================================================
@@ -182,9 +181,6 @@
     <!-- 竖屏中轴左右内边距；SwipeDeckLayout 的页面也用它 -->
     <dimen name="player_side_padding">20dp</dimen>
     <!-- 页码点一行的高度 / 单个点直径 / 点间距 -->
-    <dimen name="player_dots_height">20dp</dimen>
-    <dimen name="player_dot_size">6dp</dimen>
-    <dimen name="player_dot_gap">6dp</dimen>
     <!-- 歌曲信息页：头部封面边长；每行的最小高度（≥ 40dp，车机上单手也点得准） -->
     <dimen name="song_info_cover_size">96dp</dimen>
     <dimen name="song_info_row_min_height">40dp</dimen>

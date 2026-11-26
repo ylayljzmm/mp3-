@@ -46,7 +46,6 @@
     <string name="more_reload_cover">重新加载专辑封面</string>
     <string name="cover_reload_loading">正在重新加载封面</string>
     <string name="cover_reload_success">封面已更新</string>
-    <string name="cover_reload_failed">未能重新加载封面</string>
     <!-- 失败不再统一一句话：用户需要分清是「开关关着」「本地文件没内嵌也没搜到」还是「图本来就是这张」 -->
     <string name="cover_reload_unchanged">封面已是最新，没有找到更好的图</string>
     <string name="cover_reload_online_disabled">联网封面已关闭，本地文件也没有内嵌封面</string>
@@ -63,6 +62,14 @@
     <string name="more_info_path">文件路径：%1$s</string>
     <string name="more_info_lrc">歌词路径：%1$s</string>
     <string name="more_info_unknown">未知</string>
+
+    <!-- 5.10.0 C14：播放页的「来源 · 歌词渠道」标识。
+         只用已经在内存里的信息，不多读一次文件（码率要 MediaMetadataRetriever，放第二版）。 -->
+    <string name="player_source_local">本地</string>
+    <string name="player_source_online">在线</string>
+    <string name="player_source_radio">电台</string>
+    <string name="player_source_podcast">播客</string>
+    <string name="player_source_lyric">歌词 %1$s</string>
 
     <!-- 通用（strings.xml 里没有 common_cancel，这里补一个；已有同名会编译失败） -->
     <string name="common_cancel">取消</string>

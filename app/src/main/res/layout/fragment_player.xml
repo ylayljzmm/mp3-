@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  播放页 · 横屏 / 车机档（`design/05` 方案 D + 6.0 滑动改造）。
+  播放页 · 横屏 / 车机档（`design/05` 方案 D + 6.0 滑动改造 + 5.10.0 重做）。
 
   结构（从下往上，同层级按书写顺序叠放）：
     L0 themeBackground  ?attr/colorSurface 纯色
@@ -15,6 +15,15 @@
      所以 SwipeDeckLayout 必须按子 View 数量工作，不能写死页数。
   ② `btnLyricsBack` 删除：全屏歌词态与「点封面进全屏」一起取消了，
      歌词永远在右栏（横屏）或 deck 第 3 页（竖屏），不再需要退出按钮。
+
+  5.10.0 的三处变化（与 `layout-port/fragment_player.xml` 同步）：
+  ① 页码圆点 `pageDots` **彻底删除**（此前只是 visibility=GONE 的死节点），
+     连带 `player_dots_height` 也不再使用。
+  ② 顶栏歌词调节入口 `btnLyricTune` 从 14sp 的「调」字 TextView 换成
+     `ic_tune` 图标的 ImageButton（id 不变，PlayerFragment 无需改动）。
+  ③ `songTitle` / `songArtist` 改为按需走马灯：`ellipsize="marquee"` +
+     `scrollHorizontally`，是否真正滚动由 `PlayerFragment.applyMarqueeIfNeeded()`
+     在测量完文字宽度后决定 —— 放得下就静止，溢出才滚。
 
   **两个布局文件的 id 集合必须完全一致**：ViewBinding 只按 id 生成一份
   `FragmentPlayerBinding`，任何一侧多一个或少一个 id 都会让它编译不过。
@@ -119,22 +128,16 @@
                     </FrameLayout>
                 </com.suisheng.player.ui.SwipeDeckLayout>
 
-                <!-- 页码点由代码填（数量 = deck 页数） -->
-                <LinearLayout
-                    android:id="@+id/pageDots"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/player_dots_height"
-                    android:gravity="center"
-                    android:orientation="horizontal" />
-
                 <TextView
                     android:id="@+id/songTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
                     android:gravity="start"
                     android:letterSpacing="-0.025"
                     android:maxLines="1"
+                    android:scrollHorizontally="true"
                     android:singleLine="true"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="@dimen/player_title_text_size"
@@ -145,11 +148,26 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/player_gap_title_artist"
-                    android:ellipsize="end"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
                     android:gravity="start"
+                    android:scrollHorizontally="true"
                     android:singleLine="true"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="@dimen/player_artist_text_size" />
+
+                <!-- 5.10.0 C14：来源 · 歌词渠道。零额外 IO：只用已在内存的 Song.path 与歌词文档的 providerId。 -->
+                <TextView
+                    android:id="@+id/songSource"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/player_gap_artist_source"
+                    android:alpha="0.75"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="@dimen/player_source_text_size" />
 
                 <LinearLayout
                     android:id="@+id/progressRow"
@@ -442,21 +460,24 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
+            <!--
+                5.10.0 C6：原来是 14sp 加粗的「调」字，占位感强且与右侧图标不成体系。
+                现在换成 Material `tune` 图标的 ImageButton。
+                触摸目标 60dp、内边距 18dp，正中间留给 24dp 的图标（60 − 18×2 = 24），
+                与顶栏其它图标按钮同尺寸、同点击热区。
+            -->
+            <ImageButton
                 android:id="@+id/btnLyricTune"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="@dimen/player_topbar_button"
+                android:layout_height="@dimen/player_topbar_button"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
+                android:contentDescription="@string/lyric_tune_button"
                 android:focusable="true"
-                android:paddingStart="10dp"
-                android:paddingTop="8dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="8dp"
-                android:text="@string/lyric_tune_button"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:padding="@dimen/player_topbar_button_padding"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_tune"
+                app:tint="?attr/colorOnSurfaceVariant" />
 
             <ImageButton
                 android:id="@+id/btnMore"

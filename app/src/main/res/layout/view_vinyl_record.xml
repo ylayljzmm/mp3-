@@ -1,22 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  黑胶唱片（design/05 §4.1）。
+  黑胶唱片（design/05 §4.1，5.10.0 重做）。
 
-  层级顺序（FrameLayout 的子 View 按书写顺序叠放）：
-    vinylDisc       L1 盘体 + L2 密集纹路 + L3 离轴高光（VinylDiscView 自绘）
-    vinylCover      L4 封面（尺寸由 VinylRecordView 在 onSizeChanged 里按
-                       `min(w, h) × COVER_RATIO(0.70)` 动态写回 layoutParams；
+  层级顺序（FrameLayout 的子 View 按书写顺序叠放，后者盖前者）：
+    vinylGlow       L0 环境光：中性灰柔光罩 + 封面主色光晕 + 追光光束（VinylGlowView 自绘）
+    vinylRotateGroup    —— 旋转组，组内所有内容共用同一个相位顺时针旋转
+      vinylDisc     L1 纯黑盘面 + 沟槽光照纹理 + 盘沿描边（VinylDiscView 自绘）
+      vinylCover    L2 封面（尺寸由 VinylRecordView 在 onSizeChanged 里按
+                       `min(w, h) × COVER_RATIO(0.56)` 动态写回 layoutParams；
                        XML 里的 @dimen/vinyl_art 只是首帧兜底值）
-    vinylHole       L5 中心孔（已按方案 F 置 gone）
-  vinylDisc 与 vinylCover 都在 vinylRotateGroup 里，共用父组的同一相位顺时针旋转。
-  封面直径按 min(w,h) × COVER_RATIO 动态写回；VinylDiscView 的沟槽起点与压边半径
-  由同一个 COVER_RATIO 派生，改封面占比时只需动一处。
+    vinylParticles  L3 上浮粒子（VinylParticleView 自绘，不随盘转）
+    vinylHole       L4 中心孔 6dp
+
+  为什么粒子层不在旋转组里：粒子是自由上浮的，跟着盘转会变成"绕着盘心画圈"。
+
+  封面直径按 min(w,h) × COVER_RATIO 动态写回；VinylDiscView 的封面压边半径由同一个
+  COVER_RATIO 派生（+0.015），改封面占比时只需动 VinylRecordView.COVER_RATIO 一处。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipChildren="false"
     android:clipToPadding="false">
+
+    <com.suisheng.player.ui.VinylGlowView
+        android:id="@+id/vinylGlow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center" />
 
     <FrameLayout
         android:id="@+id/vinylRotateGroup"
@@ -44,14 +55,17 @@
             android:src="@drawable/bg_album_placeholder" />
     </FrameLayout>
 
-    <!-- 方案 F 裁定：中心圆黑点删除。保留 id 与尺寸定义，仅置 gone，
-         这样 ViewBinding 与旧布局引用都不会断，将来需要时可一键恢复。 -->
+    <com.suisheng.player.ui.VinylParticleView
+        android:id="@+id/vinylParticles"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center" />
+
     <View
         android:id="@+id/vinylHole"
         android:layout_width="@dimen/player_vinyl_hole"
         android:layout_height="@dimen/player_vinyl_hole"
         android:layout_gravity="center"
-        android:background="@drawable/bg_vinyl_hole"
-        android:visibility="gone" />
+        android:background="@drawable/bg_vinyl_hole" />
 
 </FrameLayout>

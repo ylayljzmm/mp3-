@@ -368,6 +368,24 @@
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp" />
 
+                <!-- 5.10.0：黑胶上浮粒子特效（默认开，低端机可关） -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchVinylParticles"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/settings_vinyl_particles"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/settings_vinyl_particles_hint"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+
                 <!-- 车机形态自动判定的最后兜底：某些深度定制 ROM 既无 automotive 声明、
                      屏幕参数也异常，几何判定可能落空，让用户能自己强制开启。 -->
                 <com.google.android.material.switchmaterial.SwitchMaterial

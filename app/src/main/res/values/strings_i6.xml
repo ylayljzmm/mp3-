@@ -52,9 +52,6 @@
     <string name="lyric_ability_plain">纯文本</string>
 
     <!-- 逐字歌词 -->
-    <string name="lyric_word_level_title">逐字歌词</string>
-    <string name="lyric_word_level_on">已开启逐字</string>
-    <string name="lyric_word_level_off">逐行显示</string>
 
     <!-- 来源页 / 页签 -->
     <string name="lyric_source_current">当前</string>
@@ -65,6 +62,4 @@
     <string name="lyric_tune_button">调</string>
 
     <!-- 前奏 / 间奏提示 -->
-    <string name="lyric_phase_prelude">前奏</string>
-    <string name="lyric_phase_interlude">间奏</string>
 </resources>

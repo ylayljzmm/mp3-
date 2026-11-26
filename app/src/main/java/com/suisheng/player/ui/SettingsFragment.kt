@@ -110,6 +110,7 @@ class SettingsFragment : Fragment() {
         binding.switchOnlineLyrics.isChecked = settings.onlineLyricsEnabled
         binding.switchOnlineCover.isChecked = settings.onlineCoverEnabled
         binding.switchSpinCover.isChecked = settings.spinCoverWithDisc
+        binding.switchVinylParticles.isChecked = settings.vinylParticlesEnabled
         binding.switchForceCarLayout.isChecked = settings.forceCarLayout
         // 把自动识别结果直接写在开关标题上，用户不用靠猜就知道这台设备是否命中判定。
         binding.switchForceCarLayout.text = getString(
@@ -166,6 +167,10 @@ class SettingsFragment : Fragment() {
         binding.switchSpinCover.setOnCheckedChangeListener { _, checked ->
             settings.spinCoverWithDisc = checked
             // 播放页在返回前台的 onStart() 里重读这个值，不需要跨 Fragment 发通知。
+        }
+        binding.switchVinylParticles.setOnCheckedChangeListener { _, checked ->
+            settings.vinylParticlesEnabled = checked
+            // 播放页在 onStart() 里重读，并把开关传给 VinylParticleView。
         }
         binding.switchForceCarLayout.setOnCheckedChangeListener { _, checked ->
             settings.forceCarLayout = checked

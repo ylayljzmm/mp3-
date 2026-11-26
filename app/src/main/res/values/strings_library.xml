@@ -24,7 +24,6 @@
     <string name="hidden_folder_restored">已恢复</string>
 
     <!-- 空态提示（文件夹页没有可展示的子目录时引导用户「长按」这个手势） -->
-    <string name="hidden_folder_long_press_hint">长按文件夹可隐藏，可从设置中恢复</string>
 
     <!-- 全部歌曲都落在隐藏目录里时的空态（藏到一首都不剩，是可真实发生的） -->
     <string name="hidden_folder_all_hidden">歌曲都已隐藏</string>

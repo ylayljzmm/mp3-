@@ -42,6 +42,7 @@ import com.suisheng.player.playback.AudioEffectController
 import com.suisheng.player.playback.CoverReloadState
 import com.suisheng.player.playback.PlaybackStateHolder
 import com.suisheng.player.util.CoverBitmap
+import com.suisheng.player.util.MediaPath
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
@@ -181,6 +182,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         PlaybackStateHolder.addListener(this)
         // 设置页改完开关返回播放页会走这里；避免在每帧 animator 回调里读 SharedPreferences。
         binding.vinylRecord.coverSpinsWithDisc = settings.spinCoverWithDisc
+        binding.vinylRecord.setParticlesEnabled(settings.vinylParticlesEnabled)
         if (PlaybackStateHolder.isPlaying) binding.vinylRecord.resumeSpin()
     }
 
@@ -282,7 +284,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
     // ---------------------------------------------------------------- 滑动页
 
     /**
-     * 页码点与信息页加载。
+     * 信息页加载与页切换回调。
      *
      * 页数从 [SwipeDeckLayout.pageCount]（= 子 View 数）读：竖屏 3 页、横屏 2 页，
      * 两个布局共用一份 ViewBinding，写死数字必然在另一侧越界。
@@ -290,14 +292,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
      * **初始页不在这里定**：`SwipeDeckLayout` 自己会在 `onFinishInflate` 的 `post{}` 里
      * 定位（没有存档 → `pageCover`；有存档 → 旋转前停的那一页）。这里如果也 setCurrent
      * 一次，就会把刚恢复出来的页码覆盖回封面页 —— 转屏后从歌词页跳回封面就是这么来的。
+     *
+     * 5.10.0 C12：页码圆点（`pageDots`）已从两份 `fragment_player.xml` 里**彻底删除**，
+     * 不再只是 `visibility = GONE`。它此前是「永远隐藏、不塞子 View、不响应切页」的
+     * 死节点，留着白占一档 `player_dots_height` 的竖向空间，且每次改版都要同步维护两份布局。
      */
     private fun setupSwipeDeck() {
-        // 5.7.2 起两种形态都不再显示页码圆点：车机横屏本来只剩一页，手机竖屏的
-        // 三个点用户也要求删掉。pageDots 这个 id 在 layout/ 与 layout-port/ 两份
-        // fragment_player.xml 里都保留（ViewBinding 只生成一份 Binding，id 集合必须
-        // 逐项一致），只是永远隐藏、不再往里加任何子 View，也不再响应切页。
-        binding.pageDots.visibility = View.GONE
-
         if (isDualPane()) {
             // 5.7.1（需求 5）：车机横屏的「左滑信息页」与功能行的「歌曲信息」按钮重复，
             // 且横滑容易误触。这里只在**运行时**把该页从 deck 摘掉：XML 里的 id 全部保留。
@@ -586,7 +586,7 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
     private fun renderState() {
         val song = PlaybackStateHolder.currentSong
         val key = "${song?.path}|${PlaybackStateHolder.isPlaying}|${PlaybackStateHolder.playMode}|" +
-            "${song?.title}|${song?.artist}"
+            "${song?.title}|${song?.artist}|${PlaybackStateHolder.lyricDocument?.sourceProviderId}"
         if (key != renderedStateKey) {
             renderedStateKey = key
             // 无歌时给专门的静默态：歌名位出现 App 名、歌手位塞带 \n 的 no_songs 都会像 bug
@@ -597,6 +597,12 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
                 binding.songTitle.text = song.title
                 binding.songArtist.text = song.artist
             }
+            // 5.10.0 C7：走马灯只在「默认状态显示不全」时启动。
+            // 做法是等这一帧文本布局完成后再量宽度 —— 立刻量拿到的是旧文本的宽度。
+            applyMarqueeIfNeeded(binding.songTitle)
+            applyMarqueeIfNeeded(binding.songArtist)
+            // 5.10.0 C14：来源 · 歌词渠道。放在同一段节流里，8Hz 的进度回调不会反复刷它。
+            renderSourceLabel(song)
             binding.btnPlayPause.setImageResource(
                 if (PlaybackStateHolder.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
             )
@@ -613,6 +619,41 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         // 放在这里会让 8Hz 的进度回调每帧刷两遍（两次线性 findIndex + 两次 currentStyle()，
         // 后者内部还要新建 SettingsRepository 读 prefs），低端车机上就是白掉的 CPU。
         // 唯一不带位置的调用点 onViewCreated 自己在后面补一次 update。
+    }
+
+    /**
+     * 5.10.0 C14：来源 · 歌词渠道。
+     *
+     * 显示成「本地 · 歌词 网易云」这样的一行小字，**不读文件、不联网**：
+     * - 来源来自 `Song.path` 的 scheme（`MediaPath.isOnline/isRadio/isPodcast`），
+     *   这些前缀在扫描/入队时就已经写进 path 了；
+     * - 歌词渠道来自 [PlaybackStateHolder.lyricDocument] 的 `sourceProviderId`，
+     *   它是 `LrcParser` 解析 `#@meta provider=` 时带出来的，已经在内存里。
+     *
+     * 码率之类的信息要额外开一次 `MediaMetadataRetriever` 读文件，8Hz 的刷新节奏下
+     * 绝不能放在这里 —— 留到「歌曲信息」页，那边本来就是一次性异步加载。
+     */
+    private fun renderSourceLabel(song: Song?) {
+        val text = if (song == null) {
+            ""
+        } else {
+            val source = when {
+                MediaPath.isOnline(song.path) -> getString(R.string.player_source_online)
+                MediaPath.isRadio(song.path) -> getString(R.string.player_source_radio)
+                MediaPath.isPodcast(song.path) -> getString(R.string.player_source_podcast)
+                else -> getString(R.string.player_source_local)
+            }
+            val providerId = PlaybackStateHolder.lyricDocument?.sourceProviderId
+            val provider = providerId?.let { LyricProviderCatalog.of(it)?.labelRes?.let(::getString) }
+            if (provider.isNullOrBlank()) {
+                source
+            } else {
+                source + " · " + getString(R.string.player_source_lyric, provider)
+            }
+        }
+        binding.songSource.text = text
+        // 没有可显示内容时整行收起，避免在歌名/歌手下方留一条空白
+        binding.songSource.visibility = if (text.isBlank()) View.GONE else View.VISIBLE
     }
 
     private fun updateProgressUi(positionMs: Long, durationMs: Long) {
@@ -632,8 +673,49 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
         return "$min:${sec.toString().padStart(2, '0')}"
     }
 
-    private fun renderCover(coverPath: String?) {
-        if (coverPath.isNullOrBlank()) {
+    /**
+     * 5.10.0 C7：只在文字**显示不全**时才让走马灯滚起来。
+     *
+     * ## 为什么要 measure 而不是直接 `isSelected = true`
+     *
+     * `ellipsize="marquee"` + `isSelected = true` 是让 TextView 滚起来的通用做法，
+     * 但它有个副作用：**文字放得下的时候也会滚**。TextView 的 marquee 实现是
+     * 「只要 selected 就按 `scrollHorizontally` 逐帧平移」，它不判断内容是否溢出，
+     * 结果是短歌名（比如《晴天》）在标题位上左右晃，看着像故障。
+     *
+     * 所以这里先量：用当前 `TextPaint` 算出文字宽度，和 `TextView` 的可用内容宽度比。
+     * 放得下 → `isSelected = false`（保持 `ellipsize` 的省略号，静止）；
+     * 放不下 → `isSelected = true`（滚）。
+     *
+     * ## 为什么 post 到下一帧
+     *
+     * `renderState()` 里刚刚 `setText()`，此刻 `width` 还是上一次文本布局留下的宽度；
+     * 直接量会拿旧值判断，导致「上一首长标题 → 这一首短标题」时仍然在滚。
+     * `post` 排到当前消息队列末尾，那时 `TextView` 已经走完 `onMeasure`/`onLayout`。
+     *
+     * 视图已销毁时 `post` 的 Runnable 仍可能执行，所以先判 `_binding != null`。
+     */
+    private fun applyMarqueeIfNeeded(view: android.widget.TextView) {
+        val expected = view.text?.toString().orEmpty()
+        view.post {
+            if (_binding == null) return@post
+            // 期间又切歌了：这次测量已经过期，交给下一次 renderState
+            if (view.text?.toString() != expected) return@post
+            val available = view.width - view.paddingStart - view.paddingEnd
+            if (available <= 0) {
+                view.isSelected = false
+                return@post
+            }
+            val paint = view.paint
+            val textWidth = paint.measureText(expected)
+            // 留 1dp 容差：measureText 与 layout 的取整方向可能不同，
+            // 差 1px 就来回切 isSelected 会看到文字"抖"一下。
+            val tolerance = MARQUEE_WIDTH_TOLERANCE_PX
+            view.isSelected = textWidth > available + tolerance
+        }
+    }
+
+    private fun renderCover(coverPath: String?) {        if (coverPath.isNullOrBlank()) {
             binding.vinylRecord.setCoverBitmap(null)
             return
         }
@@ -1143,6 +1225,15 @@ class PlayerFragment : Fragment(), PlaybackStateHolder.Listener, PageBackHandler
     private companion object {
         /** 解码上限：768px 最长边（避免 3000×3000 封面在车机上 OOM）。 */
         const val COVER_MAX_PX = 768
+
+        /**
+         * 走马灯溢出的判定容差（px）。
+         *
+         * `paint.measureText()` 与 `TextView` 内部 `Layout` 的取整方向可能不同，
+         * 差 1–2px 就会让 `isSelected` 在两次切歌之间来回切，肉眼看到文字"抖"一下。
+         * 留 2px 容差，宁可少滚一次也不要抖。
+         */
+        const val MARQUEE_WIDTH_TOLERANCE_PX = 2f
 
         /**
          * 歌曲信息页头部封面的解码上限。
